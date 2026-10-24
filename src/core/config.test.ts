@@ -43,15 +43,31 @@ describe("the companion switch", () => {
   });
 });
 
+describe("the pet and shop switches", () => {
+  it("are on by default", () => {
+    for (const raw of [undefined, {}]) { expect(readConfig(raw).pet).toBe("on"); expect(readConfig(raw).shop).toBe("on"); }
+  });
+
+  it("are off only for the string \"off\"", () => {
+    expect(readConfig({ pet: "off" }).pet).toBe("off");
+    expect(readConfig({ shop: "off" }).shop).toBe("off");
+    expect(readConfig({ pet: "off" }).shop).toBe("on");
+  });
+
+  it("take the default for a damaged value", () => {
+    for (const v of ["OFF", "no", "", false, 0, null, {}, ["off"]]) { expect(readConfig({ pet: v }).pet).toBe("on"); expect(readConfig({ shop: v }).shop).toBe("on"); }
+  });
+});
+
 describe("the other settings", () => {
   it("fill their defaults as before", () => {
     expect(readConfig(undefined)).toEqual({
-      supabaseUrl: "", supabaseAnonKey: "", providers: [], emailDelivery: true, learn: { events: "on" }, board: "on", learners: "on", companion: "on"
+      supabaseUrl: "", supabaseAnonKey: "", providers: [], emailDelivery: true, learn: { events: "on" }, board: "on", learners: "on", companion: "on", pet: "on", shop: "on"
     });
   });
 
   it("are read as before with the switch off", () => {
     expect(readConfig({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google", 3], emailDelivery: false, learn: { events: "off" }, board: "off" }))
-      .toEqual({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google"], emailDelivery: false, learn: { events: "off" }, board: "off", learners: "on", companion: "on" });
+      .toEqual({ supabaseUrl: "u", supabaseAnonKey: "k", providers: ["google"], emailDelivery: false, learn: { events: "off" }, board: "off", learners: "on", companion: "on", pet: "on", shop: "on" });
   });
 });

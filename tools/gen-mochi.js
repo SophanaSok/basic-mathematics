@@ -91,10 +91,12 @@ function problems() {
     if (r.morphs.join(",") !== e.morphs.join(",")) out.push(w + "morphs " + r.morphs.length + " in the file, manifest says " + e.morphs.length + " (or the names differ)");
   }
   const dir = abs(OUT_DIR);
-  /* water.png is tools/gen-water.js's (the porthole backdrop), the one file here that is not Mochi's */
-  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f) && f !== "water.png") out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
+  if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(f => { if (!named.has(f) && !OTHERS.has(f)) out.push(OUT_DIR + "/" + f + " is not in the manifest"); });
   return out;
 }
+
+/* the files here that are not Mochi's: tools/gen-water.js owns water.png (the porthole backdrop) and decor.png (the pool's decor sheet) */
+const OTHERS = new Set(["water.png", "decor.png"]);
 
 function render(entries) {
   const order = ["variant", "file", "poses", "images", "bytes", "triangles", "clips", "morphs", "sha"];
@@ -184,7 +186,7 @@ function main() {
   fs.writeFileSync(abs(FILE), render(entries));
   const named = new Set();
   entries.forEach(e => { named.add(path.basename(e.file)); named.add(path.basename(e.poses)); e.images.forEach(im => named.add(path.basename(im))); });
-  fs.readdirSync(abs(OUT_DIR)).forEach(f => { if (!named.has(f)) { fs.rmSync(abs(OUT_DIR + "/" + f), { recursive: true, force: true }); console.log("removed stale " + OUT_DIR + "/" + f); } });
+  fs.readdirSync(abs(OUT_DIR)).forEach(f => { if (!named.has(f) && !OTHERS.has(f)) { fs.rmSync(abs(OUT_DIR + "/" + f), { recursive: true, force: true }); console.log("removed stale " + OUT_DIR + "/" + f); } });
   entries.forEach(e => console.log("mochi-" + e.variant + ": " + e.triangles + " triangles, " + e.bytes.toLocaleString("en-US") + " bytes, " + e.clips.length + " clips, " + e.morphs.length + " morphs"));
 }
 

@@ -801,6 +801,7 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
 
 .companion { margin: 1rem 0 0; font-family: var(--sans); font-size: .82rem; line-height: 1.35; }
 .companion-pic { display: block; position: relative; width: 8rem; height: 8rem; margin: 0 auto; --porthole-w: 8px; }
+button.companion-pic { appearance: none; border: 0; padding: 0; background: none; font: inherit; color: inherit; cursor: pointer; border-radius: 50%; }
 .companion-window {
   position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
   background-repeat: no-repeat; background-size: 800% 100%; background-position: 0 0; image-rendering: pixelated;
@@ -811,6 +812,15 @@ html[data-bossbar] .toasts { top: calc(var(--hud-h) + 2.75rem + .75rem); }
   background: linear-gradient(155deg, var(--porthole-glare), transparent 30%),
     radial-gradient(circle at 50% 50%, transparent 55%, var(--water-vignette) 100%), var(--water-tint);
 }
+/* the decor layer (public/models/mochi/decor.png, eight 32 px cells, tools/gen-water.js): a cell-sized box, half the
+   window, so a cell draws at 2x at 8rem and 1x at 4rem; a later card places it, sets its background-image from
+   JS as the water strip's is (a url() here would be rewritten by the build) and sets [data-decor] */
+.companion-decor {
+  display: none; position: absolute; width: 50%; height: 50%; pointer-events: none;
+  background-repeat: no-repeat; background-size: 800% 100%; background-position: 0 0;
+  image-rendering: pixelated;
+}
+.companion-decor[data-decor] { display: block; }
 .companion-still { position: absolute; inset: 0; background-repeat: no-repeat; }
 .companion-still, .companion-canvas { image-rendering: auto; }
 /* the rim: a dark line, a light bevel, the brass, a deep bevel, a dark line, then the page shadow outside */
@@ -837,8 +847,8 @@ html[data-motion="reduce"] .companion-canvas { transition: none; }
 }
 @media (max-width: 999px) {
   .companion { position: fixed; right: max(12px, 4vw); bottom: 12px; z-index: 38; margin: 0; width: 4rem; }
-  /* the sprite lets taps through to what it may sit over; the bubble keeps its link */
-  .companion-pic { width: 4rem; height: 4rem; pointer-events: none; --porthole-w: 6px; }
+  /* the picture is Mochi's button (it opens the pool) and takes the taps; the bubble keeps its link */
+  .companion-pic { width: 4rem; height: 4rem; --porthole-w: 6px; }
   .companion-name { display: none; }
   .companion figcaption { position: absolute; right: 0; bottom: 100%; margin-bottom: .35rem; width: max-content; max-width: min(15rem, calc(100vw - 24px)); }
   .companion-line {
@@ -849,7 +859,7 @@ html[data-motion="reduce"] .companion-canvas { transition: none; }
 /* the Arena has no sidebar (arena.js marks its body data-mode="arena" once the generators are up): the same small docked figure at every width, and the page's own controls
    scroll to clear it (scroll-margin) rather than lie under it */
 body[data-mode="arena"] .companion { position: fixed; right: max(12px, 4vw); bottom: 12px; z-index: 38; margin: 0; padding: 0; width: 4rem; max-width: none; }
-body[data-mode="arena"] .companion-pic { width: 4rem; height: 4rem; pointer-events: none; --porthole-w: 6px; }
+body[data-mode="arena"] .companion-pic { width: 4rem; height: 4rem; --porthole-w: 6px; }
 body[data-mode="arena"] .companion-name { display: none; }
 body[data-mode="arena"] .companion figcaption { position: absolute; right: 0; bottom: 100%; margin-bottom: .35rem; width: max-content; max-width: min(15rem, calc(100vw - 24px)); }
 body[data-mode="arena"] .companion-line { pointer-events: none;
@@ -860,7 +870,106 @@ body[data-mode="arena"] [data-arena] input, body[data-mode="arena"] [data-arena]
 body[data-mode="arena"] .wrap { padding-bottom: 6.5rem; }
 html:has(#hud-sheet:modal) .companion { display: none; }
 .companion[data-hidden] { display: none; }
-@media (forced-colors: active) { .companion-pic { display: none; } }
+@media (forced-colors: active) {
+  button.companion-pic { border: 1px solid ButtonText; border-radius: 50%; }
+  .companion-window { display: none; }
+}
+/* ------------------------------------------------------------------ pool --- */
+/* Mochi's pool (src/ui/pet/pool.ts, the lazy chunk): a dialog (or the same shell inline) with a 20rem porthole built as the
+   companion's is (the water strip is set from JS, the stage steps it), four rows of hearts, the facets line and Close.
+   Nothing here animates; the stage is the only thing that moves, and it holds still under reduced motion. */
+dialog.pet-dialog {
+  width: min(28rem, calc(100vw - 32px)); max-width: 28rem; max-height: min(92vh, 48rem); overflow-y: auto;
+  padding: 1rem 1.25rem 1.1rem; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
+.pet-pool { font-family: var(--sans); text-align: center; }
+.pet-title { margin: 0 0 .75rem; font-size: 1.25rem; }
+.pet-porthole { position: relative; width: min(20rem, 100%); aspect-ratio: 1; margin: 0 auto; --porthole-w: 14px; }
+.pet-window {
+  position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
+  background-repeat: no-repeat; background-size: 800% 100%; background-position: 0 0; image-rendering: pixelated;
+  box-shadow: inset 0 2px 6px var(--water-vignette);
+}
+.pet-window::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(155deg, var(--porthole-glare), transparent 30%),
+    radial-gradient(circle at 50% 50%, transparent 55%, var(--water-vignette) 100%), var(--water-tint);
+}
+.pet-porthole::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--porthole-edge), inset 0 0 0 3px var(--porthole-rim-light),
+    inset 0 0 0 calc(var(--porthole-w) - 1px) var(--porthole-rim), inset 0 0 0 var(--porthole-w) var(--porthole-rim-deep),
+    inset 0 0 0 calc(var(--porthole-w) + 1px) var(--porthole-edge), 0 0 0 1px var(--porthole-edge), var(--shadow);
+}
+.pet-porthole[data-3d] .companion-canvas { opacity: 1; }
+.pet-line { margin: .9rem 0 .6rem; font-size: .92rem; }
+.pet-needs { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: .5rem; }
+.pet-needs li { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; align-items: center; font-size: .8rem; }
+.pet-need-name { flex-basis: 100%; font-weight: 700; color: var(--muted); }
+.pet-needs i { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: var(--hud-track); }
+.pet-needs i[data-on] { background: var(--hud-flame); }
+.pet-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: 0 0 .75rem; }
+.pet-porthole { cursor: pointer; }
+.pet-facets { margin: 0 0 .9rem; font-size: .9rem; }
+.pet-porthole:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); border-radius: 50%; }
+.pet-line:focus { outline: none; }
+.pet-actions [aria-disabled="true"] { opacity: .55; cursor: default; }
+/* the pool and shop tabs, and the shop's rows (X-7); nothing here animates */
+.pet-tabs { display: flex; justify-content: center; gap: .25rem; margin: 0 0 .75rem; border-bottom: 1px solid var(--border); }
+.pet-tab {
+  font: inherit; font-weight: 700; padding: .4rem 1rem; background: transparent; color: var(--muted);
+  border: 0; border-bottom: 3px solid transparent; cursor: pointer;
+}
+.pet-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.pet-tab:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
+.pet-panel[hidden] { display: none; }
+.pet-group { margin: .9rem 0 .35rem; font-size: .95rem; text-align: left; }
+.pet-items { list-style: none; margin: 0; padding: 0; }
+.pet-item {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .25rem .75rem;
+  padding: .35rem 0; border-bottom: 1px solid var(--border); text-align: left; font-size: .9rem;
+}
+.pet-item-name { font-weight: 700; }
+.pet-item-price { color: var(--muted); font-size: .8rem; }
+.pet-owned { color: var(--muted); font-weight: 700; font-size: .85rem; }
+.pet-item .btn[hidden], .pet-owned[hidden] { display: none; }
+.pet-item .btn:disabled { opacity: .55; }
+.pet-item-note { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; }
+.pet-item-note[hidden] { display: none; }
+/* the Growth tab (X-8b): the stage, the five-step path and the 28-day calendar; nothing here animates */
+.pet-growth-stage { margin: .5rem 0 .15rem; font-weight: 700; }
+.pet-growth-next { margin: 0 0 .75rem; font-size: .9rem; color: var(--muted); }
+.pet-path { list-style: none; margin: 0 0 .9rem; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: .25rem; font-size: .8rem; }
+.pet-path li { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .35rem .1rem; color: var(--muted); border-top: 3px solid var(--hud-track); }
+.pet-path li[data-reached] { color: var(--text); border-top-color: var(--accent); }
+.pet-path li[aria-current="step"] { font-weight: 700; border-top-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.pet-path-at { font-size: .72rem; }
+.pet-days { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: .2rem; }
+.pet-days li { aspect-ratio: 1; border-radius: var(--radius-sm); background: var(--hud-track); }
+.pet-days li[data-points="1"] { background: color-mix(in srgb, var(--accent) 25%, var(--surface)); }
+.pet-days li[data-points="2"] { background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
+.pet-days li[data-points="3"] { background: color-mix(in srgb, var(--accent) 75%, var(--surface)); }
+.pet-days li[data-points="4"] { background: var(--accent); }
+@media (forced-colors: active) {
+  .pet-days li { border: 1px solid CanvasText; background: Canvas; }
+  .pet-days li:not([data-points="0"]) { background: Highlight; }
+  .pet-path li[aria-current="step"] { text-decoration: underline; }
+}
+@media (forced-colors: active) {
+  .pet-needs i { border: 1px solid CanvasText; background: Canvas; }
+  .pet-needs i[data-on] { background: CanvasText; }
+}
+@media print { dialog.pet-dialog, #mochi { display: none; } }
+/* the pool inline on the progress page (X-9): no dialog chrome, the porthole 16rem, centred */
+#mochi .pet-pool { max-width: 32rem; margin: 0 auto; }
+#mochi .pet-porthole { width: min(16rem, 100%); }
+/* Mochi's still in the level popover (src/ui/hud-pop.ts): decorative, 4rem square */
+.hud-pop .pop-mochi { position: relative; display: block; width: 4rem; height: 4rem; margin: 0 0 .4rem; background-repeat: no-repeat; image-rendering: auto; }
+@media print { .pop-mochi { display: none; } }
+@media (forced-colors: active) { .pop-mochi { display: none; } }
+@media (forced-colors: active) { .pet-path li[data-reached] { border-top-style: double; } }
 /* the dev-only QA panel (src/mochi/qa.ts, ?mochi=qa on a dev server) */
 .companion-qa { position: fixed; left: 8px; bottom: 8px; z-index: 60; display: flex; flex-wrap: wrap; gap: 4px; max-width: 22rem; padding: 6px; font: .75rem var(--sans); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .companion-qa button { font: inherit; padding: 2px 6px; }

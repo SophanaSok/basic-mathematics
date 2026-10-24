@@ -46,11 +46,16 @@ export interface AvatarOptions {
   random?(): number;
 }
 
+/** a stage's look (src/learn/pet.ts STAGE_LOOK): a scale and the weight of each growth morph */
+export interface Growth { scale: number; morphs: Record<string, number> }
+
 export interface Avatar {
   readonly object: Group;
   readonly meshes: Mesh[];
   setMood(name: string, fadeS?: number): boolean;
   setMorph(name: string, weight: number): void;
+  /** the growth look: the figure's scale and morph weights, kept and re-applied after every mixer step */
+  setGrowth(look: Growth): void;
   playIdleVariation(name?: string): boolean;
   moods(): string[];
   update(dt: number): void;
@@ -58,7 +63,7 @@ export interface Avatar {
   fading(): boolean;
   /** a mood is not the idle (so a variation is playing) or a crossfade is running */
   busy(): boolean;
-  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number };
+  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; growth: Growth };
   dispose(): void;
 }
 
@@ -162,9 +167,25 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
     }
   }
 
+  /* clip tracks write every morph target each frame, so the growth weights are set again after the mixer */
+  let growth: Growth = { scale: object.scale.x, morphs: {} };
+  function applyGrowth(): void {
+    for (const name of Object.keys(growth.morphs)) setMorph(name, growth.morphs[name]);
+  }
+  function setGrowth(look: Growth): void {
+    if (dead) return;
+    const sc = typeof look.scale === "number" && isFinite(look.scale) && look.scale > 0 ? look.scale : growth.scale;
+    const morphs: Record<string, number> = {};
+    Object.keys(look.morphs || {}).forEach((k) => { const v = (look.morphs as any)[k]; if (typeof v === "number" && isFinite(v)) morphs[k] = Math.min(1, Math.max(0, v)); });
+    growth = { scale: sc, morphs };
+    object.scale.setScalar(sc);
+    applyGrowth();
+  }
+
   function update(dt: number): void {
     if (dead) return;
     mixer.update(dt);
+    applyGrowth();
     if (fadeLeft > 0) fadeLeft = Math.max(0, fadeLeft - dt);
     if (o.still()) { nextVariation = interval(o.idleIntervalS, rand()); return; }
     if (variations.length && idleNow()) {
@@ -185,7 +206,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
   setMood("idle", 0);
 
   return {
-    object, meshes, setMood, setMorph, playIdleVariation, update, dispose,
+    object, meshes, setMood, setMorph, setGrowth, playIdleVariation, update, dispose,
     moods: () => Object.keys(actions).filter((n) => !isVariation(n)),
     fading: () => fadeLeft > 0,
     busy: () => fadeLeft > 0 || (!!mood && current !== mood),
@@ -194,6 +215,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
       weights: Object.fromEntries(Object.entries(actions).map(([n, a]) => [n, a.isRunning() ? a.getEffectiveWeight() : 0])),
       triangles,
       morphs: Object.keys(meshes[0]?.morphTargetDictionary ?? {}).length,
+      growth: { scale: growth.scale, morphs: { ...growth.morphs } },
     }),
   };
 }

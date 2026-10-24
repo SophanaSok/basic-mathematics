@@ -73,11 +73,12 @@ import "../ui/plan.ts";
 /* the exercises the site has, which insights.js uses to leave out stale statistics rows */
 import "../data/exercise-keys.ts";
 import "../ui/exercise-keys.ts";
-import "../../assets/insights.js";
-/* the companion's mood model and handle (window.BMCompanion.input); its sidebar figure mounts only on a chapter
-   page, so here the import only gives the handle */
+/* the companion's mood model and handle (window.BMCompanion.input, .openPool); its sidebar figure mounts only on a
+   chapter page (mount() returns early here), so the import only gives the handle. Before insights.js: its first
+   draw asks for window.BMCompanion to decide whether the page carries Mochi's pool, so it must already be up */
 import "../learn/mood.ts";
 import "../ui/companion.ts";
+import "../../assets/insights.js";
 /* BMNext.items(), which insights.js asks for the empty chart's "Your next steps": mount() finds no
    placeholder on this page, so the import draws nothing. It comes after insights.js (whose first
    draw is already made), which redraws once when it finds BMNext on the page's load */

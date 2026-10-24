@@ -186,6 +186,7 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
       return ok;
     },
     setMorph(name, weight) { avatar.setMorph(name, weight); if (!raf && canDraw()) draw(); },
+    setGrowth(look) { avatar.setGrowth(look); if (!raf && canDraw()) draw(); },
     playIdleVariation(name) {
       const ok = avatar.playIdleVariation(name);
       if (ok) request();

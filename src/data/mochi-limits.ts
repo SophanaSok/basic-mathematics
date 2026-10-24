@@ -8,3 +8,4 @@ export const MOCHI_IMAGE_BYTES_MAX = 400000;     // one texture
 export const MOCHI_WHOLE_BYTES_MAX = 1600000;    // one variant's whole download: the GLB plus its five textures
 export const MOCHI_POSES_BYTES_MAX = 160000;     // one sheet of nine stills, WebP
 export const MOCHI_WATER_BYTES_MAX = 16000;      // the water backdrop strip, 8 frames of 64x64
+export const MOCHI_DECOR_BYTES_MAX = 2000;       // the decor sheet, 8 cells of 32x32 (852 bytes today; room for an art pass)

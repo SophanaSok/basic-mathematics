@@ -76,7 +76,8 @@ const RUNTIME = BUNDLE + "rolldown-runtime.js";
    it imports (`dir`: those may be in the chunk too, all but one an entry imports, which
    goes with that entry's chunks); Mochi's stage, which only src/ui/companion.ts imports
    (src/mochi/index.ts, and the Three.js beside it, src/vendor/three-model.js, which only
-   that index imports). `by` is the importer (or a list of them): a page whose entry imports one
+   that index imports; the pool, src/ui/pet/pool.ts, is a chunk of its own that
+   src/ui/companion.ts imports and that imports Mochi's stage in its turn). `by` is the importer (or a list of them): a page whose entry imports one
    must reach the chunk through the import(), and no page's HTML may name the chunk,
    since only that import() is to fetch it (a signed-out reader on an ordinary page
    never downloads supabase-js, and a page with no 3D never downloads Three.js or the
@@ -87,8 +88,9 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "three.js", module: vendor.DIR + "/three.js", by: "assets/three-loader.js" },
   { chunk: BUNDLE + "supabase.js", module: vendor.DIR + "/supabase.js", by: "assets/account.js" },
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" },
-  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: "src/mochi/index.ts" },
-  { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: "src/ui/companion.ts", dir: "src/mochi/" },
+  { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/mochi/index.ts", "src/ui/pet/pool.ts"] },
+  { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: ["src/ui/companion.ts", "src/ui/pet/pool.ts"], dir: "src/mochi/" },
+  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: ["src/ui/pet/", "src/data/pet-items.ts"] },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];
@@ -584,11 +586,11 @@ function checkScripts(ctx, r) {
     if (!inside.includes(d.module)) r.fail(d.chunk + " is not built from " + d.module + " (its source map names " + inside.join(", ") + ")");
     const strays = inside.filter(s => {
       if (s === d.module) return false;
-      if (d.dir && s.startsWith(d.dir) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
+      if (d.dir && [].concat(d.dir).some(x => s.startsWith(x)) && !IN_NODE_MODULES.test(s)) return !!loadedAnywhere(s);
       if (!IN_NODE_MODULES.test(s) || !d.module.startsWith(vendor.DIR + "/")) return true;
       try { return vendor.vendorOf(s).file !== d.module; } catch (e) { return true; }
     });
-    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + d.dir + " no entry imports" : "") + ": " + strays.join(", "));
+    if (strays.length) r.fail(d.chunk + " holds more than " + d.module + (d.module.startsWith(vendor.DIR + "/") ? " and the files of its packages" : d.dir ? " and the modules of " + [].concat(d.dir).join(", ") + " no entry imports" : "") + ": " + strays.join(", "));
   });
   /* the bloom's size budget */
   {

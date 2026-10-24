@@ -492,8 +492,10 @@ browser until the server can hold it, which is the plan's order (0015), not rule
 5. Rollback: leave the column and the replaced function; nothing deployed is harmed by either.
 6. Apply the migration before X-3b deploys. While the column is missing, the client leaves `pet`
    out of its writes and treats a sign-out or learner switch as saved, then clears the local pet,
-   so a pet that never reached the server is gone. Nothing writes a pet until X-3b, so the gap
-   is harmless only until then.
+   so a pet that never reached the server is gone. Until X-3b the only pet writers are the care
+   row, the shop and growth (X-6 to X-8): hearts, the daily pellet, care days and growth stamps,
+   with no facets to spend, so a lost save costs a learner nothing of value. X-3b writes earns,
+   so the gap is harmless only until then.
 
 applied: ____ (date, filled in by the owner)
 
@@ -1019,6 +1021,8 @@ without removing its code.
 | `emailDelivery: false` | No "Email me a sign-in link", no "Forgot password" |
 | `board: "off"` | No Daily board: nothing is submitted or fetched, the Arena shows no board and the account page hides the switch (from K-10g). This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.submit_daily(text, integer, integer, integer, integer), public.daily_board(text) from authenticated;` in the SQL editor (leave `leave_board()` callable so readers can still leave), and `grant` them back to switch it on |
 | `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer, uuid) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer, uuid) to authenticated;` to switch it on |
+| `pet: "off"` | No pool: the button on Mochi (chapter pages, the Arena) and the inline panel on the progress page are gone, and the pool's chunk is not fetched. The record is kept and still syncs, so switching it on again shows the pool as it was; once earning ships (X-3b), earns keep accruing while the pool is off |
+| `shop: "off"` | No shop tab in the pool, no buys, and the Play act no longer needs a toy (none can be bought). What is owned stays owned, and once earning ships (X-3b) earns keep accruing (decision 0011) |
 
 **Planned [not yet]:**
 
@@ -1027,7 +1031,7 @@ without removing its code.
 | `learners: "off"` (PA-6; needs code in `src/core/config.ts` and `assets/account.js`) | No Learners panel and no adding of managed learners on the site's side only; a tab from before the deploy, or anything else holding a session, can still call the functions. For a full stop run `revoke execute on function public.learner_add(text, boolean, smallint) from authenticated;` in the SQL editor, and `grant execute on function public.learner_add(text, boolean, smallint) to authenticated;` to switch it on |
 
 The plan also adds `tutor.enabled` (R5; the tutor is built with it `false`) and
-one flag each for leagues (R4), the shop (R3), gates (R3) and streak reminders (R3). Only
+one flag each for leagues (R4), gates (R3) and streak reminders (R3). Only
 `tutor.enabled` has a settled name; the others are named by the release that adds them, which
 also adds a row to the table above.
 

@@ -38,4 +38,11 @@ window.BM_CONFIG = {
      here (with a comma after the previous setting's value): no figure is drawn and no model
      or pose sheet is fetched, and the settings sheet's Companion switch then changes nothing. It uses
      no network and no account. */
+  /* The pool (docs/decisions/0015-mochi-pool.md), Mochi's pond and its button, is on by default. To
+     hide it, add  pet: "off"  as a setting here (with a comma after the previous setting's value):
+     no pool is drawn and its code is not fetched; what a reader earns keeps accruing in the
+     browser. It uses no network and no account. */
+  /* The shop tab in the pool is on by default. To hide it, add  shop: "off"  as a setting here
+     (with a comma after the previous setting's value): no tab is drawn and a buy is refused
+     (docs/decisions/0011). It uses no network and no account. */
 };

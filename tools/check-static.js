@@ -1904,6 +1904,73 @@ function checkMochiWater(ctx, r) {
   r.count = 1;
 }
 
+/* The decor sheet is what tools/gen-water.js writes, within MOCHI_DECOR_BYTES_MAX. */
+function checkMochiDecor(ctx, r) {
+  const gw = require("./gen-water");
+  gw.problemsDecor().forEach(m => r.fail(m));
+  try {
+    const d = require("./lib/png").decode(fs.readFileSync(gw.DECOR_FILE));
+    if (d.width !== gw.DECOR_WIDTH || d.height !== gw.DECOR_HEIGHT) r.fail("public/models/mochi/decor.png is " + d.width + "x" + d.height + ", not " + gw.DECOR_WIDTH + "x" + gw.DECOR_HEIGHT);
+  } catch (e) { /* unreadable or missing: problemsDecor() has said so */ }
+  r.count = 1;
+}
+
+/* ------------------------------------------------------------ pet-money -- */
+
+/* T9 of decision 0015: facets are Mochi's currency, not money. assets/account.js (the sync) may not
+   name price, prices, facet or facets, even in a comment; no SQL under supabase/ (schema.sql and
+   the migrations; supabase/tests/ holds assertions about the once-keys, not write paths, so it is
+   left out) may name facet, facets, price, prices or spent in code, after `--` and block comments
+   are cut; and the only write the SQL may make to the pet column is `pet = '{}'` (the fresh start, the
+   value followed by `::jsonb`, then `,`, `;`, `)` or the end of the line) and its definition; the rule does not
+   check which function holds it. A write is `pet =` (also `"pet" =`, `(pet) =`, a break before the `=`) followed by
+   anything else, `pet :=`, or an insert whose
+   column list names pet. Reads (`select pet`, `select *`, `comment on column ... pet`, the column
+   definition `pet jsonb ...`) are not writes. Returns [message]. */
+const PET_MONEY_JS = "assets/account.js";
+function petMoneyProblems(sources) {
+  const out = [];
+  Object.keys(sources).forEach(file => {
+    const src = sources[file];
+    if (file === PET_MONEY_JS) {
+      src.split("\n").forEach((line, i) => {
+        const m = /\b(prices?|facets?)\b/i.exec(line);
+        if (m) out.push(file + ":" + (i + 1) + " names \"" + m[1] + "\": the sync carries the pet record whole and prices nothing");
+      });
+      return;
+    }
+    /* comments are cut, but a string literal is read first, so a '--' inside one starts no comment */
+    const code = src.replace(/'(?:[^']|'')*'|\/\*[\s\S]*?\*\/|--[^\n]*/g, m => m[0] === "'" ? m : m.replace(/[^\n]/g, " "));
+    code.split("\n").forEach((line, i) => {
+      const w = /\b(facets?|prices?|spent)\b/i.exec(line);
+      if (w) out.push(file + ":" + (i + 1) + " names \"" + w[1] + "\": no SQL path reads or prices Mochi's facets");
+    });
+    /* a write is read over the whole text, so `set pet\n = pet`, `"pet" =`, `(pet) =` and `pet :=` are found wherever they break */
+    const assign = /(?<!\w)"?pet"?\s*\)?\s*:?=/gi;
+    let a;
+    while ((a = assign.exec(code))) {
+      const rest = code.slice(a.index + a[0].length);
+      if (/^\s*'\{\}'(?:::jsonb)?[ \t]*(?:[,;)]|\r?\n|$)/.test(rest)) continue;
+      out.push(file + ":" + (code.slice(0, a.index).split("\n").length) + " writes pet other than '{}': only private.fresh_start clears it, nothing sets it");
+    }
+    (code.match(/insert\s+into[^;]*\bpet\b/gi) || []).forEach(() => out.push(file + " inserts into a column list naming pet"));
+  });
+  return out;
+}
+
+function checkPetMoney(ctx, r) {
+  let sources = ctx.petMoneySources;
+  if (!sources) {
+    sources = {};
+    sources[PET_MONEY_JS] = fs.readFileSync(path.join(ROOT, PET_MONEY_JS), "utf8");
+    const sqlDir = (d) => fs.readdirSync(path.join(ROOT, d)).filter(f => /\.sql$/.test(f)).forEach(f => { sources[d + "/" + f] = fs.readFileSync(path.join(ROOT, d, f), "utf8"); });
+    sources["supabase/schema.sql"] = fs.readFileSync(path.join(ROOT, "supabase/schema.sql"), "utf8");
+    sqlDir("supabase/migrations");
+  }
+  r.count = Object.keys(sources).length;
+  petMoneyProblems(sources).forEach(m => r.fail(m));
+}
+
 /* ---------------------------------------------------------- help-markup -- */
 
 /* Help that sits on an exercise card (a clue ladder in data-hint/-hint2/-hint3, a
@@ -2284,6 +2351,8 @@ const CHECKS = [
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
   { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
+  { name: "pet-money", run: checkPetMoney, what: "facets are not money (0015, T9): assets/account.js never names price or facets; no supabase/ SQL (schema.sql, migrations) names facet, price or spent in code, and the only write to the pet column is pet = '{}'" },
+  { name: "mochi-decor", run: checkMochiDecor, what: "public/models/mochi/decor.png is what tools/gen-water.js writes: 8 cells of 32x32, under MOCHI_DECOR_BYTES_MAX" },
   { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
 ];
@@ -2314,5 +2383,5 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
-  onceProblems, chartProblems, checkScope, checkIcons, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
+  petMoneyProblems, onceProblems, chartProblems, checkScope, checkIcons, CHECKS, result, loadCore, barProblem, siteJudgeProblem, pureProblems, scheduleProblems, isPureFile, codeProblems, courseProblems, exerciseRefs, sectionAnchors, skillsProblems, sectionWorkCounts, sectionWorkProblems, pageKeys, lessonSteps, stepsDiff, helpMarkupProblems, requiresProblems, shellOf, shellDiff, scriptsProblems, randomState, stripLocalFirst, canon,
   animationFaults, colourLiterals, columnPatterns, inColumn, quietKinds, printGaps };

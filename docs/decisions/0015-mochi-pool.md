@@ -133,3 +133,11 @@ hungry-looking, growth requires learning days, and no money path exists.
 Decided 2026-10-23. This record is card X-0; the removal cards R-1a to R-2 and the pet cards
 X-1 to X-12 follow in the plan's order. The `pet` migration is applied live only after the
 client that tolerates its absence is deployed.
+
+Proof of T5 (X-11): `src/learn/pet.test.ts`, "a year of play stays small", builds 365 days (a pellet, a
+play, a clean and a spark counter a day, two review earns a day, a strong earn every ten days, one
+spend a day on alternating devices, the shop's toys and decor bought first), prunes it, and holds
+`JSON.stringify` of the record under 80,000 bytes. Measured: 76,419 bytes (the plan's guess of 60,000
+was low). The balance of the pruned record is the earned ids minus the spent ones.
+Proof of T9 (X-11): the `pet-money` rule of `tools/check-static.js` keeps `price` and `facet` out of
+`assets/account.js` and out of all SQL, and `pet = '{}'` is the only write to the column (the rule does not check the enclosing function).

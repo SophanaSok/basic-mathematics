@@ -488,6 +488,41 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
         check(gw.problems(path.join(wroot, "none.png")).length === 1, "mochi-water: a missing file fails");
       } finally { fs.rmSync(wroot, { recursive: true, force: true }); }
     }
+    /* the decor sheet: the same guarantees as the water strip, 256x32 */
+    {
+      const gw = require("./gen-water"), pngLib = require("./lib/png");
+      const d1 = gw.renderDecor(), d2 = gw.renderDecor(), hd = pngLib.readHeader(d1);
+      check(d1.equals(d2), "mochi-decor: renderDecor() twice gives the same bytes");
+      eq([hd.width, hd.height], [256, 32], "mochi-decor: the sheet is 256x32");
+      eq(gw.DECOR_CELLS, ["plant", "rock", "shell", "chest", "castle", "algae-1", "algae-2", "algae-3"], "mochi-decor: the cells are in the agreed order");
+      const cap = require("../src/data/mochi-limits.ts").MOCHI_DECOR_BYTES_MAX;
+      check(d1.length <= cap, "mochi-decor: the sheet is within the byte cap");
+      eq(gw.problemsDecor(), [], "mochi-decor: the committed file is current and within the cap");
+      const sc = gw.sceneDecor();
+      eq(sc.palette[0], [0, 0, 0, 0], "mochi-decor: palette index 0 is transparent");
+      const droot = fs.mkdtempSync(path.join(os.tmpdir(), "decor-"));
+      try {
+        const df = path.join(droot, "decor.png");
+        const px = Uint8Array.from(sc.pixels);
+        px[0] = px[0] === 1 ? 2 : 1;
+        fs.writeFileSync(df, pngLib.encode({ width: sc.width, height: sc.height, palette: sc.palette, pixels: px }));
+        check(gw.problemsDecor(df).some(m => /is stale/.test(m)), "mochi-decor: a file with one pixel changed is stale");
+        const pal = sc.palette.map(c => c.slice()); pal[1][0] = (pal[1][0] + 1) % 256;
+        fs.writeFileSync(df, pngLib.encode({ width: sc.width, height: sc.height, palette: pal, pixels: sc.pixels }));
+        check(gw.problemsDecor(df).some(m => /is stale/.test(m)), "mochi-decor: a file with one palette entry changed is stale");
+        fs.writeFileSync(df, pngLib.encode({ width: 128, height: 64, palette: sc.palette, pixels: sc.pixels }));
+        check(gw.problemsDecor(df).some(m => /is stale/.test(m)), "mochi-decor: a 128x64 file of the same pixels is stale");
+        const junk = Buffer.alloc(12 + cap);
+        junk.writeUInt32BE(cap, 0); junk.write("zzZz", 4, "latin1");
+        junk.writeUInt32BE(pngLib.crc32(junk.subarray(4, 8 + cap)), 8 + cap);
+        fs.writeFileSync(df, Buffer.concat([d1.subarray(0, d1.length - 12), junk, d1.subarray(d1.length - 12)]));
+        check(gw.problemsDecor(df).some(m => /bytes, over/.test(m)), "mochi-decor: a file over the cap fails");
+        fs.writeFileSync(df, d1.subarray(0, 40));
+        check(gw.problemsDecor(df).some(m => /not a PNG this generator wrote/.test(m)), "mochi-decor: a truncated file is not a PNG this generator wrote");
+        check(gw.problemsDecor(path.join(droot, "none.png")).length === 1, "mochi-decor: a missing file fails");
+      } finally { fs.rmSync(droot, { recursive: true, force: true }); }
+      check(!require("./gen-mochi").problems().some(m => /decor\.png|water\.png/.test(m)), "mochi-decor: gen-mochi does not list decor.png (or water.png) as not in the manifest");
+    }
     /* the morph count and the primitive count live in the file: a copy of the files with one name dropped and one primitive dropped */
     {
       const root = fs.mkdtempSync(path.join(require("os").tmpdir(), "mochi-"));
@@ -861,6 +896,29 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   eq(found("var a = d[id].box, b = sched[id].last, c = picks[id].box;\nvar o = { box: 1, last: 2 };\nsecs[id] = { box: 1 };"), [], "… box and last off a schedule, a deck row or a pick, and in an object not assigned to .sec[...], pass");
   eq(found("// sec.box\n/* secRec(id).last */\nvar s = 'sec.box';"), [], "… a comment or a string never counts");
   check(refusal(() => scheduleProblems("var = ;", "x.js")) !== null, "… a module that does not parse is refused, not passed");
+}
+
+/* ------------------------------------------------------------- pet-money -- */
+/* T9 of 0015: facets are not money; no SQL prices them and no SQL writes pet but the fresh start's '{}' */
+{
+  const rule = CHECKS.filter(c => c.name === "pet-money")[0];
+  const run = (sources) => { const r = result(); rule.run({ petMoneySources: sources }, r); return r.fails; };
+  const clean = { "assets/account.js": "var a = pet;\n", "supabase/schema.sql": "create table t (\n  pet jsonb not null default '{}'::jsonb, -- facets, spent and price in a comment\n);\nupdate u set game = '{}', pet = '{}',\n  x = 1;\n/* price\n facets */\nselect pet from u;\n" };
+  eq(run(clean), [], "pet-money: facets in a comment, the column definition, a read and pet = '{}' pass");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update public.user_state\n  set pet = jsonb_set(pet, '{earned,x}', '1');\n" })).some(m => /writes pet/.test(m)),
+    "… a planted set pet = jsonb_set(...) line fails");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u set pet=pet || '{}';" })).length >= 1, "… pet=pet || ... fails");
+  [["set pet\n = pet", "a break before the ="], ["set \"pet\" = x", "a quoted column"], ["set (pet) = (x)", "a parenthesised column"],
+    ["set pet = '{}' || x", "'{}' followed by more"], ["update u set a = '--', pet = jsonb_set(pet, '{x}', '1');", "a '--' string before the write"]]
+    .forEach(([sql, what]) => check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u " + sql.replace(/^update u /, "") + (/;$/.test(sql) ? "" : ";") })).some(m => /writes pet/.test(m)), "… " + what + " fails (" + JSON.stringify(sql) + ")"));
+  eq(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "update u set pet = '{}'::jsonb;\nupdate u set pet = '{}')" })), [], "… '{}'::jsonb before ; and ) passes");
+  check(run(Object.assign({}, clean, { "supabase/migrations/20270101000000_x.sql": "insert into public.user_state (user_id, pet) values (1, '{}');" })).some(m => /inserts/.test(m)), "… an insert naming pet fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "create function buy() returns void as $$ select facets from t; $$;" })).some(m => /facets/.test(m)), "… SQL that names facets fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "select price from t;" })).some(m => /price/.test(m)), "… SQL that names price fails");
+  check(run(Object.assign({}, clean, { "supabase/schema.sql": "select spent from t;" })).some(m => /spent/.test(m)), "… SQL that names spent fails");
+  check(run({ "assets/account.js": "var price = 1; // x\n" }).some(m => /price/.test(m)), "… account.js naming price fails");
+  check(run({ "assets/account.js": "// the facets travel whole\n" }).some(m => /facets/.test(m)), "… account.js naming facets fails, in a comment too");
+  eq(((r) => { rule.run({}, r); return r.fails; })(result()), [], "… today's tree passes");
 }
 
 /* ----------------------------------------------------------------- charts -- */

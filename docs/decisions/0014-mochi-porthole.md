@@ -16,7 +16,7 @@ The owner wants Mochi to feel alive in a place, not pasted on the paper. A windo
 
 ## What this changes
 
-- W-1 `tools/gen-water.js`, `tools/lib/png.js`, `public/models/mochi/water.png`, `MOCHI_WATER_BYTES_MAX`, the `mochi-water` rule, `gen:water`; the `mochi-model` stray-file rule lets `water.png` through.
+- W-1 `tools/gen-water.js`, `tools/lib/png.js`, `public/models/mochi/water.png`, `MOCHI_WATER_BYTES_MAX`, the `mochi-water` rule, `gen:water`; the `mochi-model` stray-file rule lets `water.png` through (and `decor.png` too, since 0015/X-4).
 - W-2 `src/mochi/stage.ts` (`sway`, the rest-pose stop, `tick`), `src/mochi/index.ts`, `src/mochi/stage.test.ts`.
 - W-3 `src/ui/companion.ts` (the window and still spans, the water URL and frame), `assets/game.css`, `src/styles/tokens.css`, `tools/game/mochi.test.js` (case 12: the water steps in 3D and holds under reduced motion), `tools/game/companion.test.js`.
 - W-4 this record; 0013's stage line points here.
