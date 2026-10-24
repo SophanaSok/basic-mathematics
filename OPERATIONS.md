@@ -462,16 +462,29 @@ applied: 2026-10-18 (Claude in Chrome, after #192 deployed; verified: delete_my_
 
 ### The pet column (X-2a, then X-2b)
 
-1. Deploy X-2b first. The client tolerates the missing column: `lacks` in `assets/account.js`
-   leaves `pet` out until it exists, so the pool stays in the browser.
-2. The owner applies `supabase/migrations/20261024011814_pet.sql` in Dashboard → SQL → New query and
-   confirms with the Q-columns query that `user_state.pet` is `jsonb`, not nullable, default
-   `'{}'::jsonb`, and that `select key, at from private.once;` is unchanged. The migration
-   replaces `private.fresh_start` so a fresh start clears `pet`; running it twice changes nothing.
-3. Check the live account page still syncs, and that a care act on one signed-in browser appears
-   on another after a reload.
-4. Rollback: leave the column. Nothing deployed is harmed by it. A reset clears `pet` (unlike
-   `diag`).
+Either order is safe: the deployed site reads `user_state` with `select *` and writes only the
+columns it names, so an extra column is never read or overwritten, and X-2b leaves `pet` out
+(`lacks` in `assets/account.js`) until the column exists. The order below keeps the pool in the
+browser until the server can hold it, which is the plan's order (0015), not rule 4 of
+`supabase/migrations/README.md`.
+
+1. Deploy X-2b first.
+2. Before applying, take a reading: `select key, at from private.once;` (the keys spent so far).
+3. The owner applies `supabase/migrations/20261024011814_pet.sql` in Dashboard → SQL → New query,
+   then runs it a second time: the second run changes nothing (a NOTICE that the column exists is
+   expected). Verify, each in its own query:
+   - Q-columns with `user_state`: `pet` is `jsonb`, not nullable, default `'{}'::jsonb`.
+   - the replaced function clears the pet:
+     `select prosrc like '%pet = ''{}''%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname = 'fresh_start';`
+     returns `true`.
+   - `select key, at from private.once;` returns the same rows as the reading in step 2: the
+     migration calls nothing and resets nobody.
+4. Check the sync carries the column: on a signed-in browser set `bm.pet.v1` in the browser's
+   storage to `{"v":1,"gift":{"2026-01-01":1}}`, press Sync now on the account page, and
+   `select pet from public.user_state where user_id = '<the learner id>';` shows that value. (A
+   care act in the pool can only be tried once X-6 ships.) A reset on the account page then
+   empties it: the same query shows `{}`.
+5. Rollback: leave the column and the replaced function; nothing deployed is harmed by either.
 
 applied: ____ (date, filled in by the owner)
 
