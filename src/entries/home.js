@@ -44,6 +44,8 @@ import "../core/curriculum.ts";
 import "../core/config.ts";
 import "../sync/json.ts";
 import "../sync/events.ts";
+/* the pet store's model and prunes (src/learn/pet.ts): merge.ts imports its prune */
+import "../learn/pet.ts";
 import "../sync/merge.ts";
 import "../ui/core.ts";
 /* the icons site.js draws (window.BMIcon): their data, then the helper, before it */

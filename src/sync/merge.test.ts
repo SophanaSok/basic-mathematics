@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { merge as installed } from "../ui/core.ts";
 import { isValid, mergeEvents, prune } from "./events.ts";
 import { maxSection, merge, mergeAttempt, mergeDiag, mergeGame, mergePet, mergeWear, WEAR_AT_MAX } from "./merge.ts";
-import { balance, bag, PRUNE_CARE_DAYS, PRUNE_LEDGER_DAYS } from "../learn/pet.ts";
+import { balance, canBuy, prunePet, PRUNE_CARE_DAYS } from "../learn/pet.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 /* the random states of tools/check-static.js's `merge` check, shared with it */
@@ -541,7 +541,7 @@ function profile(R: Rng, base: any, dev: string, span: number): any {
     if (r === 0) pet.earned["strong:" + sec] = junkNum(R, 20);
     else if (r === 1) pet.earned["medal:ch01:practice:" + (1 + R.int(3))] = 10;
     else if (r <= 3) pet.earned["review:" + d + ":" + sec] = junkNum(R, 5);
-    else if (r === 4) pet.earned[R.pick(["compare:ch01/e1", "mission:ch02/m1", "bogus:1", "review:nope:x"])] = 5;
+    else if (r === 4) pet.earned[R.pick(["compare:ch01/e1", "mission:ch02/m1", "bogus:1", "review:nope:x", "j" + R.int(30), "bogus:x"])] = 5;
     else if (r <= 6) pet.spent["buy:" + d + ":" + R.pick(ITEMS) + ":" + dev + ":" + R.int(4)] = junkNum(R, R.pick([5, 10, 40]));
     else pet.owned[R.pick(ITEMS)] = R.maybe(0.05) ? 7 : d;
   }
@@ -561,8 +561,15 @@ function profile(R: Rng, base: any, dev: string, span: number): any {
   if (R.maybe(0.1)) pet.needs.mystery = R.pick([1, "m", { a: 1 }]);
   if (R.maybe(0.5)) pet.grew[R.pick(STAGES_)] = junkNum(R, 1 + R.int(500));
   if (R.maybe(0.4)) pet.gift[dayAt(R.int(span))] = 1;
+  if (R.maybe(0.3)) for (let i = 0; i < 8; i++) pet.earned["review:" + dayAt(R.int(3)) + ":ch01#s" + R.int(12)] = 5;
+  if (R.maybe(0.15)) for (let i = 0; i < 520; i++) pet.owned["o" + R.int(900)] = dayAt(R.int(40));
+  if (R.maybe(0.15)) for (let i = 0; i < 25; i++) { pet.grew["g" + R.int(30)] = 1 + R.int(9); pet.needs["n" + R.int(30)] = R.int(3); }
+  if (R.maybe(0.15)) {
+    const d = dayAt(R.int(span));
+    pet.care[d] = { play: 1, ...Object.fromEntries(Array.from({ length: 40 }, (_, i) => ["u" + R.int(60), i])), feed: Object.fromEntries(Array.from({ length: 40 }, () => ["f" + R.int(60), 1 + R.int(3)])) };
+  }
   if (R.maybe(0.4)) {
-    pet.wear = junk(R, { head: R.pick(["hat", "cap"]), decor: R.maybe(0.5) ? ["weed"] : undefined, at: R.maybe(0.1) ? R.pick([1e308, "5", -1]) : 100 * R.int(30) });
+    pet.wear = junk(R, { head: R.pick(["hat", "cap"]), decor: R.maybe(0.5) ? (R.maybe(0.3) ? Array.from({ length: 30 }, (_, i) => "w" + R.int(40) + i) : ["weed"]) : undefined, at: R.maybe(0.1) ? R.pick([1e308, "5", -1]) : 100 * R.int(30) });
     if (pet.wear && typeof pet.wear === "object") addUnknown(R, pet.wear);
   }
   if (R.maybe(0.3)) pet.v = R.pick([1, 1, "1", 2]);
@@ -613,14 +620,13 @@ describe("mergePet", () => {
     expect(balance(r)).toBe(20);
   });
 
-  it("T2: a buy on A and a feed on B both survive; later needs, earliest grew and earlier owned win", () => {
-    const buy = (k: number) => "buy:2026-10-01:fish:a:" + k;
+  it("T2: a feed bought on A and a feed counter on B both survive; later needs, earliest grew and earlier owned win", () => {
+    const buy = (k: number) => "feed:2026-10-01:fish:a:" + k;
     const A = { v: 1, spent: { [buy(1)]: 10, [buy(2)]: 10 }, needs: { tummy: { n: 4, at: 100 } }, grew: { fry: 50 }, owned: { hat: "2026-10-03" } };
     const B = { v: 1, care: { "2026-10-01": { feed: { fish: 1 } } }, needs: { tummy: { n: 2, at: 200 } }, grew: { fry: 30 }, owned: { hat: "2026-10-02" } };
     const r = mergePet(A, B);
     expect(Object.keys(r.spent).length).toBe(2);
     expect(r.care["2026-10-01"].feed.fish).toBe(1);
-    expect(bag(r, (i) => i === "fish")).toEqual({ fish: 1 });
     expect(r.needs.tummy).toEqual({ n: 2, at: 200 });
     expect(r.grew.fry).toBe(30);
     expect(r.owned.hat).toBe("2026-10-02");
@@ -644,15 +650,42 @@ describe("mergePet", () => {
     expect(J(mergePet(ab, ab))).toBe(J(ab));
   });
 
-  it("keeps the newest 400 days of buys and 90 of review earns, and drops a key with no valid day", () => {
-    const spent: any = { "buy:nope:fish:a:1": 5 }, earned: any = { "review:x:s": 5, "strong:ch01#a": 20 };
-    for (let i = 0; i < 450; i++) spent["buy:" + dayAt(i) + ":fish:a:1"] = 5;
-    for (let i = 0; i < 120; i++) earned["review:" + dayAt(i) + ":ch01#a"] = 5;
-    const r = mergePet({ v: 1, spent, earned }, {});
-    expect(Object.keys(r.spent).length).toBe(PRUNE_CARE_DAYS);
-    expect(r.spent["buy:nope:fish:a:1"]).toBeUndefined();
-    expect(Object.keys(r.earned).length).toBe(PRUNE_LEDGER_DAYS + 1);
-    expect(r.earned["strong:ch01#a"]).toBe(20);
+  it("regression: the ledgers are not pruned by time, so a learner is never locked out", () => {
+    const spent: any = {}, earned: any = {};
+    const day = (i: number) => {
+      for (let k = 0; k < 5; k++) earned["review:" + dayAt(i) + ":ch01#s" + k] = 5;
+    };
+    for (let i = 0; i < 120; i++) { day(i); spent["feed:" + dayAt(i) + ":fish:a:1"] = 25; }
+    const r = mergePet({ v: 1, earned, spent }, {});
+    expect(balance(r)).toBe(0);
+    for (let i = 120; i < 420; i++) day(i);
+    const r2 = mergePet({ v: 1, earned, spent }, mergePet({}, {}));
+    expect(balance(r2)).toBe(7500);
+    expect(canBuy(r2, 5)).toBe(true);
+    expect(Object.keys(r2.spent).length).toBe(120);
+  });
+
+  it("a top-level pet that is no record loses to a record, in either order, and two such go through later", () => {
+    const rec = { v: 1, gift: { "2026-10-01": 1 } };
+    for (const bad of ["x", null, 5, [1]]) {
+      expect(J(mergePet(bad, rec))).toBe(J(mergePet(rec, bad)));
+      expect(mergePet(bad, rec).gift).toEqual({ "2026-10-01": 1 });
+    }
+    expect(mergePet("x", "y")).toBe("y");
+  });
+
+  it("a wear tie on equal at goes to the greater canonical JSON, in either order", () => {
+    const a = { wear: { head: "hat", at: 10 } }, b = { wear: { head: "cap", at: 10 } };
+    expect(J(mergePet(a, b).wear)).toBe(J(mergePet(b, a).wear));
+    expect(mergePet(a, b).wear.head).toBe("hat");
+  });
+
+  it("prunePet(x) equals mergePet(x, {}) over 100 random raw records", () => {
+    const R = rng(4242);
+    for (let i = 0; i < 100; i++) {
+      const [a] = petTriple(R);
+      expect(J(prunePet(a)), "case " + i).toBe(J(mergePet(a, {})));
+    }
   });
 
   it("ignores a need at past the bound and carries unknown fields", () => {
@@ -669,13 +702,14 @@ describe("mergePet", () => {
   });
 
   it("treats __proto__ as data that never reaches a prototype", () => {
-    const evil = hostile('{"v":1,"earned":{"__proto__":{"polluted":1},"constructor":5,"strong:ch01#a":20},"care":{"__proto__":{"play":1},"2026-10-01":{"__proto__":{"polluted":1},"play":2}},"grew":{"__proto__":9}}');
+    const evil = hostile('{"v":1,"earned":{"__proto__":{"polluted":1},"strong:constructor":20,"strong:ch01#a":20},"care":{"__proto__":{"play":1},"2026-10-01":{"__proto__":{"polluted":1},"play":2}},"grew":{"__proto__":9}}');
     const out = mergePet(evil, evil);
     expect(Object.getPrototypeOf(out.earned)).toBe(Object.prototype);
     expect(Object.getPrototypeOf(out.care)).toBe(Object.prototype);
     expect(({} as any).polluted).toBeUndefined();
     expect(out.earned.polluted).toBeUndefined();
-    expect(out.earned.constructor).toBe(5);
+    expect(out.earned["strong:constructor"]).toBe(20);
+    expect(Object.prototype.hasOwnProperty.call(out.earned, "constructor")).toBe(false);
     expect(out.care["2026-10-01"].play).toBe(2);
   });
 });

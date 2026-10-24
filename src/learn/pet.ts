@@ -15,22 +15,28 @@
    Facets, the currency, are never stored as a number. `earned` holds one id per cause (a first
    strong section, a medal level, a due review, a comparison, a mission), so the same cause on
    two devices is one id, and `spent` holds one id per purchase. The balance is the sum of
-   what the ids are worth here, not what the stored n says, minus what was spent. The snack bag
-   is derived the same way (buys and gifts minus feeds), so a buy on one device and a feed on
-   another both survive a merge. A negative balance is allowed after a merge and only stops
-   the next purchase; nothing is taken back.
+   what the ids are worth here, not what the stored n says, minus what was spent. A negative
+   balance is allowed after a merge and only stops the next purchase; nothing is taken back.
+   Feeding is a purchase in one act: the caller writes spent["feed:<day>:<item>:<device>:<k>"]
+   and bumps care[day].feed[item]; the free daily pellet is a free feed (gift[day] = 1 says
+   today's was taken, no spend). There is no snack bag to derive, so two devices that feed on
+   the same day can over-count the care counters, which only reaches growth, never money.
 
-   The record is bounded by prunePet, which looks at the keys alone: care, gift and spent keep
-   the newest 400 days (the three terms of the bag share one window, or feeds older than the
-   buys that remain would eat into new buys), the review earns the newest 90 days. Because the
-   choice depends on the set of keys and nothing else, pruning after a union gives what pruning each side
-   first and then merging would, which is what keeps the merge laws (mergePet in
-   src/sync/merge.ts). There are no rollups: a pruned entry is gone, never summed into another.
+   The ledgers are never pruned by time: a balance is exact or it is nothing. Pruning earns and
+   spends on different terms once let the balance drift (earns aged out while the spends they
+   paid for stayed), which could lock a learner at a negative balance for good. Honest spends
+   are bounded by what can be earned, so the ledgers get counts only: junk ids (earnAmount 0)
+   never survive, at most REVIEW_CAP_IDS review ids per day are kept (exactly the ones the
+   balance counts, so the cap moves no balance), the other earns stop at EARNED_MAX and the
+   spends at SPENT_MAX. Care and gift keep the newest 400 days. Every map has a key count cap.
+   Each cap looks at the keys alone, in one fixed order with the known keys first, so pruning
+   after a union gives what pruning each side first and then merging would, which is what keeps
+   the merge laws (mergePet in src/sync/merge.ts). There are no rollups.
 
    Pure: time comes in as an argument; no window, no DOM, no storage. */
 
 import type { ActivityStore, DayKey, PetStore, Timestamp } from "../types/state.ts";
-import { WEAR_AT_MAX } from "../sync/merge.ts";
+import { mergeCareDay, mergeWear, PET, WEAR_AT_MAX, wearOf } from "../sync/merge.ts";
 import { at, keysOf, num, obj, plain } from "../sync/json.ts";
 
 export const NEEDS = ["tummy", "play", "clean", "spark"] as const;
@@ -60,15 +66,26 @@ export function heartsOf(need: Need, rec: unknown, now: Timestamp): number {
   return clamp(d.floor, HEARTS_MAX, Math.floor(num(r.n)) - steps);
 }
 
-/** the record after a care act: hearts as they stand now plus `delta`, stamped now */
+/** The stamp for a record written now. A device whose clock ran ahead would otherwise win every
+    merge until that date and freeze the need (heartsOf already reads a future `at` as now), so
+    a new stamp is at least one past the old one when that is valid. Kept inside the sync bound. */
+export function laterStamp(old: unknown, now: Timestamp): Timestamp {
+  const w = wearOf(old);
+  return w ? Math.min(WEAR_AT_MAX, Math.max(now, (w as any).at + 1)) : now;
+}
+
+/** the record after a care act: hearts as they stand now plus `delta` */
 export function touch(rec: unknown, need: Need, now: Timestamp, delta: number): { n: number; at: Timestamp } {
-  return { n: clamp(0, HEARTS_MAX, heartsOf(need, rec, now) + Math.floor(num(delta))), at: now };
+  return { n: clamp(0, HEARTS_MAX, heartsOf(need, rec, now) + Math.floor(num(delta))), at: laterStamp(rec, now) };
 }
 
 /* ---------------------------------------------------------------- facets -- */
 
 export const REVIEW_CAP_IDS = 5;
 export const SPEND_MAX = 1000;
+/** key-count bounds of the ledgers and maps (see the header) */
+export const EARNED_MAX = 4000, SPENT_MAX = 20000, OWNED_MAX = 500, GREW_MAX = 16, NEEDS_MAX = 16;
+export const CARE_DAY_MAX = 32, FEED_MAX = 32, PET_KEYS_MAX = 32, DECOR_MAX = 16, WEAR_EXTRA_MAX = 8;
 /** facets by the prefix of the earn id; the stored n is never trusted */
 export const EARN = { strong: 20, medal: 10, review: 5, compare: 5, mission: 10 } as const;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -121,29 +138,9 @@ export function canBuy(pet: unknown, price: number): boolean {
   return b >= 0 && b >= price;
 }
 
-/* --------------------------------------------------------------- the bag -- */
-
-/** snacks in hand by item: buys (one id, one snack) plus one pellet per gift day, minus
-    what was fed on any day, never below 0; only items above 0 are listed */
-export function bag(pet: unknown, isSnack: (item: string) => boolean): Record<string, number> {
-  const p = obj(pet), have: Record<string, number> = Object.create(null);
-  keysOf(obj(p.spent), {}).forEach((id) => {
-    const parts = id.split(":");
-    if (parts.length < 5 || parts[0] !== "buy") return;
-    if (!(num(at(obj(p.spent), id)) > 0)) return;
-    const item = parts.slice(2, -2).join(":");
-    if (item && isSnack(item)) have[item] = (have[item] || 0) + 1;
-  });
-  const gift = obj(p.gift);
-  const gifts = keysOf(gift, {}).filter((d) => at(gift, d)).length;
-  if (gifts) have.pellet = (have.pellet || 0) + gifts;
-  keysOf(obj(p.care), {}).forEach((day) => {
-    const feed = careOf(p, day).feed;
-    Object.keys(feed).forEach((item) => { if (item in have) have[item] -= feed[item]; });
-  });
-  const out: Record<string, number> = {};
-  Object.keys(have).forEach((item) => { if (have[item] > 0) out[item] = have[item]; });
-  return out;
+/** whether today's free feed (the daily pellet) was taken: gift[day] is set */
+export function giftTaken(pet: unknown, day: DayKey): boolean {
+  return !!at(obj(obj(pet).gift), day);
 }
 
 /* ------------------------------------------------------------- care days -- */
@@ -206,35 +203,90 @@ export function newlyGrown(pet: unknown, points: unknown, now: Timestamp): Recor
 
 /* ---------------------------------------------------------------- prunes -- */
 
-/** care, gift and spent: the bag's three terms, one window */
 export const PRUNE_CARE_DAYS = 400;
-/** the review earns, which are the one earn kind without a content bound */
-export const PRUNE_LEDGER_DAYS = 90;
 
-/** the newest `days` distinct days among the keys, by `dayOf`; a key without a valid day is
-    dropped. Chosen by a sort of the keys, so two devices choose alike. */
-function newest(rec: any, keep: number, dayOf: (k: string) => string | null, always?: (k: string) => boolean) {
-  const out: any = {}, days: string[] = [];
-  const dayed = keysOf(rec, {}).map((k) => ({ k, d: always && always(k) ? "" : dayOf(k) }));
-  dayed.forEach((x) => { if (x.d && days.indexOf(x.d) < 0) days.push(x.d); });
-  const kept = days.sort().reverse().slice(0, keep);
-  dayed.forEach((x) => { if (x.d === "" || (x.d && kept.indexOf(x.d) >= 0)) out[x.k] = at(rec, x.k); });
+/** at most `max` keys of a record: the keys in `first` (those it holds, in that order), then
+    the rest by id order ascending. A cut looks at the keys alone, so the known fields are never
+    the ones lost and two devices cut alike. */
+export function capKeys(rec: unknown, max: number, first: string[]): any {
+  const all = keysOf(rec, {}), out: any = {};
+  const hold = new Set(all), firstSet = new Set(first);
+  const order = first.filter((k) => hold.has(k)).concat(all.filter((k) => !firstSet.has(k)));
+  order.slice(0, max).forEach((k) => { out[k] = at(rec, k); });
   return out;
 }
-const dayKey = (k: string) => (DAY_RE.test(k) ? k : null);
 
-/** a bounded copy: care, gift and spent to the newest 400 days, the review earns to the
-    newest 90 (by the day inside the id), a key with no valid day dropped. Idempotent. */
+/** a wear record held to a size: head, back and tail only as strings, decor only as an array of
+    at most DECOR_MAX strings, at as it is, other fields at most WEAR_EXTRA_MAX of them */
+export function normWear(w: any): any {
+  const KNOWN = ["head", "back", "tail", "decor", "at"], rest: any = {};
+  keysOf(w, {}).forEach((k) => { if (KNOWN.indexOf(k) < 0) rest[k] = at(w, k); });
+  const out = capKeys(rest, WEAR_EXTRA_MAX, []);
+  ["head", "back", "tail"].forEach((k) => { if (typeof at(w, k) === "string") out[k] = at(w, k); });
+  const decor = at(w, "decor");
+  if (Array.isArray(decor)) out.decor = decor.filter((x) => typeof x === "string").slice(0, DECOR_MAX);
+  out.at = at(w, "at");
+  return out;
+}
+
+const dayKey = (k: string) => (DAY_RE.test(k) ? k : null);
+function newestDays(rec: unknown, keep: number, valueOk: (v: unknown) => boolean) {
+  const out: any = {}, r = obj(rec);
+  keysOf(r, {}).filter((k) => dayKey(k) && valueOk(at(r, k))).sort().slice(-keep).forEach((k) => { out[k] = at(r, k); });
+  return out;
+}
+function liveCounts(rec: unknown) {
+  const out: any = {}, r = obj(rec);
+  keysOf(r, {}).forEach((k) => { const n = num(at(r, k)); if (n > 0) out[k] = n; });
+  return out;
+}
+
+/** a bounded copy; for the fields it touches (earned, spent, owned, needs, care, grew, wear,
+    gift, v and the record's own keys) prunePet(x) equals mergePet(x, {}). Earns that are worth
+    nothing, and counts not above 0, are dropped; review earns stop at REVIEW_CAP_IDS a day,
+    the other earns at EARNED_MAX, the spends at SPENT_MAX (the last ids, the newest days);
+    care and gift keep the newest 400 days, a key with no valid day dropped. Idempotent. */
 export function prunePet(pet: unknown): PetStore {
   const p = obj(pet), out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
-  if (plain(p.care)) out.care = newest(p.care, PRUNE_CARE_DAYS, dayKey);
-  else delete out.care;
-  if (plain(p.gift)) out.gift = newest(p.gift, PRUNE_CARE_DAYS, dayKey);
-  else delete out.gift;
-  if (plain(p.spent)) out.spent = newest(p.spent, PRUNE_CARE_DAYS, dayOfId);
-  else delete out.spent;
-  if (plain(p.earned)) out.earned = newest(p.earned, PRUNE_LEDGER_DAYS, dayOfId, (k) => !k.startsWith("review:"));
-  else delete out.earned;
-  return out;
+  const earned = liveCounts(at(p, "earned")), review: Record<string, number> = {};
+  const earnedOut: any = {}, others: string[] = [];
+  Object.keys(earned).sort().forEach((id) => {
+    if (!earnAmount(id)) return;
+    if (id.startsWith("review:")) {
+      const d = dayOfId(id) as string;
+      review[d] = (review[d] || 0) + 1;
+      if (review[d] <= REVIEW_CAP_IDS) earnedOut[id] = earned[id];
+    } else others.push(id);
+  });
+  others.slice(0, EARNED_MAX).forEach((id) => { earnedOut[id] = earned[id]; });
+  out.earned = earnedOut;
+  const spent = liveCounts(at(p, "spent")), spentOut: any = {};
+  Object.keys(spent).sort().slice(-SPENT_MAX).forEach((id) => { spentOut[id] = spent[id]; });
+  out.spent = spentOut;
+  const owned: any = {}, o = obj(at(p, "owned"));
+  keysOf(o, {}).forEach((k) => { if (typeof at(o, k) === "string") owned[k] = at(o, k); });
+  out.owned = capKeys(owned, OWNED_MAX, []);
+  const needs: any = {}, nd = obj(at(p, "needs"));
+  keysOf(nd, {}).forEach((k) => { needs[k] = (NEEDS as readonly string[]).indexOf(k) >= 0 ? mergeWear(at(nd, k), undefined) : at(nd, k); });
+  out.needs = capKeys(needs, NEEDS_MAX, NEEDS as unknown as string[]);
+  const care: any = {}, cd = obj(at(p, "care"));
+  Object.keys(newestDays(cd, PRUNE_CARE_DAYS, () => true)).forEach((d) => {
+    const day = mergeCareDay(at(cd, d), undefined);
+    if (plain(day)) {
+      const capped = capKeys(day, CARE_DAY_MAX, ["feed", "play", "clean", "spark"]);
+      if (plain(capped.feed)) capped.feed = capKeys(capped.feed, FEED_MAX, []);
+      care[d] = capped;
+    } else care[d] = day;
+  });
+  out.care = care;
+  const grew: any = {}, gr = obj(at(p, "grew"));
+  keysOf(gr, {}).forEach((k) => { const t = num(at(gr, k)); if (t > 0) grew[k] = t; });
+  out.grew = capKeys(grew, GREW_MAX, STAGES as unknown as string[]);
+  out.gift = Object.keys(newestDays(at(p, "gift"), PRUNE_CARE_DAYS, (v) => !!v)).reduce((g: any, d) => { g[d] = 1; return g; }, {});
+  const w = wearOf(at(p, "wear"));
+  if (w) out.wear = normWear(w); else delete out.wear;
+  const v = num(at(p, "v"));
+  if (v > 0) out.v = v; else delete out.v;
+  return capKeys(out, PET_KEYS_MAX, PET);
 }

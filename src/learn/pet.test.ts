@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mergePet, WEAR_AT_MAX } from "../sync/merge.ts";
 import {
-  balance, bag, canBuy, careOf, carePoints, DRIFT, earnAmount, growthPoints, heartsOf, newlyGrown, prunePet,
-  PRUNE_CARE_DAYS, PRUNE_LEDGER_DAYS, REVIEW_CAP_IDS, stageOf, START_HEARTS, touch
+  balance, canBuy, capKeys, careOf, carePoints, DRIFT, earnAmount, EARNED_MAX, giftTaken, growthPoints, heartsOf, laterStamp,
+  newlyGrown, prunePet, PRUNE_CARE_DAYS, REVIEW_CAP_IDS, SPENT_MAX, stageOf, START_HEARTS, touch
 } from "./pet.ts";
 
 const H = 3_600_000;
@@ -36,11 +36,21 @@ describe("heartsOf", () => {
   });
 });
 
-describe("touch", () => {
+describe("touch and laterStamp", () => {
   it("adds the delta to the hearts as they stand now and stamps now", () => {
     expect(touch({ n: 5, at: 0 }, "tummy", 12 * H, 1)).toEqual({ n: 5, at: 12 * H });
     expect(touch(undefined, "play", 9, 1)).toEqual({ n: 4, at: 9 });
     expect(touch(undefined, "play", 9, -10)).toEqual({ n: 0, at: 9 });
+  });
+  it("T6: a stamp is one past a valid old one that runs ahead of the clock", () => {
+    expect(laterStamp({ n: 3, at: 5000 }, 1000)).toBe(5001);
+    expect(laterStamp({ n: 3, at: 500 }, 1000)).toBe(1000);
+    expect(laterStamp({ n: 3, at: 1000 }, 1000)).toBe(1001);
+    expect(laterStamp(undefined, 1000)).toBe(1000);
+    expect(laterStamp({ n: 3, at: 1e308 }, 1000)).toBe(1000);
+    expect(laterStamp({ n: 3, at: "9999" }, 1000)).toBe(1000);
+    expect(laterStamp({ n: 3, at: WEAR_AT_MAX }, 1000)).toBe(WEAR_AT_MAX);
+    expect(touch({ n: 3, at: 5000 }, "play", 1000, 1)).toEqual({ n: 4, at: 5001 });
   });
 });
 
@@ -95,17 +105,22 @@ describe("balance and canBuy", () => {
   });
 });
 
-describe("bag", () => {
-  const snack = (i: string) => i === "fish" || i === "pellet";
-  it("a buy on one device and a feed on the other give the right bag after mergePet", () => {
-    const A = { spent: { "buy:2026-10-01:fish:a:1": 8, "buy:2026-10-01:fish:a:2": 8, "buy:2026-10-01:hat:a:3": 30 } };
-    const B = { care: { "2026-10-02": { feed: { fish: 1 } } } };
-    expect(bag(mergePet(A, B), snack)).toEqual({ fish: 1 });
-    expect(bag(mergePet(B, A), snack)).toEqual({ fish: 1 });
+describe("giftTaken", () => {
+  it("is true only for a day in gift that is set", () => {
+    expect(giftTaken({ gift: { "2026-10-01": 1 } }, "2026-10-01")).toBe(true);
+    expect(giftTaken({ gift: { "2026-10-01": 1 } }, "2026-10-02")).toBe(false);
+    expect(giftTaken({ gift: { "2026-10-01": 0 } }, "2026-10-01")).toBe(false);
+    expect(giftTaken(null, "2026-10-01")).toBe(false);
+    expect(giftTaken({ gift: "x" }, "constructor")).toBe(false);
   });
-  it("counts the gift pellet and never goes below 0", () => {
-    expect(bag({ gift: { "2026-10-01": 1, "2026-10-02": 1 } }, snack)).toEqual({ pellet: 2 });
-    expect(bag({ gift: { "2026-10-01": 1 }, care: { "2026-10-01": { feed: { pellet: 4, fish: 2 } } } }, snack)).toEqual({});
+});
+
+describe("capKeys", () => {
+  it("keeps the known keys when it cuts, then the rest by id order", () => {
+    const rec = { z: 1, b: 2, a: 3, head: 4, tail: 5 };
+    expect(Object.keys(capKeys(rec, 3, ["tail", "head", "missing"]))).toEqual(["tail", "head", "a"]);
+    expect(capKeys(rec, 99, []).z).toBe(1);
+    expect(capKeys("x", 3, ["a"])).toEqual({});
   });
 });
 
@@ -159,33 +174,82 @@ describe("stageOf and newlyGrown", () => {
 
 describe("prunePet", () => {
   const year = () => {
-    const care: any = {}, gift: any = {}, spent: any = {}, earned: any = { "strong:ch01#a": 20 };
+    const care: any = {}, gift: any = {};
     for (let i = 0; i < 450; i++) { care[dayAt(i)] = { play: 1 }; gift[dayAt(i)] = 1; }
-    for (let i = 0; i < 450; i++) spent["buy:" + dayAt(i) + ":fish:a:1"] = 5;
-    for (let i = 0; i < 120; i++) earned["review:" + dayAt(i) + ":ch01#a"] = 5;
-    care["bad"] = { play: 1 }; gift["2026-1-1"] = 1; spent["junk"] = 1; earned["review:zz:ch01#a"] = 5;
-    return { v: 1, care, gift, spent, earned };
+    care["bad"] = { play: 1 }; gift["2026-1-1"] = 1;
+    return { v: 1, care, gift };
   };
-  it("comes out at the bounds and drops a damaged day key", () => {
+  it("keeps care and gift to the newest 400 days and drops a damaged day key", () => {
     const r: any = prunePet(year());
     expect(Object.keys(r.care).length).toBe(PRUNE_CARE_DAYS);
     expect(Object.keys(r.gift).length).toBe(PRUNE_CARE_DAYS);
-    expect(Object.keys(r.spent).length).toBe(PRUNE_CARE_DAYS);
-    expect(Object.keys(r.earned).length).toBe(PRUNE_LEDGER_DAYS + 1);
-    expect(r.earned["review:" + dayAt(30) + ":ch01#a"]).toBe(5);
-    expect(r.earned["review:" + dayAt(29) + ":ch01#a"]).toBeUndefined();
     expect(r.care.bad).toBeUndefined();
     expect(r.care[dayAt(449)]).toBeDefined();
     expect(r.care[dayAt(49)]).toBeUndefined();
     expect(r.care[dayAt(50)]).toBeDefined();
-    /* buys keep the care window, so a feed logged 100 days ago still has its buy to count against */
-    expect(r.spent["buy:" + dayAt(50) + ":fish:a:1"]).toBe(5);
-    expect(r.spent["buy:" + dayAt(49) + ":fish:a:1"]).toBeUndefined();
+  });
+  it("never prunes the ledgers by time, so a balance stays exact", () => {
+    const spent: any = {}, earned: any = {};
+    for (let i = 0; i < 300; i++) { spent["feed:" + dayAt(i) + ":fish:a:1"] = 25; for (let k = 0; k < 5; k++) earned["review:" + dayAt(i) + ":ch01#s" + k] = 5; }
+    const r: any = prunePet({ earned, spent });
+    expect(Object.keys(r.spent).length).toBe(300);
+    expect(balance(r)).toBe(balance({ earned, spent }));
+  });
+  it("keeps five review ids a day (the ones counted), drops junk ids and counts not above 0", () => {
+    const earned: any = { j17: 5, "bogus:x": 5, "strong:ch01#a": 20, "strong:ch01#b": 0 };
+    for (let k = 0; k < 8; k++) earned["review:2026-10-01:ch01#s" + k] = 5;
+    const r: any = prunePet({ earned, spent: { "buy:2026-10-01:hat:a:1": -1, "buy:2026-10-01:hat:a:2": 5 } });
+    expect(Object.keys(r.earned).sort()).toEqual(["review:2026-10-01:ch01#s0", "review:2026-10-01:ch01#s1", "review:2026-10-01:ch01#s2", "review:2026-10-01:ch01#s3", "review:2026-10-01:ch01#s4", "strong:ch01#a"]);
+    expect(balance(r)).toBe(balance({ earned, spent: { "buy:2026-10-01:hat:a:2": 5 } }));
+    expect(Object.keys(r.spent)).toEqual(["buy:2026-10-01:hat:a:2"]);
+  });
+  it("caps the other earns and the spends by count, the newest spends kept", () => {
+    const earned: any = {}, spent: any = {};
+    for (let i = 0; i < EARNED_MAX + 50; i++) earned["strong:s" + String(i).padStart(6, "0")] = 20;
+    for (let i = 0; i < SPENT_MAX + 50; i++) spent["buy:2026-10-01:x:a:" + String(i).padStart(6, "0")] = 1;
+    const r: any = prunePet({ earned, spent });
+    expect(Object.keys(r.earned).length).toBe(EARNED_MAX);
+    expect(Object.keys(r.spent).length).toBe(SPENT_MAX);
+    expect(r.spent["buy:2026-10-01:x:a:" + String(SPENT_MAX + 49).padStart(6, "0")]).toBe(1);
+    expect(r.spent["buy:2026-10-01:x:a:000000"]).toBeUndefined();
+  });
+  it("holds every other map to a count and the known fields survive", () => {
+    const owned: any = {}, grew: any = {}, needs: any = {}, feed: any = {}, day: any = { feed, play: 1, clean: 1, spark: 1 };
+    for (let i = 0; i < 600; i++) owned["i" + i] = "2026-10-01";
+    for (let i = 0; i < 40; i++) { grew["g" + i] = 5; needs["n" + i] = 1; feed["f" + i] = 1; day["u" + i] = 1; }
+    grew.elder = 9; needs.tummy = { n: 3, at: 1 };
+    const pet: any = { v: 1, owned, grew, needs, care: { "2026-10-01": day } };
+    for (let i = 0; i < 40; i++) pet["x" + i] = 1;
+    const r: any = prunePet(pet);
+    expect(Object.keys(r.owned).length).toBe(500);
+    expect(Object.keys(r.grew).length).toBe(16);
+    expect(r.grew.elder).toBe(9);
+    expect(Object.keys(r.needs).length).toBe(16);
+    expect(r.needs.tummy).toEqual({ n: 3, at: 1 });
+    const d = r.care["2026-10-01"];
+    expect(Object.keys(d).length).toBe(32);
+    expect(d.play).toBe(1); expect(d.spark).toBe(1);
+    expect(Object.keys(d.feed).length).toBe(32);
+    expect(Object.keys(r).length).toBe(32);
+    expect(r.v).toBe(1); expect(r.care).toBeDefined(); expect(r.spent).toBeDefined();
+  });
+  it("holds a wear to a size and drops one that is damaged", () => {
+    const decor = Array.from({ length: 30 }, (_, i) => "d" + i).concat([5 as any]);
+    const w: any = prunePet({ wear: { head: 3, back: "cape", decor, at: 5, z1: 1 } }).wear;
+    expect(w.head).toBeUndefined(); expect(w.back).toBe("cape"); expect(w.decor.length).toBe(16); expect(w.z1).toBe(1);
+    expect("wear" in prunePet({ wear: { at: 1e308 } })).toBe(false);
   });
   it("is idempotent and does not touch its input", () => {
     const y = year(), before = JSON.stringify(y);
     const once = prunePet(y);
     expect(JSON.stringify(prunePet(once))).toBe(JSON.stringify(once));
     expect(JSON.stringify(y)).toBe(before);
+  });
+  it("takes a hostile record of 60,000 distinct days quickly", () => {
+    const care: any = {};
+    for (let i = 0; i < 60000; i++) care[dayAt(i)] = { play: 1 };
+    const t = Date.now();
+    expect(Object.keys((prunePet({ care }) as any).care).length).toBe(PRUNE_CARE_DAYS);
+    expect(Date.now() - t).toBeLessThan(1500);
   });
 });
