@@ -40,6 +40,8 @@ export interface MochiStageOptions {
 export interface MochiInfo {
   state: MochiState; mood: string | null; frames: number; fade: number; reduced: boolean; paused: boolean;
   variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number;
+  /** the live influence of each growth morph (Grow*) on the first mesh */
+  morphWeights: Record<string, number>;
   growth: { scale: number; morphs: Record<string, number> };
 }
 

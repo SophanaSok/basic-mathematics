@@ -12,8 +12,8 @@ import type { Act, Stage } from "../../learn/pet.ts";
 import type { MochiStage } from "../../mochi/index.ts";
 import { LINES, grewLine, lineFor } from "./lines.ts";
 
-/** the clip each act plays on the stage; B-2 swaps in eat / play / splash / nuzzle (and splash for grew) */
-export const ACT_CLIP = { feed: "happy", play: "excited", clean: "surprised", pet: "happy", grew: "excited" } as const;
+/** the clip each act plays on the stage */
+export const ACT_CLIP = { feed: "eat", play: "play", clean: "splash", pet: "nuzzle", grew: "splash" } as const;
 
 export interface ActionsCtx {
   /** the live stage, or null while there is none (the still sheet is the picture) */

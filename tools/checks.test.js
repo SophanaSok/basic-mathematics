@@ -529,15 +529,46 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
       try {
         fs.mkdirSync(path.join(root, "public/models"), { recursive: true });
         fs.cpSync(path.join(site.ROOT, "public/models/mochi"), path.join(root, "public/models/mochi"), { recursive: true });
+        fs.mkdirSync(path.join(root, "src/data"), { recursive: true });
+        fs.copyFileSync(path.join(site.ROOT, "src/data/mochi-model.ts"), path.join(root, "src/data/mochi-model.ts"));
         const gf = path.join(root, "public/models/mochi/mochi-pink.glb");
         const parts = glb.readGlb(fs.readFileSync(gf));
+        const orig = JSON.parse(JSON.stringify(parts.json));
         parts.json.meshes[0].extras.targetNames = parts.json.meshes[0].extras.targetNames.slice(1);
         fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
-        check(/mochi pink: 32 morph target names, not 33/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a morph count of 32 fails");
+        check(/mochi pink: 35 morph target names, not 36/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a morph count of 35 fails");
         parts.json.meshes[0].extras.targetNames = mman.entries[0].morphs;
         parts.json.meshes[0].primitives.pop();
         fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
         check(/mochi pink: 4 primitives, not 5/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a mesh with 4 primitives fails");
+        /* the growth morphs and the sockets: one growth name dropped, one socket joint renamed */
+        parts.json = JSON.parse(JSON.stringify(orig));
+        parts.json.meshes[0].extras.targetNames = mman.entries[0].morphs.map(n => n === "GrowGills" ? "Gills" : n);
+        fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
+        check(/mochi pink: no growth morph target GrowGills/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a missing growth morph name fails");
+        parts.json = JSON.parse(JSON.stringify(orig));
+        const sock = parts.json.nodes.find(n => n.name === "socket_tail");
+        sock.name = "tail_end";
+        fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
+        check(/mochi pink: no socket joint socket_tail/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: a missing socket joint fails");
+        sock.name = "socket_tail";
+        fs.writeFileSync(gf, glb.writeGlb(parts.json, parts.bin));
+        eq(mm.manifestProblems(mman, root), [], "mochi-model: the copy with its names restored is clean");
+        /* the accessories: over the byte cap in the manifest, an image inside the file, a stale file in acc/ */
+        const acc = mman.accessories[0];
+        const atamper = (f) => { const c = JSON.parse(JSON.stringify(mman)); f(c); return mm.manifestProblems(c, root).join("\n"); };
+        check(new RegExp("accessory " + acc.id + ": " + (mm.limits.MOCHI_ACC_BYTES_MAX + 1) + " bytes is over " + mm.limits.MOCHI_ACC_BYTES_MAX).test(atamper(c => { c.accessories[0].bytes = mm.limits.MOCHI_ACC_BYTES_MAX + 1; })), "mochi-model: an accessory over the byte cap fails");
+        check(/accessory party-hat: socket socket_nose is not one of/.test(atamper(c => { c.accessories[0].socket = "socket_nose"; })), "mochi-model: an accessory on an unknown socket fails");
+        const af = path.join(root, "public", acc.file);
+        const ap = glb.readGlb(fs.readFileSync(af));
+        const apJson = JSON.parse(JSON.stringify(ap.json));
+        apJson.images = [{ uri: "x.png" }];
+        fs.writeFileSync(af, glb.writeGlb(apJson, ap.bin));
+        check(/accessory party-hat: holds 1 image/.test(mm.manifestProblems(mman, root).join("\n")), "mochi-model: an accessory with an image fails");
+        fs.writeFileSync(af, glb.writeGlb(ap.json, ap.bin));
+        fs.writeFileSync(path.join(root, "public/models/mochi/acc/stale.glb"), "x");
+        check(/public\/models\/mochi\/acc\/stale\.glb is not in the manifest/.test(require("./gen-mochi").problems(root).join("\n")), "mochi-model: a stale file in acc/ fails");
+        fs.rmSync(path.join(root, "public/models/mochi/acc/stale.glb"));
       } finally { fs.rmSync(root, { recursive: true, force: true }); }
     }
   }

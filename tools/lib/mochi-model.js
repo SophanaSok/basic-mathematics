@@ -4,9 +4,9 @@
 
    gen-mochi.js problems() says whether the manifest and the files agree. This module says
    whether what the files hold is acceptable: size and triangle caps
-   (src/data/mochi-limits.ts, read through Node's own TypeScript loading), the twelve
-   clips, the idle's length, the extensions the page can decode, five external square WebP textures, the 33 morph targets with the nine moods,
-   the pose sheet and the whole download of a variant. */
+   (src/data/mochi-limits.ts, read through Node's own TypeScript loading), the sixteen
+   clips (twelve and the four acts), the idle's length, the extensions the page can decode, five external square WebP textures, the 36 morph targets with the nine moods and the three growth morphs, the
+   sockets and the accessories, the pose sheet and the whole download of a variant. */
 const fs = require("fs");
 const path = require("path");
 const glb = require("./glb");
@@ -14,9 +14,11 @@ const limits = require("../../src/data/mochi-limits.ts");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const VARIANTS = ["pink", "lilac"];
-const CLIPS = ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"];
+const CLIPS = ["idle", "idle_look", "idle_stretch", "idle_wiggle", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping", "eat", "play", "nuzzle", "splash"];
 const MOODS = ["neutral", "happy", "excited", "sad", "angry", "surprised", "thinking", "sleepy", "sleeping"];
-const MORPHS = 33;
+const MORPHS = 36;
+const GROWTH = ["GrowGills", "GrowCrest", "GrowTail"];
+const SOCKETS = ["socket_head", "socket_back", "socket_tail"];
 const IDLE_SECONDS = 3.75;
 const IDLE_TOLERANCE = 1 / 60;
 const EXTENSIONS_OK = ["KHR_mesh_quantization", "EXT_texture_webp"];
@@ -72,6 +74,10 @@ function entryProblems(e, root) {
     const names = (mesh.extras && mesh.extras.targetNames) || [];
     if (names.length !== MORPHS) out.push(w + names.length + " morph target names, not " + MORPHS);
     MOODS.forEach(x => { if (!names.includes("mood_" + x)) out.push(w + "no morph target mood_" + x); });
+    GROWTH.forEach(x => { if (!names.includes(x)) out.push(w + "no growth morph target " + x); });
+    const joints = ((json.skins || [])[0] || {}).joints || [];
+    const jointNames = joints.map(i => ((json.nodes || [])[i] || {}).name);
+    SOCKETS.forEach(x => { if (!jointNames.includes(x)) out.push(w + "no socket joint " + x); });
     if ((mesh.primitives || []).length !== PRIMITIVES) out.push(w + (mesh.primitives || []).length + " primitives, not " + PRIMITIVES);
     (mesh.primitives || []).forEach((p, i) => {
       const n = (p.targets || []).length;
@@ -97,13 +103,34 @@ function entryProblems(e, root) {
   return out;
 }
 
-/* lines for a manifest { entries } (the shape gen-mochi.js readManifest() returns) */
+/* lines for one accessory entry; the file is read from public/ under `root` */
+function accessoryProblems(a, root) {
+  const out = [];
+  const w = "accessory " + a.id + ": ";
+  if (!SOCKETS.includes(a.socket)) out.push(w + "socket " + a.socket + " is not one of " + SOCKETS.join(","));
+  if (a.bytes > limits.MOCHI_ACC_BYTES_MAX) out.push(w + a.bytes + " bytes is over " + limits.MOCHI_ACC_BYTES_MAX);
+  if (a.triangles > limits.MOCHI_ACC_TRIANGLES_MAX) out.push(w + a.triangles + " triangles is over " + limits.MOCHI_ACC_TRIANGLES_MAX);
+  let raw;
+  try { raw = fs.readFileSync(path.join(root, "public", a.file)); } catch (err) { out.push(w + a.file + " does not exist"); return out; }
+  try {
+    const d = glb.describeGlb(raw);
+    if (d.images.length) out.push(w + "holds " + d.images.length + " image(s); an accessory is plain colours");
+    d.extensionsRequired.forEach(x => { if (x !== "KHR_mesh_quantization") out.push(w + "requires " + x + ", which an accessory may not");  });
+    if (raw.length > limits.MOCHI_ACC_BYTES_MAX) out.push(w + "the file is " + raw.length + " bytes, over " + limits.MOCHI_ACC_BYTES_MAX);
+    if (d.triangles > limits.MOCHI_ACC_TRIANGLES_MAX) out.push(w + "the file holds " + d.triangles + " triangles, over " + limits.MOCHI_ACC_TRIANGLES_MAX);
+  } catch (err) { out.push(w + a.file + ": " + err.message); }
+  if (glb.sha256(raw) !== a.sha) out.push(w + "sha " + glb.sha256(raw) + ", manifest says " + a.sha);
+  return out;
+}
+
+/* lines for a manifest { entries, accessories } (the shape gen-mochi.js readManifest() returns) */
 function manifestProblems(m, root) {
   const out = [];
   const have = m.entries.map(e => e.variant);
   if (have.join(",") !== VARIANTS.join(",")) out.push("the manifest holds variants " + have.join(",") + ", not " + VARIANTS.join(","));
   m.entries.forEach(e => entryProblems(e, root || ROOT).forEach(p => out.push(p)));
+  (m.accessories || []).forEach(a => accessoryProblems(a, root || ROOT).forEach(p => out.push(p)));
   return out;
 }
 
-module.exports = { ROOT, VARIANTS, CLIPS, MOODS, entryProblems, manifestProblems, limits };
+module.exports = { ROOT, VARIANTS, CLIPS, MOODS, GROWTH, SOCKETS, entryProblems, accessoryProblems, manifestProblems, limits };

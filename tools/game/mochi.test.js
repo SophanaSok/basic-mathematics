@@ -4,7 +4,7 @@
      node tools/game/mochi.test.js
    1. a chapter page: the still first, then data-3d; the GLB, five textures and three chunks once
       each; the canvas hidden from the tree; the still's background
-      gone after the fade; 18762 triangles and 33 morphs
+      gone after the fade; 18762 triangles and 36 morphs
    2. the nine moods: setMood returns true, the mood clip reaches full weight and the other eight
       fall to nothing, data-mood and the aria-label name it; an unknown name is refused
    3. back at idle, a variation plays and the idle returns to full weight
@@ -19,8 +19,9 @@
    12. the porthole's water steps in 3D (the window's background-position changes) and holds under
        reduced motion
    13. growth: a stage made from bundle/mochi.js takes setGrowth({ scale: 1.1, morphs: { GrowGills: 1 } }); after a
-       few frames info().growth has the scale and the morph weights, the clip weights stay clips only (no
-       GrowGills among them, today or when B-2 ships the morph), and a mood change keeps the growth */
+       few frames info().growth has the scale and the morph weights, GrowGills is a real morph (the mesh's
+       influence reads 1), the clip weights stay clips only, and a mood change keeps the growth
+   14. the care acts: a stage's setMood("eat") plays (its clip weight rises) and its moods() still lists the nine only */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -110,7 +111,7 @@ async function main() {
       check(st.win === "800% 100%", "1: the porthole window exists with the water strip sized 800% 100%", st);
       check(count(c.requests, /\/models\/mochi\/water\.png$/) === 1, "1: water.png once", c.requests.filter((u) => /water/.test(u)));
       check(inf.mode === "3d", "1: mode is 3d", inf);
-      check(inf.stage && inf.stage.triangles === 18762 && inf.stage.morphs === 33, "1: 18762 triangles and 33 morphs", inf.stage && [inf.stage.triangles, inf.stage.morphs]);
+      check(inf.stage && inf.stage.triangles === 18762 && inf.stage.morphs === 36, "1: 18762 triangles and 36 morphs", inf.stage && [inf.stage.triangles, inf.stage.morphs]);
       const r = c.requests;
       check(count(r, /\/models\/mochi\/mochi-pink\.glb$/) === 1, "1: mochi-pink.glb once", r.filter((u) => /mochi/.test(u)));
       TEXTURES.forEach((t) => check(count(r, new RegExp("/models/mochi/mochi-pink-" + t + "\\.webp$")) === 1, "1: pink " + t + " texture once"));
@@ -280,6 +281,7 @@ async function main() {
         check(await until(c.page, () => window.__growth.info().frames >= 3, null, 8000), "13: frames drawn after setGrowth");
         const g = await c.page.evaluate(() => window.__growth.info());
         check(g.growth.scale === 1.1 && g.growth.morphs.GrowGills === 1, "13: info().growth has the look", g.growth);
+        check(g.morphWeights && g.morphWeights.GrowGills === 1, "13: GrowGills is a real morph: the mesh influence is 1", g.morphWeights);
         check(!("GrowGills" in g.weights), "13: the clip weights hold clips only", g.weights);
         await c.page.evaluate(() => { window.__growth.setMood("happy"); });
         await wait(600);
@@ -289,12 +291,35 @@ async function main() {
       }
       noErrors(c, "13");
     }
+    /* 14 */
+    {
+      const c = await open(CHAPTER);
+      check(await threeD(c.page), "14: data-3d");
+      const made = await c.page.evaluate(async () => {
+        const m = await import(new URL(window.BMSite.rootPrefix() + "bundle/mochi.js", location.href).href);
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:0;top:0;width:128px;height:128px";
+        document.body.appendChild(host);
+        window.__acts = await m.createMochiStage(host, { url: new URL(window.BMSite.rootPrefix() + "models/mochi/mochi-pink.glb", location.href).href, budget: { dpr: 1, antialias: false }, pixelRatio: () => 1, still: () => false });
+        return true;
+      }).catch((e) => String(e));
+      check(made === true, "14: a second stage is made", made);
+      if (made === true) {
+        const ok = await c.page.evaluate(() => window.__acts.setMood("eat"));
+        check(ok === true, "14: setMood(eat) is true", ok);
+        check(await until(c.page, () => { const s = window.__acts.info(); return s.frames >= 3 && s.weights.eat > 0.95; }, null, 8000), "14: the eat clip reaches full weight");
+        const names = await c.page.evaluate(() => window.__acts.moods());
+        check(JSON.stringify(names) === JSON.stringify(MOODS9), "14: moods() does not list eat", names);
+        await c.page.evaluate(() => window.__acts.dispose());
+      }
+      noErrors(c, "14");
+    }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
     await browser.close();
     await server.close();
   }
-  console.log((fails ? "FAILED" : "ok") + " mochi: 13 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
+  console.log((fails ? "FAILED" : "ok") + " mochi: 14 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
   process.exit(fails ? 1 : 0);
 }
 

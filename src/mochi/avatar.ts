@@ -63,7 +63,7 @@ export interface Avatar {
   fading(): boolean;
   /** a mood is not the idle (so a variation is playing) or a crossfade is running */
   busy(): boolean;
-  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; growth: Growth };
+  stats(): { mood: string | null; fade: number; reduced: boolean; variations: number; lastVariation: string | null; weights: Record<string, number>; triangles: number; morphs: number; morphWeights: Record<string, number>; growth: Growth };
   dispose(): void;
 }
 
@@ -207,7 +207,8 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
 
   return {
     object, meshes, setMood, setMorph, setGrowth, playIdleVariation, update, dispose,
-    moods: () => Object.keys(actions).filter((n) => !isVariation(n)),
+    /* the nine moods: a mood clip has a mood_* morph target of its name (idle's is mood_neutral); the care acts (eat, play, ...) are clips setMood plays that have none */
+    moods: () => Object.keys(actions).filter((n) => !isVariation(n) && !!meshes[0]?.morphTargetDictionary?.["mood_" + (n === "idle" ? "neutral" : n)]),
     fading: () => fadeLeft > 0,
     busy: () => fadeLeft > 0 || (!!mood && current !== mood),
     stats: () => ({
@@ -215,6 +216,7 @@ export function createAvatar(M: ThreeModel, gltf: GLTF, o: AvatarOptions): Avata
       weights: Object.fromEntries(Object.entries(actions).map(([n, a]) => [n, a.isRunning() ? a.getEffectiveWeight() : 0])),
       triangles,
       morphs: Object.keys(meshes[0]?.morphTargetDictionary ?? {}).length,
+      morphWeights: Object.fromEntries(Object.entries(meshes[0]?.morphTargetDictionary ?? {}).filter(([n]) => n.startsWith("Grow")).map(([n, i]) => [n, meshes[0].morphTargetInfluences?.[i] ?? 0])),
       growth: { scale: growth.scale, morphs: { ...growth.morphs } },
     }),
   };
