@@ -941,10 +941,9 @@ fetches Three.js
 stands alone; `BMMap3D.why()` says why. No other page asks for either chunk (the pages suite
 watches the requests).
 
-The learner's marker on the map stays the drawn form (`src/world/forms.ts`); the models never
-go on the map, whose triangle and draw-call budgets above have no room for them.
-`src/world/form-scene.ts` is in the same chunk, `bundle/world.js`, and holds either figure (the
-drawn form or a loaded model) for the progress page's view.
+The learner's marker on the map is the Mochi buoy (`src/world/marker.ts`, in the same chunk,
+`bundle/world.js`): a procedural figure of about 300 triangles in two draw calls, since the
+triangle and draw-call budgets above have no room for a loaded model.
 
 What is drawn (`src/world/`): four **terraces**, one per Part, stepping up and back from the
 Foundry to the Observatory, each with its own props made only of Three.js primitives (`props.ts`
@@ -1078,9 +1077,9 @@ memory but keeps the site:
 | `bm.activity.v1` | XP per day and the daily goal; streak and totals are derived from it |
 | `bm.lesson.v1` | reading mode and the furthest step reached in each chapter |
 | `bm.last`, `bm.theme` | where to continue; light or dark, or nothing to match the system (this device only) |
-| `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals, Daily days, and `form` (the stages reached and the one worn) (synced) |
+| `bm.game.v1` | achievements, compared solutions, recall per section, Arena bests, medals and Daily days (synced; a `form` left by a version before 0015 is carried as an unknown field) |
 | `bm.diag.v1` | placement-check takes: class finished last, day, questions asked, right or wrong, whether many answers were very fast, suggested course; never typed text or timings (synced; kept through "Reset all progress"; cleared from this browser on sign-out; the account copy is removed only by Delete my account) |
-| `bm.run.v1` | the combo meter, an unfinished Arena run or placement check (with per-answer timings, deleted when the check ends), the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`), and `seen.form` and `seen.evolved`, the stage whose unlock was announced and the one whose evolution the progress page played (this device only; cleared by reset and sign-out) |
+| `bm.run.v1` | the combo meter, an unfinished Arena run or placement check (with per-answer timings, deleted when the check ends), the day's Arena XP counts (`arenaDay`) and the day the next-step card was hidden (`nextHide`) (this device only; cleared by reset and sign-out) |
 | `bm.prefs.v1` | the settings sheet's and the Arena's settings: `calm` (Study mode), `sound`, `volume` (0 to 100, unset is 50), `motion` and `transparency` (`"reduce"`, unset follows the device), `panel` (`"dark"`, unset for light paper), `gfx` (`"low"`, `"mid"`, `"high"`, unset is Auto: the course world's tier), `map` (`"list"` keeps the chapter list alone), `gfxAuto` (not a setting: the tier the world's watchdog settled on, `"list"`, `"low"` or `"medium"`; cleared by a choice of `gfx` or `map`), `mochi` (`"lilac"`; unset is pink), `tempo` (this device only; survives a reset; keys the site does not know are kept; a value it does not know reads as unset) |
 | `bm.sync.v1` | with accounts on: whose progress this browser holds and the last reset it knows of |
 | `bm.sync.pending.v1` | with accounts on: progress that could not be saved when its reader signed out, kept aside per reader until they sign in here again |
