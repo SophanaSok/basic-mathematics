@@ -75,6 +75,8 @@ interface Window {
   BMExerciseKeys: typeof import("../ui/exercise-keys.ts").api;
   /** src/ui/events.ts: the event log's recorder and the schedule, mastery and bands read from it (src/sync/events.ts, src/learn/), for assets/game.js and assets/account.js, which cannot import them; typed */
   BMEvents: import("../ui/events.ts").EventsApi;
+  /** src/ui/pet-earns.ts: the pet's facet earns from the bus, and the HUD's facets slot; typed */
+  BMPet: import("../ui/pet-earns.ts").PetEarnsApi;
   /** src/ui/core.ts: the grader and the exercise rules (src/core/grade.ts, rules.ts), the
       curriculum refs and the settings reader, for assets/site.js and assets/game.js, which
       cannot import them; typed */

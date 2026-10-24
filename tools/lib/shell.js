@@ -184,7 +184,7 @@ const TIMER_ON = ["arena"];
 /* the icons of the top bar and the sheet: Phosphor paths from src/data/icons.json (tools/gen-icons.js
    writes it), filled in currentColor on its 256-unit grid. The shell's name on the left, the set's on the right. */
 const ICON_DATA = require("../../src/data/icons.json");
-const ICON_OF = { flame: "flame", close: "close", "sound-on": "sound", "sound-off": "mute", menu: "menu" };
+const ICON_OF = { flame: "flame", close: "close", "sound-on": "sound", "sound-off": "mute", menu: "menu", gem: "gem" };
 function icon(name) {
   const from = ICON_OF[name] || (ICON_DATA.icons[name] ? name : undefined), e = from && ICON_DATA.icons[from];
   if (!e) throw new Error("shell icon `" + name + "` has no icon in src/data/icons.json");
@@ -219,6 +219,7 @@ function toggle(pref, label, note, cls) {
 function hud(info) {
   const p = info.prefix;
   const lines = ['    <div class="hud" role="group" aria-label="Your progress">'];
+  lines.push('      <span class="hud-facets" role="img" aria-label="No facets yet for Mochi\'s pool." data-slot hidden data-facets>' + icon("gem") + "<b>0</b></span>");
   if (HEARTS_ON.includes(info.kind)) lines.push('      <span class="hud-hearts" role="img" aria-label="No hearts in play" data-slot hidden></span>');
   if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
   lines.push(

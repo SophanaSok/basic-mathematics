@@ -53,6 +53,9 @@
 .hud-streak .icon { width: 1rem; height: 1rem; color: var(--hud-muted); flex: none; }
 .hud-streak[data-on] .icon { color: var(--hud-flame); }
 .hud-streak b { display: inline-block; min-width: 1.4em; }
+.hud-facets { display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
+.hud-facets .icon { width: 1rem; height: 1rem; color: var(--hud-muted); flex: none; }
+.hud-facets b { display: inline-block; min-width: 1.4em; }
 .goal-ring {
   --pct: 0; width: 1.05rem; height: 1.05rem; border-radius: 50%; flex: none;
   background: conic-gradient(var(--hud-ok) calc(var(--pct) * 1%), var(--hud-track) 0);
@@ -903,7 +906,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   .ex-hint { border-left-width: 6px; }
   .ex-hint[data-prev] { border-left-color: var(--text); }
   .banner-stat, .encounter-wards li, .encounter-result .stat { border-color: var(--text); }
-  .hud-xptext, .hud-streak, .toast-text { color: var(--hud-text); }
+  .hud-xptext, .hud-streak, .hud-facets, .toast-text { color: var(--hud-text); }
 }
 @media (forced-colors: active) {
   /* the count-up overlay cannot be drawn over transparent text here; the real number shows */
@@ -939,7 +942,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 /* ---------------------------------------------------------------- print -- */
 
 @media print {
-  .hud, .hud-level, .hud-streak, .hud-combo, .hud-hearts, .hud-timer, .hud-sheet, .hud-strip,
+  .hud, .hud-level, .hud-streak, .hud-facets, .hud-combo, .hud-hearts, .hud-timer, .hud-sheet, .hud-strip,
   .hud-sound, .hud-menu, .hud-tip, .hud-pop, .toasts, .ex-form .btn, .ex-reward, .ex-stamp, .s3d-canvas,
   .bossbar, .encounter-sigil, .encounter-kicker, .encounter-boss, .encounter-bar, .encounter-wards,
   .encounter-hearts, .encounter-regroup, .encounter-result .actions, .encounter-actions,

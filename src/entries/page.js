@@ -48,6 +48,8 @@ import "../learn/bands.ts";
 import "../learn/recorder.ts";
 import "../learn/seed-entries.ts";
 import "../ui/events.ts";
+/* the pet's earns: bus signals to facets in bm.pet.v1, window.BMPet */
+import "../ui/pet-earns.ts";
 import "../../assets/sfx.js";
 import "../../assets/game.js";
 import "../ui/settings.ts";
