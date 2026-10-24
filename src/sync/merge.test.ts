@@ -550,7 +550,7 @@ function profile(R: Rng, base: any, dev: string, span: number): any {
     const day: any = pet.care[d] && typeof pet.care[d] === "object" ? pet.care[d] : (pet.care[d] = {});
     const r = R.int(5);
     if (r === 0) { day.feed = day.feed && typeof day.feed === "object" ? day.feed : {}; day.feed[R.pick(ITEMS)] = junkNum(R, 1 + R.int(3)); }
-    else day[["play", "clean", "spark", "play"][r - 1] || "play"] = junkNum(R, 1 + R.int(2));
+    else day[["play", "clean", "spark", "runs"][r - 1] || "play"] = junkNum(R, 1 + R.int(2));
     addUnknown(R, day);
     pet.care[d] = junk(R, day);
   }
@@ -699,6 +699,16 @@ describe("mergePet", () => {
     expect(mergePet({ wear: { head: "hat", at: 10 } }, { wear: { back: "cape", at: 20, z: 1 } }).wear).toEqual({ back: "cape", at: 20, z: 1 });
     expect(mergePet({ wear: { head: "hat", at: 1e308 } }, { wear: { back: "cape", at: 20 } }).wear).toEqual({ back: "cape", at: 20 });
     expect("wear" in mergePet({}, {})).toBe(false);
+  });
+
+  it("X-10b: care.runs merges by max beside play, and an absent runs stays absent", () => {
+    const d = "2026-10-01";
+    const a = { care: { [d]: { play: 1, runs: 3 } } }, b = { care: { [d]: { play: 2, runs: 1, clean: 1 } } }, c = { care: { [d]: { play: 2 } } };
+    expect(mergePet(a, b).care[d]).toEqual({ play: 2, runs: 3, clean: 1 });
+    expect(mergePet(b, a)).toEqual(mergePet(a, b));
+    expect(mergePet(a, a).care[d]).toEqual({ play: 1, runs: 3 });
+    expect(mergePet(c, c).care[d]).not.toHaveProperty("runs");
+    expect(mergePet({ care: { [d]: { runs: "x" } } }, c).care[d]).not.toHaveProperty("runs");
   });
 
   it("treats __proto__ as data that never reaches a prototype", () => {

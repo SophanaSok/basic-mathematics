@@ -146,7 +146,7 @@ export function giftTaken(pet: unknown, day: DayKey): boolean {
 
 /* ------------------------------------------------------------- care days -- */
 
-export interface Care { feed: Record<string, number>; play: number; clean: number; spark: number }
+export interface Care { feed: Record<string, number>; play: number; clean: number; spark: number; runs: number }
 function count(x: unknown): number { const n = Math.floor(num(x)); return n > 0 ? n : 0; }
 
 /** one day's care, normalised: damage reads as 0 and only positive integers are kept */
@@ -154,14 +154,14 @@ export function careOf(pet: unknown, day: DayKey): Care {
   const rec = obj(at(obj(obj(pet).care), day)), feed: Record<string, number> = {};
   const raw = obj(rec.feed);
   keysOf(raw, {}).forEach((item) => { const n = count(at(raw, item)); if (n) feed[item] = n; });
-  return { feed, play: count(rec.play), clean: count(rec.clean), spark: count(rec.spark) };
+  return { feed, play: count(rec.play), clean: count(rec.clean), spark: count(rec.spark), runs: count(rec.runs) };
 }
 
 /** 0 to 4: the needs touched on a day, and 0 on a day without XP however much care was logged */
 export function carePoints(pet: unknown, day: DayKey, xp: unknown): number {
   if (typeof xp !== "number" || !isFinite(xp) || !(xp > 0)) return 0;
   const c = careOf(pet, day);
-  return (Object.keys(c.feed).length ? 1 : 0) + (c.play ? 1 : 0) + (c.clean ? 1 : 0) + (c.spark ? 1 : 0);
+  return (Object.keys(c.feed).length ? 1 : 0) + (c.play || c.runs ? 1 : 0) + (c.clean ? 1 : 0) + (c.spark ? 1 : 0);
 }
 
 /** the running total of care points over the days kept in `care` */
@@ -307,7 +307,7 @@ export function prunePet(pet: unknown): PetStore {
   Object.keys(newestDays(cd, PRUNE_CARE_DAYS, () => true)).forEach((d) => {
     const day = mergeCareDay(at(cd, d), undefined);
     if (plain(day)) {
-      const capped = capKeys(day, CARE_DAY_MAX, ["feed", "play", "clean", "spark"]);
+      const capped = capKeys(day, CARE_DAY_MAX, ["feed", "play", "clean", "spark", "runs"]);
       if (plain(capped.feed)) capped.feed = capKeys(capped.feed, FEED_MAX, []);
       care[d] = capped;
     } else care[d] = day;
@@ -379,11 +379,13 @@ export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, op
 export const FILL_PER_DAY = 10;
 
 /** Learning fills a need directly (a due review fills Spark, an Arena run fills Play): one heart and one
-    care count, no toy and no Play cap (that cap is the pool's Play button). A new record, or the same one
+    care count, no toy and no Play cap. A run counts in its own `runs` leaf, never `play`, so the pool's Play
+    button (capped at PLAY_PER_DAY button plays) is not used up by runs. A new record, or the same one
     when the day already holds FILL_PER_DAY fills of this need. Never mutates. */
 export function fillNeed(pet: unknown, need: "play" | "spark", day: DayKey, now: Timestamp): PetStore {
   if (need !== "play" && need !== "spark") return pet as PetStore;
-  if (careOf(pet, day)[need] >= FILL_PER_DAY) return pet as PetStore;
+  const leaf = need === "play" ? "runs" : "spark";
+  if (careOf(pet, day)[leaf] >= FILL_PER_DAY) return pet as PetStore;
   const p = obj(pet), out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
   out.v = 1;
@@ -391,7 +393,7 @@ export function fillNeed(pet: unknown, need: "play" | "spark", day: DayKey, now:
   nd[need] = touch(nd[need], need, now, 1);
   out.needs = nd;
   const care = copyMap(at(p, "care")), d = copyMap(at(care, day));
-  d[need] = count(d[need]) + 1;
+  d[leaf] = count(d[leaf]) + 1;
   care[day] = d;
   out.care = care;
   return prunePet(out);

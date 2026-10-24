@@ -127,14 +127,30 @@ describe("capKeys", () => {
 
 describe("careOf and carePoints", () => {
   it("normalises damage to positive integers", () => {
-    expect(careOf({ care: { d: { feed: { fish: 2.7, bad: "x", neg: -1 }, play: "3", clean: null, spark: [] } } }, "d")).toEqual({ feed: { fish: 2 }, play: 3, clean: 0, spark: 0 });
-    expect(careOf(null, "d")).toEqual({ feed: {}, play: 0, clean: 0, spark: 0 });
+    expect(careOf({ care: { d: { feed: { fish: 2.7, bad: "x", neg: -1 }, play: "3", clean: null, spark: [], runs: "x" } } }, "d")).toEqual({ feed: { fish: 2 }, play: 3, clean: 0, spark: 0, runs: 0 });
+    expect(careOf(null, "d")).toEqual({ feed: {}, play: 0, clean: 0, spark: 0, runs: 0 });
   });
   it("T7: 0 on a day with no XP however much care was logged, at most 4 with XP", () => {
     const pet = { care: { d: { feed: { fish: 99 }, play: 99, clean: 99, spark: 99 } } };
     for (const xp of [undefined, 0, -3, "50", NaN, null, Infinity * 0]) expect(carePoints(pet, "d", xp)).toBe(0);
     expect(carePoints(pet, "d", 1)).toBe(4);
     expect(carePoints({ care: { d: { feed: { fish: 2 }, play: 1 } } }, "d", 30)).toBe(2);
+  });
+  it("a day with only runs still earns the play point, and a day with both earns it once", () => {
+    expect(carePoints({ care: { d: { runs: 3 } } }, "d", 30)).toBe(1);
+    expect(carePoints({ care: { d: { runs: 3 } } }, "d", 0)).toBe(0);
+    expect(carePoints({ care: { d: { play: 2, runs: 3 } } }, "d", 30)).toBe(1);
+    expect(carePoints({ care: { d: { feed: { fish: 1 }, play: 1, clean: 1, spark: 1, runs: 9 } } }, "d", 30)).toBe(4);
+  });
+  it("a hostile care day never throws from careOf, carePoints or fillNeed", () => {
+    for (const bad of [[1], "x", -5, NaN, null, { runs: "x" }, { runs: -2, play: NaN }, { runs: [], feed: "x" }]) {
+      const pet: any = { care: { "2026-10-24": bad } };
+      expect(() => careOf(pet, "2026-10-24")).not.toThrow();
+      expect(() => carePoints(pet, "2026-10-24", 10)).not.toThrow();
+      const q: any = fillNeed(pet, "play", "2026-10-24", 1000);
+      expect(careOf(q, "2026-10-24").runs).toBeGreaterThanOrEqual(1);
+      expect(() => fillNeed(pet, "spark", "2026-10-24", 1000)).not.toThrow();
+    }
   });
 });
 
@@ -585,7 +601,7 @@ describe("T5: size", () => {
     const buys = PET_ITEMS.filter((it) => it.kind !== "snack");
     for (let i = 0; i < 365; i++) {
       const d = dayAt(i);
-      care[d] = { feed: { pellet: 1, "snack:kelp-chip": 1 }, play: 1, clean: 1, spark: 1 };
+      care[d] = { feed: { pellet: 1, "snack:kelp-chip": 1 }, play: 1, clean: 1, spark: 1, runs: 1 };
       gift[d] = 1;
       earned["review:" + d + ":ch01#s1"] = 5;
       earned["review:" + d + ":ch02#s2"] = 5;
@@ -707,14 +723,25 @@ describe("fillNeed and lowNeed (learning hooks)", () => {
     const p = { v: 1, needs: { play: { n: 2, at: t } } };
     const q = fillNeed(p, "play", day, t + 1) as any;
     expect(heartsOf("play", q.needs.play, t + 1)).toBe(3);
-    expect(careOf(q, day).play).toBe(1);
+    expect(careOf(q, day).runs).toBe(1);
+    expect(careOf(q, day).play).toBe(0);
+    expect(q.care[day]).not.toHaveProperty("play");
     expect(ownsToy(q)).toBe(false);
     let r: any = p;
     for (let i = 0; i < PLAY_PER_DAY + 2; i++) r = fillNeed(r, "play", day, t + 2 + i);
-    expect(careOf(r, day).play).toBe(PLAY_PER_DAY + 2);
+    expect(careOf(r, day).runs).toBe(PLAY_PER_DAY + 2);
     const s = fillNeed({}, "spark", day, t) as any;
     expect(heartsOf("spark", s.needs.spark, t)).toBe(START_HEARTS + 1);
     expect(careOf(s, day).spark).toBe(1);
+  });
+  it("runs never count against the Play button's cap, and button plays cap whatever runs says", () => {
+    let p: any = { v: 1, owned: { "toy:ball": "2026-10-01" }, needs: { play: { n: 5, at: t } } };
+    for (let i = 0; i < FILL_PER_DAY; i++) p = fillNeed(p, "play", day, t + i);
+    expect(canAct(p, "play", day, t + 50).ok).toBe(true);
+    let q: any = { owned: { "toy:ball": "2026-10-01" }, care: { [day]: { play: PLAY_PER_DAY, runs: 0 } } };
+    expect(canAct(q, "play", day, t)).toEqual({ ok: false, why: "play-cap" });
+    q = { owned: { "toy:ball": "2026-10-01" }, care: { [day]: { play: PLAY_PER_DAY - 1, runs: 99 } } };
+    expect(canAct(q, "play", day, t).why).not.toBe("play-cap");
   });
   it("clamps the hearts at 5", () => {
     let p: any = { v: 1, needs: { spark: { n: 5, at: t } } };
@@ -725,15 +752,16 @@ describe("fillNeed and lowNeed (learning hooks)", () => {
   it("stops at FILL_PER_DAY fills a day per need and returns the same reference", () => {
     let p: any = {};
     for (let i = 0; i < FILL_PER_DAY; i++) p = fillNeed(p, "play", day, t + i);
-    expect(careOf(p, day).play).toBe(FILL_PER_DAY);
+    expect(careOf(p, day).runs).toBe(FILL_PER_DAY);
     expect(fillNeed(p, "play", day, t + 99)).toBe(p);
     expect(fillNeed(p, "spark", day, t + 99)).not.toBe(p);
-    expect(careOf(fillNeed(p, "play", "2026-10-25", t + 99), "2026-10-25").play).toBe(1);
+    expect(careOf(fillNeed(p, "play", "2026-10-25", t + 99), "2026-10-25").runs).toBe(1);
   });
   it("merges by max per leaf with mergePet", () => {
     const a = fillNeed({}, "play", day, t) as any, b = fillNeed(a, "play", day, t + 5) as any;
     const m = mergePet(a, b) as any;
-    expect(careOf(m, day).play).toBe(2);
+    expect(careOf(m, day).runs).toBe(2);
+    expect(careOf(m, day).play).toBe(0);
     expect(mergePet(b, a)).toEqual(m);
     expect(m.needs.play.at).toBe(b.needs.play.at);
   });

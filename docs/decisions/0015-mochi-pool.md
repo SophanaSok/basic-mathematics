@@ -140,10 +140,11 @@ Shipped 2026-10-24: every card above is merged (R-1a to R-2, X-1 to X-12, X-3b, 
 `wardrobe`, X-10 `learning-hooks`, and the follow-up X-7c `companion-wears`: the sidebar companion wears what the pool
 wears, found in the real-Chrome pass). The `pet` column and the `fresh_start` change are applied live. The Chrome pass
 on a built tree covered open, focus, the four acts and their clips, a buy, a wear on the head socket, Escape and no
-console errors. Two interactions were accepted as they are and are the owner's to revisit: Arena runs and the pool's
-Play button share the day's play count, so three runs use up the button's three-a-day cap; and a Tummy that drifted to
-its floor reads low until fed, so "Mochi could use a snack." comes once a day for as long as the pool is left, and the
-Spark caption waits behind it. Smaller items left by choice are in the plan file.
+console errors. X-10b (2026-10-24) gave Arena runs their own `runs` leaf of the day's care, so the Play button's
+three-a-day cap reads button plays only and a run still counts as "played" for growth. One interaction stays as
+designed: a Tummy that drifted to its floor reads low until fed, so "Mochi could use a snack." comes once a day for as
+long as the pool is left (the free daily pellet fixes it in one click), and the Spark caption waits behind it. Smaller
+items left by choice are in the plan file.
 
 Proof of T5 (X-11): `src/learn/pet.test.ts`, "a year of play stays small", builds 365 days (a pellet, a
 play, a clean and a spark counter a day, two review earns a day, a strong earn every ten days, one

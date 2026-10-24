@@ -64,7 +64,7 @@ let stageGen = 0;
 let no3d = false;
 let why3d = "";
 let lastSent = "";
-let wornDrawn: Record<string, string> = {};   /* what was last asked of each socket ("" = nothing); cleared with the stage */
+let wornDrawn: Record<string, string> = { head: "", back: "", tail: "" };   /* what was last asked of each socket ("" = nothing); cleared with the stage */
 let stillTimer = 0;
 let current: Reaction | null = null;
 let pending: Reaction | null = null;
@@ -250,7 +250,7 @@ function drop3d(): void {
   stageGen++;
   window.clearTimeout(stillTimer); stillTimer = 0;
   const s = stage;
-  stage = null; stageReady = false; lastSent = ""; wornDrawn = {};
+  stage = null; stageReady = false; lastSent = ""; wornDrawn = { head: "", back: "", tail: "" };
   if (fig) fig.removeAttribute("data-3d");
   if (s) { try { s.dispose(); } catch { /* gone */ } }
   /* the water goes back to its first frame, as it is in 2D */
@@ -292,7 +292,7 @@ function maybe3d(): void {
       if (!live()) { try { st.dispose(); } catch { /* gone */ } return; }
       stage = st; stageReady = true; why3d = ""; lastSent = mood;
       try { st.setMood(mood); } catch { /* the still stays */ }
-      wornDrawn = {}; wearOnCompanion();
+      wornDrawn = { head: "", back: "", tail: "" }; wearOnCompanion();
       figure.setAttribute("data-3d", "");
       stillTimer = window.setTimeout(() => { stillTimer = 0; if (live() && stageReady) stillEl.style.backgroundImage = "none"; }, 450);
     }, (e) => { fail(e && e.message ? String(e.message) : "failed"); });

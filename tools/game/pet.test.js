@@ -49,25 +49,29 @@
       absent with pet "off"
   32. a Feed click in the inline pool writes bm.pet.v1 as the dialog does, and the line changes
   33. two pools (the page-level hooks are a set): both facets lines repaint after one write
-  35. accessories (X-7b-b): the shop lists six accessory rows; Buy on acc:flower (35) writes owned and a buy: spend of 35, the
+  34. accessories (X-7b-b): the shop lists six accessory rows; Buy on acc:flower (35) writes owned and a buy: spend of 35, the
       row shows Owned, the line is "Mochi has a new flower!", and a second Buy is not offered
-  36. wardrobe: with acc:flower and acc:bell owned the tab lists Head (Nothing, Flower), Back (Nothing) and Tail (Nothing, Bell);
+  35. wardrobe: with acc:flower and acc:bell owned the tab lists Head (Nothing, Flower), Back (Nothing) and Tail (Nothing, Bell);
       Flower writes wear.head with a stamp, moves aria-checked, sets data-pet-worn and says "Mochi is wearing the flower.";
       Nothing clears it and says "Mochi took it off."; the 2D page requests no /models/mochi/acc/ file
-  37. wardrobe with nothing owned: the empty line and no fieldset
-  38. wardrobe after a stale event: a click writes nothing and the line says the facets are catching up
-  39. wardrobe keys (X-7b-b minors): ArrowRight from Nothing checks the next chip, moves focus and writes; the roving tabindex is 0 on
+  36. wardrobe with nothing owned: the empty line and no fieldset
+  37. wardrobe after a stale event: a click writes nothing and the line says the facets are catching up
+  38. wardrobe keys (X-7b-b minors): ArrowRight from Nothing checks the next chip, moves focus and writes; the roving tabindex is 0 on
       the checked chip and -1 elsewhere; a repeat event and a Ctrl chord write nothing; a click on the chip already checked, and on
       Nothing over a stale unowned id, writes nothing and says nothing; a rebuild keeps focus on the same chip
-  40. the Wardrobe tab with the shop off: present with an accessory owned, absent with none
-  41. a quota-refused wear (BMStore.write returns false): no line, nothing stored, the chips repainted from the record
-  42. learning fill, Play (X-10): a recorded Arena run raises needs.play.n by 1 and care[today].play to 1, a second to 2, no toy needed
-  43. learning fill, Spark (X-10): a first-try correct answer on a placed, due section earns the review id and fills Spark; a second
+  39. the Wardrobe tab with the shop off: present with an accessory owned, absent with none
+  40. a quota-refused wear (BMStore.write returns false): no line, nothing stored, the chips repainted from the record
+  41. learning fill, Play (X-10): a recorded Arena run raises needs.play.n by 1 and care[today].runs to 1, a second to 2, no toy
+      needed, and care[today].play stays absent; after two runs three Play clicks are all accepted and the fourth says the cap line
+      (runs never count against the button)
+  42. learning fill, Spark (X-10): a first-try correct answer on a placed, due section earns the review id and fills Spark; a second
       identical attempt fills it again (Spark 2 hearts up, care.spark 2)
-  44. low pose (X-10): Tummy at 1 heart reads "sleepy" at mount with "Mochi could use a snack." said once; a reload says nothing and
+  43. low pose (X-10): Tummy at 1 heart reads "sleepy" at mount with "Mochi could use a snack." said once; a reload says nothing and
       the pose stays; with the pool off the mood is "idle"
-  45. bus reaction (X-10): a pet earn change turns the companion happy briefly with no line
-  46. no page errors in any case */
+  44. bus reaction (X-10): a pet earn change turns the companion happy briefly with no line
+  45. no page errors in any case
+  The footer counts the blocks that run: every number above except 22 and 34 (which live in pet3d.test.js or are gone), plus 19b,
+  41b and the two unnumbered blocks inside 5 and 14; 47 in all. */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -764,7 +768,7 @@ async function run() {
       check(await until(c.page, () => /You have 40 facets/.test(document.querySelector("#mochi .pet-facets").textContent)), "two pools: the first still repaints after the second is gone");
       await done(c, "two pools");
     }
-    /* 35: accessories in the shop */
+    /* 34: accessories in the shop */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE }));
@@ -784,7 +788,7 @@ async function run() {
       eq(await c.page.evaluate(() => window.__pet), ["buy:acc:flower"], "acc shop: one buy event");
       await done(c, "acc shop");
     }
-    /* 36: the wardrobe */
+    /* 35: the wardrobe */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01", "acc:bell": "2025-01-01" }, wear: { at: 5 } }));
@@ -815,7 +819,7 @@ async function run() {
       eq(c.requests.filter((u) => /\/models\/mochi\/acc\//.test(u)), [], "wardrobe: a 2D page requests no accessory file");
       await done(c, "wardrobe");
     }
-    /* 37: nothing to wear */
+    /* 36: nothing to wear */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE }));
@@ -825,7 +829,7 @@ async function run() {
       eq(d, { fieldsets: 0, text: "Nothing to wear yet. The shop has hats and more.", shown: true }, "wardrobe empty: the line and no fieldset");
       await done(c, "wardrobe empty");
     }
-    /* 38: stale */
+    /* 37: stale */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" } }));
@@ -838,7 +842,7 @@ async function run() {
       eq(await c.page.evaluate(() => document.querySelector("[data-wardrobe-line]").textContent), "Mochi's facets are catching up after a sync.", "wardrobe stale: the line");
       await done(c, "wardrobe stale");
     }
-    /* 39: the wardrobe's keys and minors */
+    /* 38: the wardrobe's keys and minors */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" }, wear: { head: "acc:crown", at: 5 } }));
@@ -885,7 +889,7 @@ async function run() {
       eq(JSON.parse(await stored(c.page)).wear.head, "acc:crown", "keys: ArrowLeft moves to the previous chip in catalogue order (the crown)");
       await done(c, "wardrobe keys");
     }
-    /* 40: the Wardrobe tab with the shop off */
+    /* 39: the Wardrobe tab with the shop off */
     cases++;
     {
       const tabsOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll(".pet-tabs [data-tab]")).map((b) => b.getAttribute("data-tab")));
@@ -900,7 +904,7 @@ async function run() {
       eq(await tabsOf(o.page), ["pool", "growth"], "shop off with none: no Wardrobe tab");
       await done(o, "wardrobe shop off none");
     }
-    /* 41: a refused wear */
+    /* 40: a refused wear */
     cases++;
     {
       const c = await open(seedPet({ earned: FIVE, owned: { "acc:flower": "2025-01-01" } }));
@@ -919,7 +923,7 @@ async function run() {
       eq(await stored(c.page), before, "refused wear: nothing stored");
       await done(c, "refused wear");
     }
-    /* 42: Arena fill */
+    /* 41: Arena fill */
     cases++;
     {
       const c = await open(seedPet({ needs: { play: { n: 2, at: Date.now() } } }));
@@ -928,15 +932,33 @@ async function run() {
       const emit = () => c.page.evaluate((d) => window.BMStore.emit({ type: "arena", phase: "recorded", set: "ch01/practice", day: d, due: [], medal: 0 }), day);
       await emit();
       let rec = JSON.parse(await stored(c.page));
-      eq([rec.needs.play.n, rec.care[day].play], [3, 1], "arena fill: Play rose by 1 and care.play is 1");
+      eq([rec.needs.play.n, rec.care[day].runs, rec.care[day].play], [3, 1, undefined], "arena fill: Play rose by 1, care.runs is 1 and care.play is absent");
       await emit();
       rec = JSON.parse(await stored(c.page));
-      eq([rec.needs.play.n, rec.care[day].play, rec.owned || {}], [4, 2, {}], "arena fill: a second run makes it 2, and no toy applied");
+      eq([rec.needs.play.n, rec.care[day].runs, rec.care[day].play, rec.owned || {}], [4, 2, undefined, {}], "arena fill: a second run makes runs 2, play stays absent, and no toy applied");
       eq([rec.care[day].spark, rec.needs.spark], [undefined, undefined], "arena fill: Spark is untouched without a due review");
       eq(await c.page.evaluate(() => window.__pet), ["care:play", "care:play"], "arena fill: one care event per run");
       await done(c, "arena fill");
     }
-    /* 43: Spark fill */
+    /* 41b: runs never count against the Play button */
+    cases++;
+    {
+      const c = await open(seedPet({ owned: TOY, needs: { play: { n: 1, at: Date.now() } } }));
+      const day = await today(c.page);
+      const emit = () => c.page.evaluate((d) => window.BMStore.emit({ type: "arena", phase: "recorded", set: "ch01/practice", day: d, due: [], medal: 0 }), day);
+      await emit(); await emit();
+      await openPool(c.page);
+      for (let i = 0; i < 3; i++) {
+        await c.page.click('button[data-act="play"]');
+        check(!(await c.page.evaluate(() => document.querySelector('button[data-act="play"]').disabled)) || i === 2, "runs and the button: click " + (i + 1) + " is accepted");
+      }
+      const rec = JSON.parse(await stored(c.page));
+      eq([rec.care[day].runs, rec.care[day].play], [2, 3], "runs and the button: two runs and three button plays");
+      check(await c.page.evaluate(() => document.querySelector('button[data-act="play"]').disabled), "runs and the button: the fourth is disabled");
+      eq(await lineOf(c.page), "Mochi has played enough for today. The Arena is always open.", "runs and the button: the cap line");
+      await done(c, "runs and the button");
+    }
+    /* 42: Spark fill */
     cases++;
     {
       const c = await open(seedPet({ needs: { spark: { n: 2, at: Date.now() } } }));
@@ -956,7 +978,7 @@ async function run() {
       eq([rec.needs.spark.n, rec.care[day].spark, Object.keys(rec.earned).length], [4, 2, 1], "spark fill: a second attempt fills again, the id pays once");
       await done(c, "spark fill");
     }
-    /* 44: low pose */
+    /* 43: low pose */
     cases++;
     {
       const c = await open(seedPet({ needs: { tummy: { n: 1, at: Date.now() } } }));
@@ -973,7 +995,7 @@ async function run() {
       check(await until(c.page, () => window.BMCompanion.info().mood === "idle"), "low pose: with the pool off the mood is idle");
       await done(c, "low pose");
     }
-    /* 45: a pet change on the bus */
+    /* 44: a pet change on the bus */
     cases++;
     {
       const c = await open(seedPet({ v: 1 }));

@@ -210,7 +210,7 @@ function randomPet(R) {
   some(DAYS, 0.5).forEach(d => {
     care[d] = {};
     if (R.maybe(0.5)) care[d].feed = { fish: 1 + R.int(3) };
-    some(["play", "clean", "spark"], 0.4).forEach(k => { care[d][k] = 1 + R.int(2); });
+    some(["play", "clean", "spark", "runs"], 0.4).forEach(k => { care[d][k] = 1 + R.int(2); });
     if (R.maybe(0.05)) care[d] = R.pick(["x", 7, null]);
   });
   put("care", R.maybe(0.03) ? R.pick(["x", [1]]) : care);
