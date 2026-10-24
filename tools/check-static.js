@@ -1904,6 +1904,17 @@ function checkMochiWater(ctx, r) {
   r.count = 1;
 }
 
+/* The decor sheet is what tools/gen-water.js writes, within MOCHI_DECOR_BYTES_MAX. */
+function checkMochiDecor(ctx, r) {
+  const gw = require("./gen-water");
+  gw.problemsDecor().forEach(m => r.fail(m));
+  try {
+    const d = require("./lib/png").decode(fs.readFileSync(gw.DECOR_FILE));
+    if (d.width !== gw.DECOR_WIDTH || d.height !== gw.DECOR_HEIGHT) r.fail("public/models/mochi/decor.png is " + d.width + "x" + d.height + ", not " + gw.DECOR_WIDTH + "x" + gw.DECOR_HEIGHT);
+  } catch (e) { /* unreadable or missing: problemsDecor() has said so */ }
+  r.count = 1;
+}
+
 /* ---------------------------------------------------------- help-markup -- */
 
 /* Help that sits on an exercise card (a clue ladder in data-hint/-hint2/-hint3, a
@@ -2284,6 +2295,7 @@ const CHECKS = [
   { name: "reading-column", run: checkReadingColumn, what: "no animation, moving transition or decoration in the reading column but tools/reading-column-allow.json's" },
   { name: "us-english", run: checkUsEnglish, what: "no British spelling or pound money in reader-facing text beyond tools/us-english-allow.json, whose counts only fall" },
   { name: "mochi-model", run: checkMochiModels, what: "public/models/mochi/*.glb are what tools/gen-mochi.js packed from the Blender project: size, triangle and texture caps, the twelve clips, the 33 morph targets, the pose sheet" },
+  { name: "mochi-decor", run: checkMochiDecor, what: "public/models/mochi/decor.png is what tools/gen-water.js writes: 8 cells of 32x32, under MOCHI_DECOR_BYTES_MAX" },
   { name: "mochi-water", run: checkMochiWater, what: "public/models/mochi/water.png is what tools/gen-water.js writes: 8 frames of 64x64, under MOCHI_WATER_BYTES_MAX" },
   { name: "contrast", run: checkContrast, what: "WCAG contrast of token pairs in tools/contrast-pairs.json, both themes × both panels, all Parts; print restates the dark panel" }
 ];
