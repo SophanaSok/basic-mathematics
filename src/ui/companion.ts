@@ -158,6 +158,12 @@ function input(withDue: boolean): MoodInput {
 }
 
 function variantOf(): string { return prefs().mochi === "lilac" ? "lilac" : "pink"; }
+/** the pose sheet and the box in it for one mood: nine stills side by side, so a mood's box is i/8 of the way along.
+    `root` is the site's rootPrefix; an unknown mood shows the first still; any variant but "lilac" is pink. */
+export function stillStyle(mood: string, variant: string, root: string): { image: string; position: string } {
+  const i = Math.max(0, (MOODS as readonly string[]).indexOf(mood));
+  return { image: root + "models/mochi/mochi-" + (variant === "lilac" ? "lilac" : "pink") + "-poses.webp", position: (i * 100 / 8) + "% 0" };
+}
 function sheetUrl(v: string): string {
   let root = "";
   try { root = String(w().BMSite.rootPrefix()); } catch { /* no helper */ }
@@ -190,7 +196,7 @@ function drawSprite(): void {
   }
   /* nine stills side by side: the sheet is nine boxes wide, one high, and the box is square (game.css sizes it) */
   still.style.backgroundSize = "900% 100%";
-  still.style.backgroundPosition = (MOODS.indexOf(mood) * 100 / 8) + "% 0";
+  still.style.backgroundPosition = stillStyle(mood, v, "").position;
   if (stage && stageReady && lastSent !== mood) { lastSent = mood; try { stage.setMood(mood); } catch { /* the still stays */ } }
   if (nameEl) nameEl.textContent = "Mochi";
   pic.setAttribute("aria-label", "Mochi, your companion, " + mood + (pic.tagName === "BUTTON" ? ". Open Mochi's pool" : ""));

@@ -95,7 +95,6 @@ export function mountGrowth(shell: HTMLElement, ctx: GrowthCtx, tabs: TabsHandle
       li.setAttribute("data-day", key);
       li.setAttribute("data-points", String(n));
       const label = dayLabel(d, n);
-      li.setAttribute("aria-label", label);
       (li.firstChild as HTMLElement).textContent = label;
     });
   }

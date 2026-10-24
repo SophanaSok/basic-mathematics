@@ -958,7 +958,15 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
   .pet-needs i { border: 1px solid CanvasText; background: Canvas; }
   .pet-needs i[data-on] { background: CanvasText; }
 }
-@media print { dialog.pet-dialog { display: none; } }
+@media print { dialog.pet-dialog, #mochi { display: none; } }
+/* the pool inline on the progress page (X-9): no dialog chrome, the porthole 16rem, centred */
+#mochi .pet-pool { max-width: 32rem; margin: 0 auto; }
+#mochi .pet-porthole { width: min(16rem, 100%); }
+/* Mochi's still in the level popover (src/ui/hud-pop.ts): decorative, 4rem square */
+.hud-pop .pop-mochi { position: relative; display: block; width: 4rem; height: 4rem; margin: 0 0 .4rem; background-repeat: no-repeat; image-rendering: auto; }
+@media print { .pop-mochi { display: none; } }
+@media (forced-colors: active) { .pop-mochi { display: none; } }
+@media (forced-colors: active) { .pet-path li[data-reached] { border-top-style: double; } }
 /* the dev-only QA panel (src/mochi/qa.ts, ?mochi=qa on a dev server) */
 .companion-qa { position: fixed; left: 8px; bottom: 8px; z-index: 60; display: flex; flex-wrap: wrap; gap: 4px; max-width: 22rem; padding: 6px; font: .75rem var(--sans); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .companion-qa button { font: inherit; padding: 2px 6px; }

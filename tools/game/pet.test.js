@@ -40,7 +40,15 @@
   26. T7 in the calendar: a day with care but no XP shows 0 points
   27. X-7 minors: a Place that changes nothing writes nothing and says nothing; a snack that does not fit is disabled with
       the room in its row, and the cheapest snack that fits stays enabled
-  28. no page errors in any case */
+  28. inline (X-9): progress.html has section#mochi[data-pet] with .pet-pool, h2.pet-title, four needs, the care row
+      and the tabs, no dialog and no Close button; bundle/pet.js was fetched
+  29. redraw: a level or sync event rebuilds the panel once; one .pet-pool and at most one canvas before and after
+  30. Study mode and config pet "off": no #mochi on load or after a redraw, no pet chunk
+  31. popover: the level badge's popover holds span.pop-mochi naming mochi-pink-poses.webp at the companion's mood;
+      absent with pet "off"
+  32. a Feed click in the inline pool writes bm.pet.v1 as the dialog does, and the line changes
+  33. two pools (the page-level hooks are a set): both facets lines repaint after one write
+  34. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -56,6 +64,7 @@ function check(cond, what) {
 }
 function eq(a, b, what) { check(JSON.stringify(a) === JSON.stringify(b), what + " — got " + JSON.stringify(a) + ", want " + JSON.stringify(b)); }
 const until = (page, fn, arg, ms) => page.waitForFunction(fn, arg, { timeout: ms || 6000, polling: 50 }).then(() => true, () => false);
+const seed_calm = () => ({ "bm.prefs.v1": '{"calm":true}' });
 const SEEN = JSON.stringify({ seen: { companion: 1 } });
 
 async function open(seed, opts) {
@@ -77,8 +86,8 @@ async function open(seed, opts) {
     if (/Failed to load resource|net::ERR_/.test(m.text())) return;
     errors.push("console: " + m.text());
   });
-  await page.goto(server.url + CHAPTER + (opts.three ? "" : "?3d=off"), { waitUntil: "load" });
-  check(await until(page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000), "the companion mounts");
+  await page.goto(server.url + (opts.path || CHAPTER) + (opts.three ? "" : "?3d=off"), { waitUntil: "load" });
+  if (!opts.path) check(await until(page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000), "the companion mounts");
   return { context, page, requests, errors };
 }
 async function done(c, what) {
@@ -570,8 +579,9 @@ async function run() {
           days: p.querySelectorAll("ol.pet-days li[data-day]").length,
           fours: Array.from(p.querySelectorAll('li[data-points="4"]')).map((l) => l.getAttribute("data-day")),
           zeros: p.querySelectorAll('li[data-points="0"]').length,
-          label: p.querySelector('li[data-points="4"]').getAttribute("aria-label"),
-          zeroLabel: p.querySelector('li[data-points="0"]').getAttribute("aria-label"),
+          label: p.querySelector('li[data-points="4"] .visually-hidden').textContent,
+          zeroLabel: p.querySelector('li[data-points="0"] .visually-hidden').textContent,
+          aria: p.querySelectorAll("ol.pet-days li[aria-label]").length,
           last: p.querySelector("ol.pet-days li:last-child").getAttribute("data-day"),
           hint: p.querySelector(".pet-line").textContent
         };
@@ -584,6 +594,7 @@ async function run() {
       eq(d.days, 28, "growth tab: 28 days");
       eq(d.fours, [days[1], days[0]], "growth tab: the two seeded days are at 4");
       eq(d.zeros, 26, "growth tab: the rest are at 0");
+      eq(d.aria, 0, "growth tab: a day is read once (no aria-label beside the hidden text)");
       check(/^[A-Z][a-z]+ \d{1,2}: 4 care points$/.test(d.label), "growth tab: the day label (" + d.label + ")");
       check(/^[A-Z][a-z]+ \d{1,2}: no care points$/.test(d.zeroLabel), "growth tab: the zero label (" + d.zeroLabel + ")");
       eq(d.last, await today(c.page), "growth tab: the calendar ends today");
@@ -655,6 +666,118 @@ async function run() {
       }));
       eq(sn, [["snack:kelp-chip", false, "", "5 facets"], ["snack:shrimp-puff", true, "Mochi has room for 1 heart", "8 facets"], ["snack:berry-bite", true, "Mochi has room for 1 heart", "12 facets"]], "minors: snacks that do not fit are disabled with the room in the row");
       await done(c, "minors");
+    }
+    /* 28: inline */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }), { path: "progress.html" });
+      check(await until(c.page, () => !!document.querySelector("#mochi .pet-pool")), "inline: the pool mounts in #mochi");
+      const d = await c.page.evaluate(() => {
+        const s = document.querySelector("section#mochi");
+        return {
+          pet: s.hasAttribute("data-pet"), dialog: !!document.querySelector("dialog.pet-dialog"), close: !!s.querySelector("[data-pet-close]"),
+          title: s.querySelectorAll("h2.pet-title").length, h2: s.querySelectorAll("h2").length, needs: s.querySelectorAll("li[data-need]").length,
+          actions: !!s.querySelector(".pet-actions"), tabs: s.querySelectorAll(".pet-tabs [role=tab]").length, pools: document.querySelectorAll(".pet-pool").length,
+          focus: s.contains(document.activeElement)
+        };
+      });
+      check(d.pet, "inline: #mochi carries data-pet");
+      check(!d.dialog && !d.close && !d.focus, "inline: no dialog, no Close button, no focus move");
+      eq([d.title, d.h2, d.needs, d.actions, d.pools], [1, 1, 4, true, 1], "inline: one title, four needs, the care row, one pool");
+      check(d.tabs >= 2, "inline: the tabs");
+      check(c.requests.some((u) => PET_CHUNK.test(u)), "inline: the pet chunk was fetched (the page carries [data-pet])");
+      await done(c, "inline");
+    }
+    /* 29: redraw */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }), { path: "progress.html", three: true });
+      await until(c.page, () => !!document.querySelector("#mochi .pet-pool"));
+      const count = (page) => page.evaluate(() => ({ pools: document.querySelectorAll(".pet-pool").length, canvases: document.querySelectorAll("#mochi canvas").length, section: !!document.querySelector("#mochi") }));
+      const before = await count(c.page);
+      check(before.pools === 1 && before.canvases <= 1, "redraw: one pool and at most one canvas before");
+      for (const type of ["level", "sync", "level"]) {
+        await c.page.evaluate((t) => { window.__old = document.querySelector("#mochi"); window.BMStore.emit({ type: t }); }, type);
+        check(await until(c.page, () => !!document.querySelector("#mochi .pet-pool")), "redraw (" + type + "): the pool is back");
+        const after = await count(c.page);
+        check(after.pools === 1 && after.canvases <= 1, "redraw (" + type + "): one pool and at most one canvas after");
+        check(await c.page.evaluate(() => window.__old !== document.querySelector("#mochi") && !window.__old.isConnected && !window.__old.querySelector(".pet-pool")), "redraw (" + type + "): the old panel is rebuilt and emptied");
+      }
+      /* two redraws back to back while the import is pending: still one pool */
+      await c.page.evaluate(() => { window.BMStore.emit({ type: "level" }); window.BMStore.emit({ type: "sync" }); });
+      await new Promise((r) => setTimeout(r, 800));
+      eq(await c.page.evaluate(() => document.querySelectorAll(".pet-pool").length), 1, "redraw: back-to-back redraws leave one pool");
+      await done(c, "redraw");
+    }
+    /* 30: hidden on the progress page */
+    cases++;
+    {
+      const c = await open(seed_calm(), { path: "progress.html" });
+      await new Promise((r) => setTimeout(r, 500));
+      eq(await c.page.evaluate(() => document.querySelectorAll("#mochi").length), 0, "study mode: no #mochi on load");
+      eq(c.requests.filter((u) => PET_CHUNK.test(u)), [], "study mode: no pet chunk on progress");
+      await done(c, "study mode progress");
+      const o = await open(seedPet({ v: 1 }), { path: "progress.html" });
+      await until(o.page, () => !!document.querySelector("#mochi .pet-pool"));
+      await o.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { pet: "off" }); window.BMStore.emit({ type: "level" }); });
+      check(await until(o.page, () => !document.querySelector("#mochi") && !document.querySelector(".pet-pool")), "pet off: the panel and the pool are gone after a redraw");
+      await done(o, "pet off progress");
+    }
+    /* 31: the popover's still */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }));
+      await c.page.click(".topbar .hud-level");
+      check(await until(c.page, () => !!document.querySelector("#hud-pop .pop-mochi")), "popover: the still is there");
+      const d = await c.page.evaluate(() => {
+        const s = document.querySelector("#hud-pop .pop-mochi"), r = s.getBoundingClientRect();
+        const mood = window.BMCompanion.info().mood;
+        return { img: s.style.backgroundImage, pos: s.style.backgroundPosition, size: s.style.backgroundSize, hidden: s.getAttribute("aria-hidden"), w: Math.round(r.width), h: Math.round(r.height), idx: window.BMCompanion.moods().indexOf(mood) };
+      });
+      check(/mochi-pink-poses\.webp/.test(d.img), "popover: the pink sheet (" + d.img + ")");
+      eq([d.size, d.hidden, d.w, d.h], ["900% 100%", "true", 64, 64], "popover: nine boxes, aria-hidden, 4rem square");
+      eq(parseFloat(d.pos), d.idx * 100 / 8, "popover: the position follows the companion's mood");
+      await done(c, "popover still");
+      const o = await open(seedPet({ v: 1 }));
+      await o.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { pet: "off" }); });
+      await o.page.click(".topbar .hud-level");
+      await until(o.page, () => !!document.querySelector("#hud-pop"));
+      eq(await o.page.evaluate(() => document.querySelectorAll("#hud-pop .pop-mochi").length), 0, "popover: no still with pet off");
+      await done(o, "popover pet off");
+    }
+    /* 32: Feed inline */
+    cases++;
+    {
+      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { tummy: { n: 3, at: Date.now() } } }) }, { path: "progress.html" });
+      await until(c.page, () => !!document.querySelector("#mochi .pet-pool"));
+      await busLog(c.page);
+      await c.page.click('#mochi button[data-act="feed"]');
+      const day = await today(c.page);
+      eq(await hearts(c.page, "tummy"), 4, "inline feed: the tummy row shows 4");
+      eq(await lineOf(c.page), "Mochi munches happily.", "inline feed: the line");
+      const rec = JSON.parse(await stored(c.page));
+      eq([rec.gift[day], rec.care[day].feed.pellet], [1, 1], "inline feed: gift and pellet written");
+      eq(await c.page.evaluate(() => window.__pet), ["gift:feed:" + day], "inline feed: one gift event");
+      await done(c, "inline feed");
+    }
+    /* 33: two pools, one set of hooks */
+    cases++;
+    {
+      const c = await open(seedPet({ v: 1 }), { path: "progress.html" });
+      await until(c.page, () => !!document.querySelector("#mochi .pet-pool"));
+      await c.page.evaluate(() => window.BMCompanion.openPool().then((M) => {
+        const d = document.createElement("div"); d.id = "second"; document.body.appendChild(d);
+        window.__second = M.mountPool(d, { mode: "inline" });
+      }));
+      const lines = () => c.page.evaluate(() => [document.querySelector("#mochi .pet-facets").textContent, document.querySelector("#second .pet-facets").textContent]);
+      eq(await lines(), ["You have 0 facets.", "You have 0 facets."], "two pools: both start at 0");
+      await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); r.earned = { "strong:a": 1 }; window.BMStore.write(window.BMStore.keys.pet, r); window.BMStore.emit({ type: "pet", what: "sync" }); });
+      check(await until(c.page, () => /You have 20 facets/.test(document.querySelector("#mochi .pet-facets").textContent) && /You have 20 facets/.test(document.querySelector("#second .pet-facets").textContent)), "two pools: both facets lines repaint (" + JSON.stringify(await lines()) + ")");
+      await c.page.evaluate(() => window.__second.dispose());
+      eq(await c.page.evaluate(() => [document.querySelectorAll(".pet-pool").length, document.querySelector("#second").hasAttribute("data-pet")]), [1, false], "two pools: dispose removes only its own shell and data-pet");
+      await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); r.earned = { "strong:a": 1, "strong:b": 1 }; window.BMStore.write(window.BMStore.keys.pet, r); window.BMStore.emit({ type: "pet", what: "sync" }); });
+      check(await until(c.page, () => /You have 40 facets/.test(document.querySelector("#mochi .pet-facets").textContent)), "two pools: the first still repaints after the second is gone");
+      await done(c, "two pools");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }

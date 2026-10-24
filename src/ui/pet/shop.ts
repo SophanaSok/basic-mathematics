@@ -118,7 +118,8 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx, tabs: TabsHandle): S
       }
       if (r.note) {
         /* a snack with more hearts than Tummy has room for is refused, and the row says why */
-        const short = item.kind === "snack" && room < Math.floor(item.hearts || 0);
+        const h = Math.floor(Number(item.hearts) || 0);
+        const short = item.kind === "snack" && h >= 1 && room < h;
         r.note.hidden = !short;
         r.note.textContent = short ? "Mochi has room for " + room + " heart" + (room === 1 ? "" : "s") : "";
       }

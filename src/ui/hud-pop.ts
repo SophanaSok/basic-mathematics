@@ -140,6 +140,30 @@ function closePop(refocus: boolean): void {
   if (refocus && badge) { quiet = true; badge.focus(); quiet = false; }
 }
 
+/* Mochi's still for the current mood, 4rem, decorative; none when the pool or the companion is switched off */
+function mochiStill(): HTMLElement[] {
+  const w = window as any;
+  try {
+    const cfg = w.BMCore?.config?.readConfig(w.BM_CONFIG);
+    if (cfg && (cfg.pet === "off" || cfg.companion === "off")) return [];
+  } catch { /* an absent field is on */ }
+  let mood = "idle", variant = "pink", root = "";
+  try { const m = w.BMCompanion && w.BMCompanion.info && w.BMCompanion.info().mood; if (typeof m === "string") mood = m; } catch { /* idle */ }
+  try { if (w.BMGame.prefs().mochi === "lilac") variant = "lilac"; } catch { /* pink */ }
+  try { root = String(w.BMSite.rootPrefix()); } catch { /* no helper */ }
+  /* the same sheet and arithmetic as stillStyle() in companion.ts (not imported: this module loads on pages without the
+     companion); the mood's place comes from the companion's own list, else the first still */
+  let idx = 0;
+  try { idx = Math.max(0, w.BMCompanion.moods().indexOf(mood)); } catch { /* the first still */ }
+  const s = { image: root + "models/mochi/mochi-" + variant + "-poses.webp", position: (idx * 100 / 8) + "% 0" };
+  const span = el("span", "pop-mochi companion-still");
+  span.setAttribute("aria-hidden", "true");
+  span.style.backgroundImage = 'url("' + s.image + '")';
+  span.style.backgroundSize = "900% 100%";
+  span.style.backgroundPosition = s.position;
+  return [span];
+}
+
 function openPop(badge: HTMLAnchorElement): void {
   const bar = badge.closest<HTMLElement>(".topbar");
   if (!bar) return;
@@ -161,6 +185,7 @@ function openPop(badge: HTMLAnchorElement): void {
   bars.appendChild(fill);
   box.append(
     title,
+    ...mochiStill(),
     el("p", "pop-line", v.into + " of " + v.span + " XP · " + (v.span - v.into) + " XP to level " + (v.level + 1)),
     bars,
     el("p", "pop-line", "Streak: " + plural(v.streak, "day", "days") + ". Today: " + v.today + " of " + v.goal + " XP."),
