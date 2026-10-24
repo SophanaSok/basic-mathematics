@@ -592,7 +592,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     };
   };
   let h = hudOf(out);
-  eq(h.slots, ["hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a page of no game has the combo (empty until it has pips), the level and the streak");
+  eq(h.slots, ["hud-facets[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a page of no game has the combo (empty until it has pips), the level and the streak");
   check(h.labels.every(l => (l || "").split(" ").length >= 5), "every slot of the HUD has a sentence for a label: " + JSON.stringify(h.labels));
   eq([h.after, h.strip], [["acct", "icon-btn hud-sound", "icon-btn hud-menu"], false], "then the account chip, the sound and the menu buttons; no second row");
   eq(h.prefs, ["calm", "sound", "volume", "motion", "transparency", "keys", "companion", "mochi=pink", "mochi=lilac", "theme=light", "theme=dark", "theme=system", "panel=light", "panel=dark", "gfx=auto", "gfx=low", "gfx=mid", "gfx=high", "map3d"],
@@ -600,9 +600,9 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   check(/Keeps hints, reviews and progress\. Removes hearts, combo, bosses, motion and sound\./.test(h.sheet.textContent) && h.links === 5, "Study mode says what it keeps and what it removes, and the sheet keeps the menu's links");
   /* what only some kinds have comes first, so the parts every page has hold still from page
      to page (lib/shell.js hud(): the bar is right-aligned) */
-  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-hearts[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a chapter keeps a place for the boss's hearts, before the rest");
+  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-facets[slot][hidden]", "hud-hearts[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a chapter keeps a place for the boss's hearts, before the rest");
   h = hudOf(render('data-depth="0" data-page="arena"'));
-  eq([h.slots, h.strip], [["hud-hearts[slot][hidden]", "hud-timer[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], true], "the Arena keeps a place for hearts and the clock, before the rest, and has the second row for a narrow screen");
+  eq([h.slots, h.strip], [["hud-facets[slot][hidden]", "hud-hearts[slot][hidden]", "hud-timer[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], true], "the Arena keeps a place for hearts and the clock, before the rest, and has the second row for a narrow screen");
 
   /* the other kinds and top bars */
   eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");

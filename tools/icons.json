@@ -18,6 +18,7 @@
     "reset": "bold/arrow-counter-clockwise",
     "grip": "bold/dots-six-vertical",
     "up": "bold/arrow-up",
-    "down": "bold/arrow-down"
+    "down": "bold/arrow-down",
+    "gem": "bold/diamond"
   }
 }
