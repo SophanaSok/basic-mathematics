@@ -13,9 +13,19 @@ export const LINES = {
   played: "Mochi zooms around the pool.",
   cleaned: "The water sparkles again.",
   petted: "Mochi nuzzles your hand.",
-  giftTaken: "Mochi has had today's pellet. Snacks come to the shop soon.",
-  playCap: "Mochi has played enough for today. The Arena is always open."
+  giftTaken: "Mochi has had today's pellet.",
+  giftTakenShop: "Mochi has had today's pellet. The shop has snacks.",
+  playCap: "Mochi has played enough for today. The Arena is always open.",
+  noToy: "Mochi needs a toy to play. The shop has some.",
+  notEnough: "Not enough facets yet. Learning earns them.",
+  behind: "Mochi's facets are catching up after a sync.",
+  full: "Mochi is full for now."
 } as const;
+
+/** the shop's lines that carry an item's name (lower case inside a sentence) */
+export const bought = (name: string): string => "Mochi has a new " + name.toLowerCase() + "!";
+export const placed = (name: string): string => "The " + name.toLowerCase() + " is in the pool.";
+export const removed = (name: string): string => "The " + name.toLowerCase() + " is put away.";
 
 const ORDER: Need[] = ["tummy", "play", "clean", "spark"];
 

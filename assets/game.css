@@ -910,6 +910,29 @@ dialog.pet-dialog::backdrop { background: var(--scrim-glass); }
 .pet-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin: 0 0 .75rem; }
 .pet-porthole { cursor: pointer; }
 .pet-facets { margin: 0 0 .9rem; font-size: .9rem; }
+.pet-porthole:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); border-radius: 50%; }
+.pet-line:focus { outline: none; }
+.pet-actions [aria-disabled="true"] { opacity: .55; cursor: default; }
+/* the pool and shop tabs, and the shop's rows (X-7); nothing here animates */
+.pet-tabs { display: flex; justify-content: center; gap: .25rem; margin: 0 0 .75rem; border-bottom: 1px solid var(--border); }
+.pet-tab {
+  font: inherit; font-weight: 700; padding: .4rem 1rem; background: transparent; color: var(--muted);
+  border: 0; border-bottom: 3px solid transparent; cursor: pointer;
+}
+.pet-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.pet-tab:focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
+.pet-panel[hidden] { display: none; }
+.pet-group { margin: .9rem 0 .35rem; font-size: .95rem; text-align: left; }
+.pet-items { list-style: none; margin: 0; padding: 0; }
+.pet-item {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .25rem .75rem;
+  padding: .35rem 0; border-bottom: 1px solid var(--border); text-align: left; font-size: .9rem;
+}
+.pet-item-name { font-weight: 700; }
+.pet-item-price { color: var(--muted); font-size: .8rem; }
+.pet-owned { color: var(--muted); font-weight: 700; font-size: .85rem; }
+.pet-item .btn[hidden], .pet-owned[hidden] { display: none; }
+.pet-item .btn:disabled { opacity: .55; }
 @media (forced-colors: active) {
   .pet-needs i { border: 1px solid CanvasText; background: Canvas; }
   .pet-needs i[data-on] { background: CanvasText; }

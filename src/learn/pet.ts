@@ -38,6 +38,7 @@
 import type { ActivityStore, DayKey, PetStore, Timestamp } from "../types/state.ts";
 import { mergeCareDay, mergeWear, PET, WEAR_AT_MAX, wearOf } from "../sync/merge.ts";
 import { at, keysOf, num, obj, plain } from "../sync/json.ts";
+import type { PetItem } from "../data/pet-items.ts";
 
 export const NEEDS = ["tummy", "play", "clean", "spark"] as const;
 export type Need = (typeof NEEDS)[number];
@@ -298,21 +299,24 @@ export function prunePet(pet: unknown): PetStore {
 
 export type Act = "feed" | "play" | "clean";
 export const PLAY_PER_DAY = 3;
-export type ActWhy = "" | "gift-taken" | "play-cap" | "clean-full";
+export type ActWhy = "" | "gift-taken" | "play-cap" | "clean-full" | "no-toy";
 
-/** whether an act is allowed now: feed is the free daily pellet (snacks come with the shop), play is
-    capped per day, and clean needs a need that is not already full */
-export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): { ok: boolean; why: ActWhy } {
+/** whether an act is allowed now: feed is the free daily pellet (snacks go through feedSnack), play needs
+    a toy (unless opts.toy is false: the shop is off) and is capped per day, and clean needs a need that is not already full */
+export function canAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, opts?: { toy?: boolean }): { ok: boolean; why: ActWhy } {
   if (act === "feed") return giftTaken(pet, day) ? { ok: false, why: "gift-taken" } : { ok: true, why: "" };
-  if (act === "play") return careOf(pet, day).play >= PLAY_PER_DAY ? { ok: false, why: "play-cap" } : { ok: true, why: "" };
+  if (act === "play") {
+    if (!(opts && opts.toy === false) && !ownsToy(pet)) return { ok: false, why: "no-toy" };
+    return careOf(pet, day).play >= PLAY_PER_DAY ? { ok: false, why: "play-cap" } : { ok: true, why: "" };
+  }
   if (act === "clean") return heartsOf("clean", at(obj(obj(pet).needs), "clean"), now) >= HEARTS_MAX ? { ok: false, why: "clean-full" } : { ok: true, why: "" };
   return { ok: false, why: "" };
 }
 
 /** the record after an act: a new object (the input is never touched), or the same one when the act is
     refused. Spark is not an act (only due reviews fill it) and petting writes nothing. */
-export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): PetStore {
-  if (!canAct(pet, act, day, now).ok) return pet as PetStore;
+export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp, opts?: { toy?: boolean }): PetStore {
+  if (!canAct(pet, act, day, now, opts).ok) return pet as PetStore;
   const p = obj(pet), out: any = {};
   keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
   out.v = 1;
@@ -339,5 +343,91 @@ export function applyAct(pet: unknown, act: Act, day: DayKey, now: Timestamp): P
     g[day] = 1;
     out.gift = g;
   }
+  return prunePet(out);
+}
+
+/* ------------------------------------------------------------------ shop -- */
+
+function copyMap(x: unknown): any { const out: any = {}, r = obj(x); keysOf(r, {}).forEach((k) => { out[k] = at(r, k); }); return out; }
+/** an item the shop can sell: a known kind, an id in that kind's namespace and a whole price in range */
+function sellable(item: PetItem): boolean {
+  const i: any = item;
+  return plain(i) && (i.kind === "snack" || i.kind === "toy" || i.kind === "decor") && typeof i.id === "string" && i.id.startsWith(i.kind + ":") &&
+    Number.isInteger(i.price) && i.price > 0 && i.price <= SPEND_MAX;
+}
+
+/** whether any toy is owned: playing needs one */
+export function ownsToy(pet: unknown): boolean {
+  return keysOf(obj(obj(pet).owned), {}).some((k) => k.startsWith("toy:") && typeof at(obj(obj(pet).owned), k) === "string");
+}
+
+/** the id of the next purchase: <prefix>:<day>:<item>:<device>:<k>, k one past the ids already there for
+    that day, item and device. Two devices differ in the device part, so the union of their ledgers keeps both. */
+export function spendId(prefix: "buy" | "feed", day: DayKey, item: string, device: string, spent: unknown): string {
+  const head = prefix + ":" + day + ":" + item + ":" + device + ":";
+  let k = 1;
+  keysOf(obj(spent), {}).forEach((id) => { if (id.startsWith(head)) k++; });
+  return head + k;
+}
+
+/** a toy or a piece of decor bought once: a new record with the spend written (and the item owned from
+    `day`), or null when the balance does not cover it (or is negative), when it is already owned, or when
+    it is a snack (snacks are fed, see feedSnack) or not sellable. The price is the item's, never the record's. */
+export function buy(pet: unknown, item: PetItem, day: DayKey, device: string): PetStore | null {
+  if (!sellable(item) || item.kind === "snack") return null;
+  const p = obj(pet), owned = copyMap(at(p, "owned"));
+  if (typeof owned[item.id] === "string" || !canBuy(pet, item.price)) return null;
+  const out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const spent = copyMap(at(p, "spent"));
+  spent[spendId("buy", day, item.id, device, spent)] = item.price;
+  out.spent = spent;
+  owned[item.id] = day;
+  out.owned = owned;
+  return prunePet(out);
+}
+
+/** a snack eaten in the act of buying it: the spend, the care count and the Tummy hearts in one new record,
+    or null when the balance does not cover it, it is not a snack, or Tummy is already full */
+export function feedSnack(pet: unknown, item: PetItem, day: DayKey, device: string, now: Timestamp): PetStore | null {
+  if (!sellable(item) || item.kind !== "snack" || !canBuy(pet, item.price)) return null;
+  const p = obj(pet), needs = copyMap(at(p, "needs"));
+  if (heartsOf("tummy", needs.tummy, now) >= HEARTS_MAX) return null;
+  const out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const spent = copyMap(at(p, "spent"));
+  spent[spendId("feed", day, item.id, device, spent)] = item.price;
+  out.spent = spent;
+  needs.tummy = touch(needs.tummy, "tummy", now, Math.floor(num(item.hearts)));
+  out.needs = needs;
+  const care = copyMap(at(p, "care")), d = copyMap(at(care, day)), f = copyMap(at(d, "feed"));
+  f[item.id] = count(f[item.id]) + 1;
+  d.feed = f;
+  care[day] = d;
+  out.care = care;
+  return prunePet(out);
+}
+
+/** the decor ids Mochi has out, as written (strings only) */
+export function placedDecor(pet: unknown): string[] {
+  const w = wearOf(at(obj(pet), "wear")), list = w ? (w as any).decor : undefined;
+  return Array.isArray(list) ? list.filter((x: unknown) => typeof x === "string") : [];
+}
+
+/** put an owned decor item in the pool or take it out; the wear stamp moves later so the merge keeps this
+    record. An id that is not owned decor, or a change that changes nothing, gives the same record back. */
+export function placeDecor(pet: unknown, id: string, on: boolean, now: Timestamp): PetStore {
+  const p = obj(pet), owned = obj(at(p, "owned"));
+  if (typeof id !== "string" || !id.startsWith("decor:") || typeof at(owned, id) !== "string") return pet as PetStore;
+  const list = placedDecor(pet).filter((x) => x.startsWith("decor:") && typeof at(owned, x) === "string"), has = list.indexOf(id) >= 0;
+  if (on === has || (on && list.length >= DECOR_MAX)) return pet as PetStore;
+  const decor = on ? list.concat(id) : list.filter((x) => x !== id);
+  const out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const old = wearOf(at(p, "wear"));
+  out.wear = normWear({ ...(old || {}), decor, at: laterStamp(old, now) });
   return prunePet(out);
 }

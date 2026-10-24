@@ -15,8 +15,20 @@
    9. clean: seeded 2 hearts shows Clean; a click gives 5 of 5 and hides it
   10. pet: a click on the porthole writes nothing and the line reads "Mochi nuzzles your hand."
   11. acts earn nothing (the facets line stays) and the pet bus events are "gift" then "care"
-  12. reduced motion: acts still write and the line changes
-  13. no page errors in any case */
+  12. reduced motion: acts still write and the line changes, and no clip plays (the porthole never carries data-clip)
+  Play needs a toy: cases 8, 11 and 12 seed one, and a click without one only says so (aria-disabled, nothing written).
+  13. shop tab: eleven items with prices; Buy on toy:ball writes one buy: id worth 25, "You have 75 facets.", the
+      toy shows Owned, Play is enabled
+  14. refusals: at 10 facets Buy on toy:boat is disabled; at a negative balance every Buy is disabled and the line
+      says the facets are catching up
+  15. snack: Feed on snack:berry-bite at Tummy 2 writes a feed: id worth 12, Tummy is 5 of 5, care.feed has it
+      once, a second Feed is disabled
+  16. decor: Buy decor:castle, Place it (a span.companion-decor[data-decor] with the castle cell), Remove hides it,
+      wear.decor and wear.at follow
+  17. two devices: a merged record with two ball buys shows one Owned, two spends, and the balance down by both
+  18. config shop "off": no Shop tab and no shop panel, the Pool tab still works
+  19. keyboard: Enter on the porthole pets Mochi; Feed's click moves focus to the line
+  20. no page errors in any case */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -72,6 +84,17 @@ const today = (page) => page.evaluate(() => window.BMSite.dayKey(new Date()));
 const openPool = async (page) => { await page.click(".companion-pic"); await until(page, () => !!document.querySelector("dialog.pet-dialog[open]")); };
 const hearts = (page, need) => page.evaluate((n) => document.querySelector('li[data-need="' + n + '"]').querySelectorAll("i[data-on]").length, need);
 const lineOf = (page) => page.evaluate(() => document.querySelector(".pet-line").textContent);
+const TOY = { "toy:ball": "2025-01-01" };
+const FIVE = { "strong:a": 1, "strong:b": 1, "strong:c": 1, "strong:d": 1, "strong:e": 1 };   // 100 facets
+const seedPet = (o) => ({ "bm.pet.v1": JSON.stringify(o) });
+const openShop = async (page) => { await openPool(page); await page.click('button[data-tab="shop"]'); };
+const shopLine = (page) => page.evaluate(() => document.querySelector("[data-shop-line]").textContent);
+const itemState = (page, id) => page.evaluate((i) => {
+  const li = document.querySelector('li.pet-item[data-item="' + i + '"]');
+  const vis = (e) => !!e && !e.hidden;
+  const b = li.querySelector('button[data-shop="buy"], button[data-shop="feed"]');
+  return { btn: vis(b) ? (b.disabled ? "disabled" : "enabled") : "hidden", owned: vis(li.querySelector(".pet-owned")) };
+}, id);
 const busLog = (page) => page.evaluate(() => { window.__pet = []; window.BMStore.on((c) => { if (c && c.type === "pet") window.__pet.push(c.what + ":" + c.id); }); });
 
 async function run() {
@@ -208,7 +231,7 @@ async function run() {
     /* 8: play cap */
     cases++;
     {
-      const c = await open({ "bm.pet.v1": JSON.stringify({ needs: { play: { n: 1, at: Date.now() } } }) });
+      const c = await open(seedPet({ owned: TOY, needs: { play: { n: 1, at: Date.now() } } }));
       await openPool(c.page);
       for (let i = 0; i < 3; i++) await c.page.click('button[data-act="play"]');
       const day = await today(c.page);
@@ -245,7 +268,7 @@ async function run() {
     /* 11: no earn, bus order */
     cases++;
     {
-      const c = await open();
+      const c = await open(seedPet({ owned: TOY }));
       await openPool(c.page);
       await busLog(c.page);
       await c.page.click('button[data-act="feed"]');
@@ -259,14 +282,202 @@ async function run() {
     /* 12: reduced motion */
     cases++;
     {
-      const c = await open();
+      const c = await open(seedPet({ owned: TOY }), { three: true });
+      const had = await until(c.page, () => document.querySelector("figure[data-companion]").hasAttribute("data-3d"), null, 12000);
       await c.page.emulateMedia({ reducedMotion: "reduce" });
       await openPool(c.page);
+      const up = had && await until(c.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
       await c.page.click('button[data-act="play"]');
       const day = await today(c.page);
       eq(JSON.parse(await stored(c.page)).care[day].play, 1, "reduced: the act writes");
       eq(await lineOf(c.page), "Mochi zooms around the pool.", "reduced: the line changes");
+      check(await c.page.evaluate(() => !document.querySelector(".pet-porthole").hasAttribute("data-clip")), "reduced: no clip played");
       await done(c, "reduced");
+      /* the control: the same act without reduced motion plays a clip when a stage is up */
+      const k = await open(seedPet({ owned: TOY }), { three: true });
+      await openPool(k.page);
+      const kup = await until(k.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
+      await k.page.click('button[data-act="play"]');
+      if (kup) check(await k.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-clip") === "excited"), "motion: a clip plays when motion is allowed");
+      else console.log("pet: pool stage did not start here (the clip asserts are skipped; up=" + up + ")");
+      await done(k, "motion");
+    }
+    /* 13: the shop tab */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE }));
+      await openShop(c.page);
+      const d = await c.page.evaluate(() => ({
+        tabs: Array.from(document.querySelectorAll('.pet-tabs[role="tablist"] [role="tab"]')).map((b) => b.textContent + ":" + b.getAttribute("aria-selected")),
+        panels: Array.from(document.querySelectorAll(".pet-panel")).map((p) => p.getAttribute("data-panel") + ":" + p.hidden),
+        groups: Array.from(document.querySelectorAll(".pet-panel[data-panel=shop] h3")).map((h) => h.textContent),
+        items: Array.from(document.querySelectorAll("li.pet-item")).map((li) => li.getAttribute("data-item") + "=" + li.querySelector(".pet-item-price").textContent)
+      }));
+      eq(d.tabs, ["Pool:false", "Shop:true"], "shop: the tabs");
+      eq(d.panels, ["pool:true", "shop:false"], "shop: the panels");
+      eq(d.groups, ["Snacks", "Toys", "Decor"], "shop: the groups");
+      eq(d.items.length, 11, "shop: eleven items");
+      eq(d.items.slice(0, 4), ["snack:kelp-chip=5 facets", "snack:shrimp-puff=8 facets", "snack:berry-bite=12 facets", "toy:ball=25 facets"], "shop: the first prices");
+      eq(await itemState(c.page, "toy:ball"), { btn: "enabled", owned: false }, "shop: Buy is enabled at 100");
+      check(await c.page.evaluate(() => document.querySelector('button[data-act="play"]').getAttribute("aria-disabled") === "true"), "shop: Play is unavailable without a toy");
+      await busLog(c.page);
+      await c.page.click('li[data-item="toy:ball"] button[data-shop="buy"]');
+      const rec = JSON.parse(await stored(c.page)), day = await today(c.page);
+      eq(Object.keys(rec.spent).length, 1, "shop: one spend");
+      const id = Object.keys(rec.spent)[0];
+      check(/^buy:\d{4}-\d{2}-\d{2}:toy:ball:[0-9a-z]{8}:1$/.test(id) && id.split(":")[1] === day, "shop: the spend id shape " + id);
+      eq(rec.spent[id], 25, "shop: worth 25");
+      eq(rec.owned["toy:ball"], day, "shop: owned from today");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-facets").textContent), "You have 75 facets.", "shop: 75 facets");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-panel[data-panel=shop] .pet-facets").textContent), "You have 75 facets.", "shop: the shop's own facets line");
+      eq(await itemState(c.page, "toy:ball"), { btn: "hidden", owned: true }, "shop: the toy shows Owned");
+      eq(await shopLine(c.page), "Mochi has a new ball!", "shop: the line");
+      check(await c.page.evaluate(() => document.activeElement === document.querySelector("[data-shop-line]")), "shop: focus moved to the line");
+      check(await c.page.evaluate(() => { const b = document.querySelector('button[data-act="play"]'); return !b.disabled && !b.hasAttribute("aria-disabled"); }), "shop: Play is enabled");
+      eq(await c.page.evaluate(() => window.__pet), ["buy:toy:ball"], "shop: one buy event");
+      await done(c, "shop");
+    }
+    /* 14: refusals */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: { "strong:a": 1 }, spent: { "buy:2025-01-01:toy:ring:dev00001:1": 10 } }));
+      await openShop(c.page);
+      eq(await shopLine(c.page), "", "refuse: at 10 facets something is still affordable, so no nudge");
+      eq(await itemState(c.page, "toy:boat"), { btn: "disabled", owned: false }, "refuse: Buy on the boat is disabled at 10");
+      eq(await itemState(c.page, "snack:kelp-chip"), { btn: "enabled", owned: false }, "refuse: a 5 facet snack is still open");
+      const before = await stored(c.page);
+      await c.page.click('li[data-item="toy:boat"] button', { force: true, timeout: 800 }).catch(() => {});
+      eq(await stored(c.page), before, "refuse: a click on a disabled Buy writes nothing");
+      await done(c, "refuse");
+      const d = await open(seedPet({ earned: { "strong:a": 1 }, spent: { "buy:2025-01-01:toy:ring:dev00001:1": 18 } }));
+      await openShop(d.page);
+      eq(await shopLine(d.page), "Not enough facets yet. Learning earns them.", "refuse: at 2 facets the line points at learning");
+      check((await d.page.evaluate(() => Array.from(document.querySelectorAll("li.pet-item button")).filter((b) => !b.hidden).every((b) => b.disabled))), "refuse: nothing is open at 2");
+      await done(d, "refuse 2");
+    }
+    cases++;
+    {
+      const c = await open(seedPet({ earned: { "strong:a": 1 }, spent: { "buy:2025-01-01:toy:ring:dev00001:1": 50 } }));
+      await openShop(c.page);
+      const all = await c.page.evaluate(() => Array.from(document.querySelectorAll("li.pet-item button")).filter((b) => !b.hidden).map((b) => b.disabled));
+      check(all.length === 11 && all.every((x) => x), "negative: every button is disabled");
+      eq(await shopLine(c.page), "Mochi's facets are catching up after a sync.", "negative: the line");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-facets").textContent), "You have 0 facets.", "negative: shown as 0, never below");
+      await done(c, "negative");
+    }
+    /* 15: a snack */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, needs: { tummy: { n: 2, at: Date.now() } } }));
+      await openShop(c.page);
+      await busLog(c.page);
+      await c.page.click('li[data-item="snack:berry-bite"] button[data-shop="feed"]');
+      const rec = JSON.parse(await stored(c.page)), day = await today(c.page);
+      const id = Object.keys(rec.spent)[0];
+      check(/^feed:\d{4}-\d{2}-\d{2}:snack:berry-bite:[0-9a-z]{8}:1$/.test(id), "snack: the spend id shape " + id);
+      eq(rec.spent[id], 12, "snack: worth 12");
+      eq(rec.care[day].feed["snack:berry-bite"], 1, "snack: care.feed counted once");
+      eq(rec.owned || {}, {}, "snack: nothing owned (no bag)");
+      eq(await hearts(c.page, "tummy"), 5, "snack: Tummy is 5");
+      eq(await c.page.evaluate(() => document.querySelector('li[data-need="tummy"]').getAttribute("aria-label")), "Tummy: 5 of 5 hearts", "snack: 5 of 5");
+      eq(await itemState(c.page, "snack:berry-bite"), { btn: "disabled", owned: false }, "snack: a second Feed is disabled");
+      eq(await itemState(c.page, "snack:kelp-chip"), { btn: "disabled", owned: false }, "snack: every snack is disabled at a full Tummy");
+      eq(await c.page.evaluate(() => window.__pet), ["care:snack:berry-bite"], "snack: one care event");
+      await done(c, "snack");
+    }
+    /* 16: decor */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: Object.assign({ "strong:f": 1, "strong:g": 1 }, FIVE) }));
+      await openShop(c.page);
+      await c.page.click('li[data-item="decor:castle"] button[data-shop="buy"]');
+      eq(await itemState(c.page, "decor:castle"), { btn: "hidden", owned: true }, "decor: bought");
+      eq(await c.page.evaluate(() => document.querySelectorAll(".companion-decor[data-decor]").length), 0, "decor: not placed by buying");
+      await busLog(c.page);
+      await c.page.click('li[data-item="decor:castle"] button[data-shop="place"]');
+      const placed = await c.page.evaluate(() => {
+        const s = document.querySelector(".pet-window .companion-decor[data-decor]"), b = document.querySelector('li[data-item="decor:castle"] button[data-shop="place"]');
+        return s && { id: s.getAttribute("data-decor"), pos: s.style.backgroundPosition, img: s.style.backgroundImage, left: s.style.left, bottom: s.style.bottom, shown: getComputedStyle(s).display, pressed: b.getAttribute("aria-pressed"), text: b.textContent };
+      });
+      check(!!placed, "decor: a layer appears in the window");
+      if (placed) {
+        eq([placed.id, placed.pos, placed.left, placed.bottom, placed.shown, placed.pressed, placed.text], ["decor:castle", "57.1429% 0px", "76%", "22%", "block", "true", "Remove"], "decor: the castle cell and spot");
+        check(/models\/mochi\/decor\.png/.test(placed.img), "decor: image set from JS");
+      }
+      eq(await shopLine(c.page), "The castle is in the pool.", "decor: placed line");
+      const r1 = JSON.parse(await stored(c.page));
+      eq(r1.wear.decor, ["decor:castle"], "decor: wear.decor");
+      await c.page.click('li[data-item="decor:castle"] button[data-shop="place"]');
+      eq(await c.page.evaluate(() => document.querySelectorAll(".companion-decor[data-decor]").length), 0, "decor: Remove hides it");
+      const r2 = JSON.parse(await stored(c.page));
+      eq(r2.wear.decor, [], "decor: wear.decor is empty again");
+      check(r2.wear.at > r1.wear.at, "decor: wear.at grows");
+      eq(await shopLine(c.page), "The castle is put away.", "decor: removed line");
+      eq(await c.page.evaluate(() => window.__pet), ["wear:decor:castle", "wear:decor:castle"], "decor: two wear events");
+      await done(c, "decor");
+    }
+    /* 17: two devices, each bought toy:ball offline; this is what the merge keeps (union of spends, earlier day) */
+    cases++;
+    {
+      const c = await open(seedPet({
+        earned: FIVE, owned: { "toy:ball": "2025-03-03" },
+        spent: { "buy:2025-03-04:toy:ball:aaaaaaa1:1": 25, "buy:2025-03-03:toy:ball:bbbbbbb2:1": 25 }
+      }));
+      await openShop(c.page);
+      eq(await itemState(c.page, "toy:ball"), { btn: "hidden", owned: true }, "two devices: one Owned");
+      eq(await c.page.evaluate(() => document.querySelector(".pet-facets").textContent), "You have 50 facets.", "two devices: down by both");
+      eq(Object.keys(JSON.parse(await stored(c.page)).spent).length, 2, "two devices: two spends");
+      eq(await itemState(c.page, "toy:ring"), { btn: "enabled", owned: false }, "two devices: 50 still buys a 40 facet toy");
+      await done(c, "two devices");
+    }
+    /* 18: shop off */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE }));
+      await c.page.evaluate(() => { window.BM_CONFIG = Object.assign({}, window.BM_CONFIG, { shop: "off" }); });
+      await openPool(c.page);
+      const d = await c.page.evaluate(() => ({ tabs: document.querySelectorAll(".pet-tabs, [data-tab]").length, shop: document.querySelectorAll("[data-panel=shop], li.pet-item").length, pool: !document.querySelector("[data-panel=pool]").hidden }));
+      eq(d, { tabs: 0, shop: 0, pool: true }, "shop off: no tab, no panel, the pool shows");
+      await c.page.click(".pet-porthole");
+      eq(await lineOf(c.page), "Mochi nuzzles your hand.", "shop off: the pool still works");
+      check(await c.page.evaluate(() => { const b = document.querySelector('button[data-act="play"]'); return !b.disabled && !b.hasAttribute("aria-disabled"); }), "shop off: Play is enabled without a toy");
+      const h0 = await hearts(c.page, "play");
+      await c.page.click('button[data-act="play"]');
+      eq(await hearts(c.page, "play"), Math.min(5, h0 + 1), "shop off: Play raises Play hearts");
+      eq(await lineOf(c.page), "Mochi zooms around the pool.", "shop off: the play line");
+      /* another tab took today's pellet: the button still looks open, the click reads the record fresh and refuses */
+      await c.page.evaluate(() => { const r = JSON.parse(localStorage.getItem("bm.pet.v1")); r.gift = Object.assign({}, r.gift, { [window.BMSite.dayKey(new Date())]: 1 }); localStorage.setItem("bm.pet.v1", JSON.stringify(r)); });
+      await c.page.click('button[data-act="feed"]');
+      eq(await lineOf(c.page), "Mochi has had today's pellet.", "shop off: the pellet line has no shop clause");
+      await done(c, "shop off");
+    }
+    /* 19b: stale */
+    cases++;
+    {
+      const c = await open(seedPet({ earned: FIVE, needs: { tummy: { n: 2, at: Date.now() } } }));
+      await openShop(c.page);
+      await c.page.evaluate(() => window.BMStore.emit({ type: "stale" }));
+      const before = await stored(c.page);
+      await c.page.click('li[data-item="toy:ball"] button[data-shop="buy"]');
+      await c.page.click('li[data-item="snack:berry-bite"] button[data-shop="feed"]');
+      eq(await stored(c.page), before, "stale: nothing is written");
+      await done(c, "stale");
+    }
+    /* 19: keyboard */
+    cases++;
+    {
+      const c = await open(seedPet({ needs: { tummy: { n: 4, at: Date.now() } } }));
+      await openPool(c.page);
+      const before = await stored(c.page);
+      await c.page.focus(".pet-porthole");
+      await c.page.keyboard.press("Enter");
+      eq(await lineOf(c.page), "Mochi nuzzles your hand.", "keys: Enter on the porthole pets Mochi");
+      eq(await stored(c.page), before, "keys: nothing written");
+      const a = await c.page.evaluate(() => { const p = document.querySelector(".pet-porthole"); return [p.getAttribute("role"), p.getAttribute("tabindex"), p.getAttribute("aria-label"), p.hasAttribute("data-pet-stage")]; });
+      eq(a, ["button", "0", "Pet Mochi", true], "keys: the porthole is a named button");
+      await c.page.click('button[data-act="feed"]');
+      check(await c.page.evaluate(() => document.activeElement === document.querySelector(".pet-line")), "keys: focus moves to the line when Feed goes away");
+      await done(c, "keys");
     }
   } finally {
     try { await browser.close(); } catch (e) { console.error("browser close: " + e.message); }
