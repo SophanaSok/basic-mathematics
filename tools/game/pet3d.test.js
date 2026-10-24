@@ -93,7 +93,8 @@ async function run() {
     /* 2: reduced motion */
     cases++;
     {
-      const watch = () => { window.__clip = false; new MutationObserver(() => { if (document.querySelector(".pet-porthole").hasAttribute("data-clip")) window.__clip = true; }).observe(document.querySelector(".pet-porthole"), { attributes: true }); };
+      /* the dialog is the stable ancestor: a redraw can replace the porthole, so watch the subtree for a data-clip on any porthole */
+      const watch = () => { window.__clip = false; new MutationObserver((list) => { if (list.some((m) => m.target.classList && m.target.classList.contains("pet-porthole") && m.target.hasAttribute("data-clip"))) window.__clip = true; }).observe(document.querySelector("dialog.pet-dialog"), { attributes: true, attributeFilter: ["data-clip"], subtree: true }); };
       const c = await open(seedPet({ owned: TOY }), { reduced: true });
       await openPool(c.page);
       check(await until(c.page, PORTHOLE), "reduced: the pool's stage is up");

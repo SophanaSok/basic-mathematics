@@ -286,9 +286,10 @@ export function mergeDiag(a: any, b: any) {
      needs   per need (tummy, play, clean, spark) mergeWear: the later `at`, then the
              higher n, within WEAR_AT_MAX; a need on neither side stays absent; any other key
              under needs is carried (later)
-     care    union of days; per day the feed counts per snack and play, clean and spark by
-             max, kept only above 0; a day that is no record on either side goes through
-             later; unknown fields of a day are carried
+     care    union of days; per day the feed counts per snack and play, clean, spark and runs
+             (Arena runs, apart from the Play button's count) by max, kept only above 0; a day
+             that is no record on either side goes through later; unknown fields of a day are
+             carried
      grew    union, each stage the lowest positive time; a stage with none is dropped
      wear    of the sides that are records with a number `at` from 0 to WEAR_AT_MAX
              (wearOf), each held to a size first (normWear: head, back, tail as strings,
@@ -318,11 +319,11 @@ export function mergeCareDay(p: any, q: any) {
   var x = obj(p), y = obj(q), out: any = {};
   var feed = maxCounts(obj(x.feed), obj(y.feed));
   if (Object.keys(feed).length) out.feed = feed;
-  ["play", "clean", "spark"].forEach(function (k) {
+  ["play", "clean", "spark", "runs"].forEach(function (k) {
     var n = Math.max(num(at(x, k)), num(at(y, k)));
     if (n > 0) out[k] = n;
   });
-  return carryOver(out, x, y, ["feed", "play", "clean", "spark"]);
+  return carryOver(out, x, y, ["feed", "play", "clean", "spark", "runs"]);
 }
 export function mergePet(p: any, q: any) {
   if (opaque(p, q)) return later(p, q);
