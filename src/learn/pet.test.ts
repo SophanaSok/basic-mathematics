@@ -591,8 +591,8 @@ describe("T5: size", () => {
       if (i % 10 === 0) earned["strong:ch0" + (1 + (i % 9)) + "#s" + i] = 20;
       // one spend a day, on alternating devices: a feed, and a purchase on the first days of the year
       const dev = i % 2 ? "dev00002" : "dev00001";
-      if (i < buys.length) { spent["buy:" + d + ":" + buys[i].id + ":" + dev + ":1"] = buys[i].price; owned[buys[i].id] = d; }
-      else spent["feed:" + d + ":snack:kelp-chip:" + dev + ":1"] = 5;
+      if (i < buys.length) { spent[spendId("buy", d, buys[i].id, dev, spent)] = buys[i].price; owned[buys[i].id] = d; }
+      else spent[spendId("feed", d, "snack:kelp-chip", dev, spent)] = 5;
     }
     const pet = prunePet({ v: 1, earned, spent, care, gift, owned, needs: { tummy: { n: 5, at: 1e12 }, play: { n: 4, at: 1e12 }, clean: { n: 3, at: 1e12 }, spark: { n: 2, at: 1e12 } }, grew: { fry: 1e12, juvenile: 1e12 } }) as any;
     const size = JSON.stringify(pet).length;

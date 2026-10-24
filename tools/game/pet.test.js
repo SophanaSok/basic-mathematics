@@ -2,12 +2,13 @@
 /* Headless Chromium checks of Mochi's pool shell (src/ui/pet/pool.ts, opened by src/ui/companion.ts) on the
    built site (dist/, which must be current):
      node tools/game/pet.test.js
-   Chapter page parts/1-algebra/01-numbers.html; pages open with ?3d=off (no WebGL) except case 4.
+   Chapter page parts/1-algebra/01-numbers.html; pages open with ?3d=off (no WebGL). The cases that need a 3D stage (the
+   sidebar hand-off, clips, the look, the inline canvas count) live in game/pet3d.test.js.
    1. open: the click opens dialog.pet-dialog[open], the title has focus, body has data-pet, four needs and
       "You have 0 facets."; bundle/pet.js is fetched only after the click
    2. Escape closes it: the dialog and data-pet are gone, focus is back on .companion-pic
    3. the Close button does the same
-   4. with 3D on, the sidebar stage is dropped while the dialog is open (mode 2d, no data-3d) and comes back after
+   4. (the stage hand-off is pet3d.test.js case 1) with ?3d=off the dialog opens, the sidebar stays 2D and so does the porthole
    5. hidden: Study mode opens nothing; config pet "off" makes the picture a plain image with no dialog
    6. a seeded bm.pet.v1 tummy of 1 heart reads "Tummy: 1 of 5 hearts" with one filled mark
    7. feed: Tummy 3 -> 4, the line, gift and care.feed.pellet written, Feed disabled and a second click changes nothing
@@ -15,7 +16,7 @@
    9. clean: seeded 2 hearts shows Clean; a click gives 5 of 5 and hides it
   10. pet: a click on the porthole writes nothing and the line reads "Mochi nuzzles your hand."
   11. acts earn nothing (the facets line stays) and the pet bus events are "gift" then "care"
-  12. reduced motion: acts still write and the line changes, and no clip plays (the porthole never carries data-clip)
+  12. reduced motion: acts still write and the line changes, and the 2D porthole carries no data-clip (the clips are pet3d.test.js case 2)
   Play needs a toy: cases 8, 11 and 12 seed one, and a click without one only says so (aria-disabled, nothing written).
   13. shop tab: eleven items with prices; Buy on toy:ball writes one buy: id worth 25, "You have 75 facets.", the
       toy shows Owned, Play is enabled
@@ -32,7 +33,7 @@
       data-pet-stage="fry", the line is "Mochi grew into a fry!", run.seen.grew.fry is 1, and a reload shows the
       idle line with grew.fry unchanged
   21. T7: the same care on days without XP stamps nothing and the stage stays hatchling
-  22. look: with 3D on the stage's scale is 0.8 at hatchling and 0.875 at fry (data-pet-scale, read from the stage)
+  22. (the look is pet3d.test.js case 3)
   23. growth tab: "Mochi is a fry.", "16 more good-day points to Juvenile.", the path marks fry as the current step
       and hatchling and fry as reached, 28 calendar days with the two seeded days at 4 and the rest at 0
   24. shop "off": the strip shows Pool and Growth; shop "on" shows Pool, Shop, Growth in that order
@@ -42,7 +43,7 @@
       the room in its row, and the cheapest snack that fits stays enabled
   28. inline (X-9): progress.html has section#mochi[data-pet] with .pet-pool, h2.pet-title, four needs, the care row
       and the tabs, no dialog and no Close button; bundle/pet.js was fetched
-  29. redraw: a level or sync event rebuilds the panel once; one .pet-pool and at most one canvas before and after
+  29. redraw: a level or sync event rebuilds the panel once; one .pet-pool before and after (the canvas count is pet3d.test.js case 4)
   30. Study mode and config pet "off": no #mochi on load or after a redraw, no pet chunk
   31. popover: the level badge's popover holds span.pop-mochi naming mochi-pink-poses.webp at the companion's mood;
       absent with pet "off"
@@ -72,7 +73,7 @@ async function open(seed, opts) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const requests = [], errors = [];
   context.on("request", (r) => requests.push(r.url()));
-  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) && (opts.three || !THREE_CHUNK.test(r.request().url())) ? r.continue() : r.abort());
+  await context.route(/^(https?|wss?):/, (r) => server.owns(r.request().url()) && !THREE_CHUNK.test(r.request().url()) ? r.continue() : r.abort());
   await context.addInitScript((s) => {
     if (sessionStorage.getItem("__seeded")) return;
     sessionStorage.setItem("__seeded", "1");
@@ -86,7 +87,7 @@ async function open(seed, opts) {
     if (/Failed to load resource|net::ERR_/.test(m.text())) return;
     errors.push("console: " + m.text());
   });
-  await page.goto(server.url + (opts.path || CHAPTER) + (opts.three ? "" : "?3d=off"), { waitUntil: "load" });
+  await page.goto(server.url + (opts.path || CHAPTER) + "?3d=off", { waitUntil: "load" });
   if (!opts.path) check(await until(page, () => window.BMCompanion && window.BMCompanion.state().mounted, null, 10000), "the companion mounts");
   return { context, page, requests, errors };
 }
@@ -179,19 +180,12 @@ async function run() {
       check(await until(c.page, () => !!document.querySelector("dialog.pet-dialog[open]")), "close: the pool opens again");
       await done(c, "close");
     }
-    /* 4: the sidebar stage is dropped while the pool is open (T11) */
+    /* 4: ?3d=off keeps the sidebar and the porthole 2D (the hand-off is pet3d.test.js) */
     cases++;
     {
-      const c = await open({}, { three: true });
-      const had = await until(c.page, () => document.querySelector("figure[data-companion]").hasAttribute("data-3d"), null, 12000);
-      console.log("pet: sidebar 3D " + (had ? "was up" : "did not start here (2D asserts only)"));
-      await c.page.click(".companion-pic");
-      await until(c.page, () => !!document.querySelector("dialog.pet-dialog[open]"));
-      const open_ = await c.page.evaluate(() => ({ mode: window.BMCompanion.info().mode, three: document.querySelector("figure[data-companion]").hasAttribute("data-3d") }));
-      eq(open_, { mode: "2d", three: false }, "stage: the sidebar is 2D with no data-3d while the pool is open");
-      await c.page.keyboard.press("Escape");
-      await until(c.page, () => !document.querySelector("dialog.pet-dialog"));
-      if (had) check(await until(c.page, () => document.querySelector("figure[data-companion]").hasAttribute("data-3d") && window.BMCompanion.info().mode === "3d", null, 12000), "stage: the sidebar stage is back after close");
+      const c = await open();
+      await openPool(c.page);
+      eq(await c.page.evaluate(() => ({ mode: window.BMCompanion.info().mode, side: document.querySelector("figure[data-companion]").hasAttribute("data-3d"), hole: document.querySelector(".pet-porthole").hasAttribute("data-3d") })), { mode: "2d", side: false, hole: false }, "stage: 2D everywhere with ?3d=off");
       await done(c, "stage");
     }
     /* 5: hidden */
@@ -303,25 +297,15 @@ async function run() {
     /* 12: reduced motion */
     cases++;
     {
-      const c = await open(seedPet({ owned: TOY }), { three: true });
-      const had = await until(c.page, () => document.querySelector("figure[data-companion]").hasAttribute("data-3d"), null, 12000);
+      const c = await open(seedPet({ owned: TOY }));
       await c.page.emulateMedia({ reducedMotion: "reduce" });
       await openPool(c.page);
-      const up = had && await until(c.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
       await c.page.click('button[data-act="play"]');
       const day = await today(c.page);
       eq(JSON.parse(await stored(c.page)).care[day].play, 1, "reduced: the act writes");
       eq(await lineOf(c.page), "Mochi zooms around the pool.", "reduced: the line changes");
       check(await c.page.evaluate(() => !document.querySelector(".pet-porthole").hasAttribute("data-clip")), "reduced: no clip played");
       await done(c, "reduced");
-      /* the control: the same act without reduced motion plays a clip when a stage is up */
-      const k = await open(seedPet({ owned: TOY }), { three: true });
-      await openPool(k.page);
-      const kup = await until(k.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
-      await k.page.click('button[data-act="play"]');
-      if (kup) check(await k.page.evaluate(() => document.querySelector(".pet-porthole").getAttribute("data-clip") === "excited"), "motion: a clip plays when motion is allowed");
-      else console.log("pet: pool stage did not start here (the clip asserts are skipped; up=" + up + ")");
-      await done(k, "motion");
     }
     /* 13: the shop tab */
     cases++;
@@ -541,23 +525,6 @@ async function run() {
       eq(await lineOf(c.page), "Mochi is glad to see you.", "T7: no moment");
       await done(c, "T7");
     }
-    /* 22: the look on the stage */
-    cases++;
-    {
-      const D1 = "2026-10-01", D2 = "2026-10-02";
-      const ACTS = { feed: { pellet: 1 }, play: 1, clean: 1, spark: 1 };
-      for (const [name, pet, act, want] of [
-        ["hatchling", { v: 1 }, {}, "0.8"],
-        ["fry", { v: 1, care: { [D1]: ACTS, [D2]: ACTS } }, { "bm.activity.v1": JSON.stringify({ days: { [D1]: 10, [D2]: 10 } }) }, "0.875"]
-      ]) {
-        const c = await open(Object.assign(seedPet(pet), act), { three: true });
-        await openPool(c.page);
-        const up = await until(c.page, () => document.querySelector(".pet-porthole").hasAttribute("data-3d"), null, 12000);
-        if (!up) console.log("pet: pool 3D did not start here (look asserts skipped for " + name + ")");
-        else check(await until(c.page, (v) => document.querySelector(".pet-porthole").getAttribute("data-pet-scale") === v, want, 4000), "look: scale " + want + " at " + name);
-        await done(c, "look " + name);
-      }
-    }
     /* 23: the growth tab */
     cases++;
     {
@@ -691,16 +658,16 @@ async function run() {
     /* 29: redraw */
     cases++;
     {
-      const c = await open(seedPet({ v: 1 }), { path: "progress.html", three: true });
+      const c = await open(seedPet({ v: 1 }), { path: "progress.html" });
       await until(c.page, () => !!document.querySelector("#mochi .pet-pool"));
-      const count = (page) => page.evaluate(() => ({ pools: document.querySelectorAll(".pet-pool").length, canvases: document.querySelectorAll("#mochi canvas").length, section: !!document.querySelector("#mochi") }));
+      const count = (page) => page.evaluate(() => ({ pools: document.querySelectorAll(".pet-pool").length, section: !!document.querySelector("#mochi") }));
       const before = await count(c.page);
-      check(before.pools === 1 && before.canvases <= 1, "redraw: one pool and at most one canvas before");
+      check(before.pools === 1, "redraw: one pool before");
       for (const type of ["level", "sync", "level"]) {
         await c.page.evaluate((t) => { window.__old = document.querySelector("#mochi"); window.BMStore.emit({ type: t }); }, type);
         check(await until(c.page, () => !!document.querySelector("#mochi .pet-pool")), "redraw (" + type + "): the pool is back");
         const after = await count(c.page);
-        check(after.pools === 1 && after.canvases <= 1, "redraw (" + type + "): one pool and at most one canvas after");
+        check(after.pools === 1, "redraw (" + type + "): one pool after");
         check(await c.page.evaluate(() => window.__old !== document.querySelector("#mochi") && !window.__old.isConnected && !window.__old.querySelector(".pet-pool")), "redraw (" + type + "): the old panel is rebuilt and emptied");
       }
       /* two redraws back to back while the import is pending: still one pool */
