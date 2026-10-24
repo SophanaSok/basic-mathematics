@@ -193,6 +193,11 @@ export function createStage(T: any, host: HTMLElement, avatar: Avatar, opts: Moc
       return ok;
     },
     moods: () => avatar.moods(),
+    async attach(socket, url) {
+      const ok = await avatar.attach(socket, url);
+      if (ok && !disposed) { if (!raf && canDraw()) draw(); request(); }
+      return ok;
+    },
     info(): MochiInfo {
       return { state: disposed ? "disposed" : "ready", frames, paused: paused() || !onscreen, ...avatar.stats() };
     },

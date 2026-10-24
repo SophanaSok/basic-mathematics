@@ -21,7 +21,11 @@
    13. growth: a stage made from bundle/mochi.js takes setGrowth({ scale: 1.1, morphs: { GrowGills: 1 } }); after a
        few frames info().growth has the scale and the morph weights, GrowGills is a real morph (the mesh's
        influence reads 1), the clip weights stay clips only, and a mood change keeps the growth
-   14. the care acts: a stage's setMood("eat") plays (its clip weight rises) and its moods() still lists the nine only */
+   14. the care acts: a stage's setMood for eat, play, nuzzle and splash plays each (its clip weight rises) and its
+       moods() still lists the nine only
+   15. accessories: attach("socket_head", party-hat.glb) resolves true, info().worn names the url, the GLB is
+       requested once, the hat's box sits above the figure's, it moves with the head in "happy", attach(null)
+       takes it off and an unknown url resolves false and leaves nothing worn */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -305,21 +309,64 @@ async function main() {
       }).catch((e) => String(e));
       check(made === true, "14: a second stage is made", made);
       if (made === true) {
-        const ok = await c.page.evaluate(() => window.__acts.setMood("eat"));
-        check(ok === true, "14: setMood(eat) is true", ok);
-        check(await until(c.page, () => { const s = window.__acts.info(); return s.frames >= 3 && s.weights.eat > 0.95; }, null, 8000), "14: the eat clip reaches full weight");
-        const names = await c.page.evaluate(() => window.__acts.moods());
-        check(JSON.stringify(names) === JSON.stringify(MOODS9), "14: moods() does not list eat", names);
+        for (const act of ["eat", "play", "nuzzle", "splash"]) {
+          const ok = await c.page.evaluate((a) => window.__acts.setMood(a), act);
+          check(ok === true, "14: setMood(" + act + ") is true", ok);
+          check(await until(c.page, (a) => { const s = window.__acts.info(); return s.frames >= 3 && s.weights[a] > 0.95; }, act, 8000), "14: the " + act + " clip reaches full weight");
+          const names = await c.page.evaluate(() => window.__acts.moods());
+          check(JSON.stringify(names) === JSON.stringify(MOODS9), "14: moods() does not list " + act, names);
+        }
         await c.page.evaluate(() => window.__acts.dispose());
       }
       noErrors(c, "14");
+    }
+    /* 15 */
+    {
+      const c = await open(CHAPTER);
+      check(await threeD(c.page), "15: data-3d");
+      const made = await c.page.evaluate(async () => {
+        const m = await import(new URL(window.BMSite.rootPrefix() + "bundle/mochi.js", location.href).href);
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:0;top:0;width:128px;height:128px";
+        document.body.appendChild(host);
+        window.__wear = await m.createMochiStage(host, { url: new URL(window.BMSite.rootPrefix() + "models/mochi/mochi-pink.glb", location.href).href, budget: { dpr: 1, antialias: false }, pixelRatio: () => 1, still: () => false });
+        return true;
+      }).catch((e) => String(e));
+      check(made === true, "15: a second stage is made", made);
+      if (made === true) {
+        const hat = await c.page.evaluate(() => new URL(window.BMSite.rootPrefix() + "models/mochi/acc/party-hat.glb", location.href).href);
+        const bad = await c.page.evaluate(() => window.__wear.attach("socket_nowhere", "x"));
+        check(bad === false, "15: an unknown socket resolves false", bad);
+        const ok = await c.page.evaluate((u) => window.__wear.attach("socket_head", u), hat);
+        check(ok === true, "15: attach resolves true", ok);
+        check(await until(c.page, () => window.__wear.info().frames >= 3, null, 8000), "15: frames drawn");
+        const a = await c.page.evaluate(() => window.__wear.info());
+        check(a.worn.socket_head === hat && Object.keys(a.worn).length === 1, "15: info().worn names the url", a.worn);
+        check(count(c.requests, /\/models\/mochi\/acc\/party-hat\.glb$/) === 1, "15: one request for the hat", c.requests.filter((u) => /acc\//.test(u)));
+        const hb = a.wornBox.socket_head, bb = a.bodyBox;
+        check(!!hb && !!bb && hb.min[1] > 0.9 * bb.max[1], "15: the hat's lowest point is above 0.9 of the figure's top", { hat: hb, body: bb });
+        await c.page.evaluate(() => { window.__wear.setMood("happy"); });
+        await wait(600);
+        const h = await c.page.evaluate(() => window.__wear.info());
+        const moved = h.wornBox.socket_head && hb && [0, 1, 2].some((k) => Math.abs(h.wornBox.socket_head.min[k] - hb.min[k]) > 1e-4 || Math.abs(h.wornBox.socket_head.max[k] - hb.max[k]) > 1e-4);
+        check(moved === true, "15: the hat rides the head in happy", { before: hb, after: h.wornBox.socket_head });
+        check(h.worn.socket_head === hat, "15: worn is unchanged after the mood", h.worn);
+        const off = await c.page.evaluate(() => window.__wear.attach("socket_head", null));
+        const e = await c.page.evaluate(() => window.__wear.info());
+        check(off === true && Object.keys(e.worn).length === 0 && Object.keys(e.wornBox).length === 0, "15: attach(null) takes it off", { off, worn: e.worn });
+        const miss = await c.page.evaluate(() => window.__wear.attach("socket_head", new URL(window.BMSite.rootPrefix() + "models/mochi/acc/nope.glb", location.href).href));
+        const f = await c.page.evaluate(() => window.__wear.info());
+        check(miss === false && Object.keys(f.worn).length === 0, "15: an unknown url resolves false and nothing is worn", { miss, worn: f.worn });
+        await c.page.evaluate(() => window.__wear.dispose());
+      }
+      noErrors(c, "15");
     }
   } finally {
     for (const c of contexts) { try { await c.close(); } catch (e) { /* closed already */ } }
     await browser.close();
     await server.close();
   }
-  console.log((fails ? "FAILED" : "ok") + " mochi: 14 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
+  console.log((fails ? "FAILED" : "ok") + " mochi: 15 cases, " + passes + " checks passed" + (fails ? ", " + fails + " failed" : "") + " in " + Math.round((Date.now() - t0) / 1000) + " s");
   process.exit(fails ? 1 : 0);
 }
 

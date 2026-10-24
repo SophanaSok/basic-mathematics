@@ -90,7 +90,7 @@ const ON_DEMAND = [
   { chunk: BUNDLE + "world.js", module: "src/world/index.ts", by: "assets/map3d.js", dir: "src/world/" },
   { chunk: BUNDLE + "three-model.js", module: vendor.DIR + "/three-model.js", by: ["src/mochi/index.ts", "src/ui/pet/pool.ts"] },
   { chunk: BUNDLE + "mochi.js", module: "src/mochi/index.ts", by: ["src/ui/companion.ts", "src/ui/pet/pool.ts"], dir: "src/mochi/" },
-  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: ["src/ui/pet/", "src/data/pet-items.ts"] },
+  { chunk: BUNDLE + "pet.js", module: "src/ui/pet/pool.ts", by: "src/ui/companion.ts", dir: ["src/ui/pet/", "src/data/pet-items.ts", "src/data/mochi-model.ts"] },
   { chunk: BUNDLE + "post.js", module: "src/world/post.ts", by: "assets/map3d.js" },
   { chunk: BUNDLE + "three-post.js", module: vendor.DIR + "/three-post.js", by: "assets/map3d.js" }
 ];

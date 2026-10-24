@@ -381,7 +381,7 @@ function copyMap(x: unknown): any { const out: any = {}, r = obj(x); keysOf(r, {
 /** an item the shop can sell: a known kind, an id in that kind's namespace and a whole price in range */
 function sellable(item: PetItem): boolean {
   const i: any = item;
-  return plain(i) && (i.kind === "snack" || i.kind === "toy" || i.kind === "decor") && typeof i.id === "string" && i.id.startsWith(i.kind + ":") &&
+  return plain(i) && (i.kind === "snack" || i.kind === "toy" || i.kind === "decor" || i.kind === "acc") && typeof i.id === "string" && i.id.startsWith(i.kind + ":") &&
     Number.isInteger(i.price) && i.price > 0 && i.price <= SPEND_MAX;
 }
 
@@ -466,5 +466,55 @@ export function placeDecor(pet: unknown, id: string, on: boolean, now: Timestamp
   out.v = 1;
   const old = wearOf(at(p, "wear"));
   out.wear = normWear({ ...(old || {}), decor, at: laterStamp(old, now) });
+  return prunePet(out);
+}
+
+/* ------------------------------------------------------------ accessories -- */
+
+/** the three wear slots, one accessory each */
+export const WEAR_SLOTS = ["head", "back", "tail"] as const;
+export type WearSlot = typeof WEAR_SLOTS[number];
+
+/** the slot a socket name maps to (socket_head gives head), or undefined */
+export function slotOfSocket(socket: unknown): WearSlot | undefined {
+  return typeof socket === "string" && socket.startsWith("socket_") ? WEAR_SLOTS.find((s) => s === socket.slice(7)) : undefined;
+}
+
+/** the slot of each accessory in the catalogue. Kept here, not read from src/data/pet-items.ts, because this
+    module reaches every page and the catalogue belongs to the lazy pet chunk; src/learn/pet.test.ts holds
+    this table to the catalogue (same ids, same slots), so a new accessory fails there until it is added. */
+export const ACC_SLOT: Readonly<Record<string, WearSlot>> = {
+  "acc:party-hat": "head", "acc:crown": "head", "acc:flower": "head", "acc:backpack": "back", "acc:ribbon": "tail", "acc:bell": "tail"
+};
+
+/** whether this id is an accessory of the catalogue that belongs on this slot */
+function accFits(id: unknown, slot: WearSlot): boolean {
+  return typeof id === "string" && Object.prototype.hasOwnProperty.call(ACC_SLOT, id) && ACC_SLOT[id] === slot;
+}
+
+/** the accessories worn, by slot: only ids that are owned, in the catalogue, of kind acc and on the matching slot */
+export function wornAcc(pet: unknown): { head?: string; back?: string; tail?: string } {
+  const w = obj(wearOf(at(obj(pet), "wear"))) as any, owned = obj(at(obj(pet), "owned")), out: { head?: string; back?: string; tail?: string } = {};
+  WEAR_SLOTS.forEach((s) => {
+    const id = at(w, s);
+    if (typeof id === "string" && accFits(id, s) && typeof at(owned, id) === "string") out[s] = id;
+  });
+  return out;
+}
+
+/** put an owned accessory on its slot, or take the slot's off with null; the wear stamp moves later so the
+    merge keeps this record. An id that is not an owned acc item for that slot, or a change that changes
+    nothing, gives the same record back. Never mutates. */
+export function wearAcc(pet: unknown, slot: WearSlot, id: string | null, now: Timestamp): PetStore {
+  if (WEAR_SLOTS.indexOf(slot) < 0) return pet as PetStore;
+  const p = obj(pet), old = wearOf(at(p, "wear")) as any, cur = at(obj(old), slot);
+  if (id === null) { if (typeof cur !== "string") return pet as PetStore; }
+  else if (typeof id !== "string" || !accFits(id, slot) || typeof at(obj(at(p, "owned")), id) !== "string" || cur === id) return pet as PetStore;
+  const out: any = {};
+  keysOf(p, {}).forEach((k) => { out[k] = at(p, k); });
+  out.v = 1;
+  const wear: any = { ...(old || {}), at: laterStamp(old, now) };
+  if (id === null) delete wear[slot]; else wear[slot] = id;
+  out.wear = normWear(wear);
   return prunePet(out);
 }

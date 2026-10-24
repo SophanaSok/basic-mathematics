@@ -89,7 +89,9 @@ export function mountActions(shell: HTMLElement, ctx: ActionsCtx): ActionsHandle
   function clip(name: string): void {
     const s = ctx.stage();
     if (!s || ctx.reduced()) return;
-    try { s.setMood(name); } catch { return; }
+    let played = false;
+    try { played = s.setMood(name); } catch { return; }
+    if (!played) return;
     if (porthole) porthole.setAttribute("data-clip", name);
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {

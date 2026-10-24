@@ -111,6 +111,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx, tabs: TabsHandle): S
     const room = HEARTS_MAX - heartsOf("tummy", pet && pet.needs ? pet.needs.tummy : undefined, now);
     PET_ITEMS.forEach((item) => {
       const r = rows[item.id];
+      if (!r) return;   /* a kind with no group here (accessories until the wardrobe ships) */
       const has = item.kind !== "snack" && typeof owned[item.id] === "string";
       if (r.act) {
         r.act.hidden = has;
@@ -183,6 +184,7 @@ export function mountShop(shell: HTMLElement, ctx: ShopCtx, tabs: TabsHandle): S
   }
   PET_ITEMS.forEach((item) => {
     const r = rows[item.id];
+    if (!r) return;
     if (r.act) { const b = r.act; b.addEventListener("click", () => onClick(r, "act", b)); }
     if (r.place) { const b = r.place; b.addEventListener("click", () => onClick(r, "place", b)); }
   });

@@ -116,7 +116,7 @@ function bundleNames(): (id: string) => string | null {
     if (/^assets\/[^/]+\.js$/.test(rel)) return path.posix.basename(rel, ".js");   /* a dynamic import of a script's own */
     if (rel === WORLD_DIR + "post.ts") return "post";                               /* the bloom, map3d.js's import(): a chunk of its own, apart from the world */
     if (rel.startsWith(WORLD_DIR)) return "world";                                  /* the course world, map3d.js's import() */
-    if (rel.startsWith(PET_DIR) || rel === "src/data/pet-items.ts") return "pet";   /* the pool, the companion's import() on a click, with the shop's catalogue */
+    if (rel.startsWith(PET_DIR) || rel === "src/data/pet-items.ts" || rel === "src/data/mochi-model.ts") return "pet";   /* the pool, the companion's import() on a click, with the shop's catalogue */
     if (rel.startsWith(MOCHI_DIR)) return "mochi";                                  /* Mochi's 3D stage, the companion's import() */
     /* the grader's modules, with grade.ts: after `by`, so one an entry named itself would
        go by that entry (tools/check-dist.js kindsLoading reads them in the same order) */

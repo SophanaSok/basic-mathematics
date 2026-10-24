@@ -43,6 +43,11 @@ export interface MochiInfo {
   /** the live influence of each growth morph (Grow*) on the first mesh */
   morphWeights: Record<string, number>;
   growth: { scale: number; morphs: Record<string, number> };
+  /** socket name to the URL of the accessory on it, only while attached */
+  worn: Record<string, string>;
+  /** the world-space box of each attachment (by socket) and of the figure's own meshes, for the tests */
+  wornBox: Record<string, { min: number[]; max: number[] }>;
+  bodyBox: { min: number[]; max: number[] } | null;
 }
 
 export interface MochiStage {
@@ -52,6 +57,10 @@ export interface MochiStage {
   setMorph(name: string, weight: number): void;
   /** the stage's look (scale and growth morph weights), kept across clips */
   setGrowth(look: { scale: number; morphs: Record<string, number> }): void;
+  /** hang an accessory GLB on a socket (socket_head, socket_back, socket_tail); null takes it off. Resolves
+      true when done, false for an unknown socket, a failed load (the socket stays as it was) or a call a
+      later one for the same socket replaced */
+  attach(socket: string, url: string | null): Promise<boolean>;
   /** only while idle and not still() */
   playIdleVariation(name?: string): boolean;
   /** the nine mood clip names in the file */
