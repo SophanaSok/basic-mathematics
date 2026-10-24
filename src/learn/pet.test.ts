@@ -211,6 +211,14 @@ describe("prunePet", () => {
     expect(Object.keys(r.earned).length).toBe(EARNED_MAX);
     expect(Object.keys(r.spent).length).toBe(SPENT_MAX);
     expect(r.spent["buy:2026-10-01:x:a:" + String(SPENT_MAX + 49).padStart(6, "0")]).toBe(1);
+  });
+  it("cuts the spends by day before id, so a new buy outlives older feeds", () => {
+    const spent: any = { "buy:2026-10-02:hat:a:1": 500, "junk": 3 };
+    for (let i = 0; i < SPENT_MAX; i++) spent["feed:2026-10-01:fish:a:" + String(i).padStart(6, "0")] = 5;
+    const r: any = prunePet({ v: 1, spent });
+    expect(Object.keys(r.spent).length).toBe(SPENT_MAX);
+    expect(r.spent["buy:2026-10-02:hat:a:1"]).toBe(500);
+    expect(r.spent.junk).toBeUndefined();
     expect(r.spent["buy:2026-10-01:x:a:000000"]).toBeUndefined();
   });
   it("holds every other map to a count and the known fields survive", () => {

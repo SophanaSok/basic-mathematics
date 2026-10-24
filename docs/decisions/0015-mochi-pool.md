@@ -98,10 +98,16 @@ hungry-looking, growth requires learning days, and no money path exists.
   outfit choice. Property tests over two offline profiles hold the laws, with the prunes applied.
 - A hostile client editing `bm.pet.v1` is accepted, as editing XP is today: facets buy only pet
   cosmetics, and the Daily board never reads the pet. The server stores what the browser writes,
-  with no cap on the column, so the bounds are the client's prunes and key caps (X-1).
+  with no cap on the column, so the bounds are the client's prunes and key caps (X-1). Those
+  bound an honest client: unknown fields are carried whole for forward compatibility, as in
+  every synced store, so a hostile client can bloat its own row and only its own. The earn
+  table in `src/learn/pet.ts` is part of the merge law (an id worth nothing is dropped): adding
+  an earn kind or changing an id shape is a law change, and the card that writes earns (X-3b)
+  must write ids that `earnAmount` prices.
 - Clock skew across devices: a care act stamps its `at` just after the stored one when that is
   later than now, so a device whose clock ran ahead cannot win every merge until that date and
-  freeze a need (X-1, after review).
+  freeze a need (X-1, after review); drift still pauses until real time passes that stamp,
+  which only favours the learner.
 - Clock games: a future `at` reads as now and above `WEAR_AT_MAX` is ignored; moving the day
   gains at most four care points, and only on a day with XP.
 - Children: no money path (a static rule keeps `pet` and facets out of every SQL write path and

@@ -84,7 +84,7 @@ export function touch(rec: unknown, need: Need, now: Timestamp, delta: number): 
 export const REVIEW_CAP_IDS = 5;
 export const SPEND_MAX = 1000;
 /** key-count bounds of the ledgers and maps (see the header) */
-export const EARNED_MAX = 4000, SPENT_MAX = 20000, OWNED_MAX = 500, GREW_MAX = 16, NEEDS_MAX = 16;
+export const EARNED_MAX = 20000, SPENT_MAX = 20000, OWNED_MAX = 500, GREW_MAX = 16, NEEDS_MAX = 16;
 export const CARE_DAY_MAX = 32, FEED_MAX = 32, PET_KEYS_MAX = 32, DECOR_MAX = 16, WEAR_EXTRA_MAX = 8;
 /** facets by the prefix of the earn id; the stored n is never trusted */
 export const EARN = { strong: 20, medal: 10, review: 5, compare: 5, mission: 10 } as const;
@@ -126,8 +126,8 @@ function earnedTotal(earned: unknown): number {
 
 /** facets in hand: earned minus spent, derived, never stored; it may be negative */
 export function balance(pet: unknown): number {
-  const p = obj(pet), spent = obj(p.spent);
-  let out = earnedTotal(p.earned);
+  const p = obj(pet), spent = obj(at(p, "spent"));
+  let out = earnedTotal(at(p, "earned"));
   keysOf(spent, {}).forEach((id) => { out -= clamp(0, SPEND_MAX, num(at(spent, id))); });
   return out;
 }
@@ -244,7 +244,7 @@ function liveCounts(rec: unknown) {
 /** a bounded copy; for the fields it touches (earned, spent, owned, needs, care, grew, wear,
     gift, v and the record's own keys) prunePet(x) equals mergePet(x, {}). Earns that are worth
     nothing, and counts not above 0, are dropped; review earns stop at REVIEW_CAP_IDS a day,
-    the other earns at EARNED_MAX, the spends at SPENT_MAX (the last ids, the newest days);
+    the other earns at EARNED_MAX, the spends at SPENT_MAX (the newest days, then the last ids);
     care and gift keep the newest 400 days, a key with no valid day dropped. Idempotent. */
 export function prunePet(pet: unknown): PetStore {
   const p = obj(pet), out: any = {};
@@ -262,7 +262,10 @@ export function prunePet(pet: unknown): PetStore {
   others.slice(0, EARNED_MAX).forEach((id) => { earnedOut[id] = earned[id]; });
   out.earned = earnedOut;
   const spent = liveCounts(at(p, "spent")), spentOut: any = {};
-  Object.keys(spent).sort().slice(-SPENT_MAX).forEach((id) => { spentOut[id] = spent[id]; });
+  /* the cut is by day first, then id, so a newer buy never goes before an older feed: every
+     feed: id would otherwise sort above every buy: id */
+  const byDay = (id: string) => (dayOfId(id) || "") + "\u0000" + id;
+  Object.keys(spent).sort((x, y) => (byDay(x) < byDay(y) ? -1 : byDay(x) > byDay(y) ? 1 : 0)).slice(-SPENT_MAX).forEach((id) => { spentOut[id] = spent[id]; });
   out.spent = spentOut;
   const owned: any = {}, o = obj(at(p, "owned"));
   keysOf(o, {}).forEach((k) => { if (typeof at(o, k) === "string") owned[k] = at(o, k); });
