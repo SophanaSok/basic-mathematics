@@ -761,7 +761,7 @@
     var ranked = result.ranked !== false, finished = result.finished !== false;
     var xp = 0, dailyBonus = false, newMedal = 0, before = readGame();
     var cleanMs = Math.round(num(obj(result.clean).ms)), cleanOut = null, beaten = false;
-    var bySec = {}, paid = [], was = schedAll(), dayNow = today();
+    var bySec = {}, paid = [], dueFirst = [], was = schedAll(), dayNow = today();
     var boss = result.boss ? String(result.boss) : "", S0 = stores();
     var bs = bossState(S0, boss, before), bossSet = bs.set, cleared = bs.cleared;
 
@@ -769,6 +769,7 @@
       a = obj(a);
       var sid = a.section ? String(a.section) : "";
       var wasDue = sid ? Review.recall.dueOn(schedIn(was, sid), dayNow) : false;
+      if (a.first && wasDue && dueFirst.indexOf(sid) < 0) dueFirst.push(sid);
       if (a.first) paid.push({ section: sid, xp: wasDue ? 3 : 2 });
       else if (a.retry && !a.hf) paid.push({ section: sid, xp: 1 });
       if (!sid) return;
@@ -862,7 +863,8 @@
       if (since && day > since) unlock("returning-champion");
     }
     if (xp && Activity) Activity.add(xp, "arena");
-    Store.emit({ type: "arena", phase: "recorded", mode: mode, xp: xp, medal: newMedal });
+    Store.emit({ type: "arena", phase: "recorded", mode: mode, xp: xp, medal: newMedal,
+      set: boss ? boss + "/practice" : undefined, day: day, due: dueFirst.slice().sort() });
     schedule();
     /* parts: what the XP is made of, and what the answers would have paid at the full
        rate; reduced: the sections whose answers paid less today (the result screen says why) */
@@ -1484,6 +1486,7 @@
         if (!ch[c.key]) { ch[c.key] = 1; fresh = true; }
         g.cmp[c.chapter] = ch;
       });
+      Store.emit({ type: "compare", chapter: c.chapter, key: c.key, fresh: fresh });
       if (fresh) grantShield();
       schedule();
     }, 4000);

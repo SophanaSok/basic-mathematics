@@ -146,6 +146,7 @@
       var fresh = !this.isDone(id, key);
       this.update(id, function (rec) { rec.done[key] = true; });
       if (fresh) Activity.add(XP.mission, "mission");
+      Store.emit({ type: "mission", chapter: id, key: key, fresh: fresh });
     },
     setTotal: function (id, total) { this.update(id, function (rec) { rec.total = total; }); },
     setGuess: function (id, i) { this.update(id, function (rec) { rec.guess = i; }); },

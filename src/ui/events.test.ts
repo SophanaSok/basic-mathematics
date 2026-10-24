@@ -54,7 +54,7 @@ describe("install", () => {
     const ids = Object.keys(stored.ev);
     expect(ids).toHaveLength(1);
     expect(isValid(ids[0], stored.ev[ids[0]])).toBe(true);
-    expect(f.emitted.filter((c) => c.type === "event")).toEqual([{ type: "event", n: 1 }]);
+    expect(f.emitted.filter((c) => c.type === "event")).toEqual([{ type: "event", n: 1, sec: expect.any(String) }]);
     expect(Object.keys(f.api.all())).toEqual(ids);
     expect(f.mem.get(EVENTS_KEY)).not.toContain("SECRET-7Q");
   });

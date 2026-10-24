@@ -145,7 +145,10 @@ export function install(win: any) {
       if (cp) { put({ [cp.id]: cp.P }); if (queueing()) enqueue([cp.id]); }
     });
   }
-  const announce = () => Store.emit({ type: "event", n: Object.keys(all()).length });
+  const announce = (sec?: string) => {
+    const n = Object.keys(all()).length;
+    Store.emit(typeof sec === "string" ? { type: "event", n, sec } : { type: "event", n });
+  };
 
   function record(P: Payload): string | null {
     if (!Store || ahead()) return null;
@@ -155,7 +158,7 @@ export function install(win: any) {
       put({ [id]: P });
       if (queueing()) enqueue([id]);
       checkpoints([P[3]]);
-      announce();
+      announce(P[3]);
       return id;
     } catch (e) {
       warn(e);
