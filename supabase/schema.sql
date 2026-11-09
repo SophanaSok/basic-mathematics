@@ -1001,7 +1001,7 @@ create table if not exists public.connect_grants (
   access_expires timestamptz not null,
   refresh_hash text not null unique check (refresh_hash ~ '^[0-9a-f]{64}$'),
   refresh_tag_hash text not null unique check (refresh_tag_hash ~ '^[0-9a-f]{64}$'),   -- of the tag every refresh key of this grant starts with
-  salt text not null check (salt ~ '^[0-9a-f]{64}$'),                                    -- never leaves the database: the next keys are derived with it
+  salt text not null check (salt ~ '^[0-9a-f]{64}$'),                                    -- new at every rotation, never leaves the database: the current keys were derived with it
   prev_refresh_hash text check (prev_refresh_hash ~ '^[0-9a-f]{64}$'),   -- the refresh key just replaced ...
   rotated_at timestamptz,                                                -- ... and when
   created_at timestamptz not null default now(),
@@ -1009,7 +1009,6 @@ create table if not exists public.connect_grants (
   revoked_at timestamptz
 );
 create index if not exists connect_grants_user_idx on public.connect_grants (user_id);
-create index if not exists connect_grants_prev_idx on public.connect_grants (prev_refresh_hash);
 alter table public.connect_grants enable row level security;
 revoke all on table public.connect_grants from anon, authenticated;
 
@@ -1169,8 +1168,9 @@ end;
 $$;
 
 -- The worker's: exchange a code and its PKCE verifier for keys. Never raises. A code is consumed by its
--- first presentation whatever the outcome; presenting a used code again within 24 hours of its approval
--- ends the grant it made. The worker must never retry this call: a retry is a replay.
+-- first presentation whatever the outcome; presenting a used code again with its verifier, within 24
+-- hours of its approval, ends the grant it made (the code alone, as a browser's history holds it, ends
+-- nothing). The worker must never retry this call: a retry is a replay.
 create or replace function public.connect_redeem(p_code text, p_verifier text, p_client_id text, p_redirect_uri text)
 returns jsonb
 language plpgsql security definer set search_path = '' set lock_timeout = '2s'
@@ -1203,7 +1203,8 @@ begin
     return refused;
   end if;
   if c.used_at is not null then
-    if c.grant_id is not null and c.created_at > pg_catalog.now() - interval '24 hours' then
+    if c.grant_id is not null and c.created_at > pg_catalog.now() - interval '24 hours'
+       and private.connect_s256(p_verifier) = c.challenge then
       update public.connect_grants g set revoked_at = pg_catalog.now() where g.id = c.grant_id and g.revoked_at is null;
     end if;
     return refused;
@@ -1233,9 +1234,10 @@ $$;
 
 -- The worker's: rotate a refresh key. Never raises. A refresh key is the grant's tag (32 hex digits, the
 -- same for the life of the grant) followed by a secret that changes at every rotation. The next keys are
--- derived from the key presented and the grant's salt, so the key just replaced, presented again within
--- 30 seconds (a retried request, two requests at once), gets the same answer and writes nothing. Any other
--- key that carries the tag is a spent one: presenting it ends the grant.
+-- derived from the key presented and a salt chosen at that rotation and kept until the next, so the key
+-- just replaced, presented again within 30 seconds (a retried request, two requests at once), gets the
+-- same answer and writes nothing. Any other key that carries the tag is a spent one: presenting it ends
+-- the grant. A salt lasts one rotation, so a copy of this table and an old key give nothing later.
 create or replace function public.connect_refresh(p_key text, p_client_id text)
 returns jsonb
 language plpgsql security definer set search_path = '' set lock_timeout = '2s'
@@ -1244,6 +1246,7 @@ declare
   refused constant jsonb := '{"hint": "refused"}'::jsonb;
   h text;
   tag text;
+  s text;
   g public.connect_grants;
   access_key text;
   refresh_key text;
@@ -1259,27 +1262,30 @@ begin
   if not found or g.revoked_at is not null then
     return refused;
   end if;
-  access_key := private.connect_next(p_key, g.salt, 'a');
-  refresh_key := tag || private.connect_next(p_key, g.salt, 'r');
   if g.refresh_hash = h then
     if g.client_id <> p_client_id or not private.connect_live(g.revoked_at, g.last_used) then
       return refused;
     end if;
+    s := private.connect_key();
+    access_key := private.connect_next(p_key, s, 'a');
+    refresh_key := tag || private.connect_next(p_key, s, 'r');
     update public.connect_grants x
-       set prev_refresh_hash = x.refresh_hash, rotated_at = pg_catalog.now(),
+       set prev_refresh_hash = x.refresh_hash, rotated_at = pg_catalog.now(), salt = s,
            access_hash = private.connect_hash(access_key), refresh_hash = private.connect_hash(refresh_key),
            access_expires = pg_catalog.now() + interval '1 hour', last_used = pg_catalog.now()
      where x.id = g.id;
     return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
   end if;
   if g.prev_refresh_hash = h and g.rotated_at > pg_catalog.now() - interval '30 seconds' then
+    access_key := private.connect_next(p_key, g.salt, 'a');
+    refresh_key := tag || private.connect_next(p_key, g.salt, 'r');
     if g.client_id <> p_client_id or not private.connect_live(g.revoked_at, g.last_used)
        or g.refresh_hash <> private.connect_hash(refresh_key) then
       return refused;
     end if;
     -- the answer the first call gave, derived again; nothing is written
     return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key,
-      'expires_in', greatest(0, floor(extract(epoch from g.access_expires - pg_catalog.now())))::integer);
+      'expires_in', least(3600, greatest(0, floor(extract(epoch from g.access_expires - pg_catalog.now()))))::integer);
   end if;
   -- the grant's tag with a secret that is neither current nor just replaced: a spent key
   update public.connect_grants x set revoked_at = pg_catalog.now() where x.id = g.id;
