@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 424 hand-counted tests below, plus one per row of the three tables
-select plan(424 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 568 hand-counted tests below, plus one per row of the three tables
+select plan(568 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -412,8 +412,8 @@ select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select count
 select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', 'select count(*) from public.events_usage()'), 0::bigint, 'a reader who is not an admin gets none');
 select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select rows from public.events_usage()'), (select count(*) from public.events), 'events_usage counts every row');
 
--- 14. the migration is complete: thirteen functions in private (it was applied twice by the runner)
-select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 13::bigint, 'schema private holds exactly thirteen functions');
+-- 14. the migration is complete: fifteen functions in private (it was applied twice by the runner)
+select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 15::bigint, 'schema private holds exactly fifteen functions');
 select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('events', 'event_meta') and c.relkind = 'r'), 2::bigint, 'both tables exist once');
 
 -- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
@@ -863,8 +863,8 @@ select ok((select proconfig::text like '%search_path=%' from pg_proc where oid =
 select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_hash(text)'::regprocedure), 'connect_hash pins search_path');
 select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_live(timestamptz, timestamptz)'::regprocedure), 'connect_live pins search_path');
 select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_next(text, text, text)'::regprocedure), 'connect_next pins search_path');
-select ok((select proconfig::text like '%lock_timeout=2s%' from pg_proc where oid = 'public.connect_redeem(text, text, text, text)'::regprocedure), 'connect_redeem waits at most 2 seconds for a lock');
-select ok((select proconfig::text like '%lock_timeout=2s%' from pg_proc where oid = 'public.connect_refresh(text, text)'::regprocedure), 'connect_refresh waits at most 2 seconds for a lock');
+select ok((select proconfig::text like '%lock_timeout=500ms%' from pg_proc where oid = 'public.connect_redeem(text, text, text, text)'::regprocedure), 'connect_redeem waits at most half a second for a lock');
+select ok((select proconfig::text like '%lock_timeout=500ms%' from pg_proc where oid = 'public.connect_refresh(text, text)'::regprocedure), 'connect_refresh waits at most half a second for a lock');
 select is((select count(*) from pg_constraint where conrelid = 'public.connect_grants'::regclass and contype = 'u' and pg_get_constraintdef(oid) like '%(refresh_tag_hash)%'), 1::bigint, 'a refresh tag belongs to one grant: refresh_tag_hash is unique');
 select is(has_function_privilege('anon', 'public.connect_approve(text, text, text)', 'execute'), false, 'anon cannot run connect_approve');
 select is(has_function_privilege('authenticated', 'public.connect_approve(text, text, text)', 'execute'), true, 'authenticated can run connect_approve');
@@ -884,12 +884,12 @@ select is(has_function_privilege('anon', 'private.connect_live(timestamptz, time
 select is(has_function_privilege('anon', 'private.connect_next(text, text, text)', 'execute') or has_function_privilege('authenticated', 'private.connect_next(text, text, text)', 'execute'), false, 'neither role can run connect_next');
 select is((select array_to_string(proargnames, ',') from pg_proc where oid = 'public.connect_list()'::regprocedure), 'id,app,created_at,last_used', 'connect_list returns only id, app, created_at and last_used');
 
--- T1: among the functions in public that no extension owns, anon can run exactly the two worker functions
+-- T1: among the functions in public that no extension owns, anon can run exactly the three worker functions
 select is(
   (select string_agg(p.proname::text, ',' order by p.proname::text) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
      and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')),
-  'connect_redeem,connect_refresh', 'T1: anon can execute exactly connect_redeem and connect_refresh in public');
+  'connect_redeem,connect_refresh,mcp_context', 'T1: anon can execute exactly connect_redeem, connect_refresh and mcp_context in public');
 
 -- T3: the allow-list, on its own and through connect_approve (user 8)
 create temp table cn_good (n integer, uri text, app text);
@@ -1132,6 +1132,339 @@ select is((select string_agg(c, ',' order by c) from (
     select client_id c from public.connect_codes where user_id = pg_temp.cn_u(6) and client_id like 'hk\_%'
     union all select client_id from public.connect_grants where user_id = pg_temp.cn_u(6) and client_id like 'hk\_%') x),
   'hk_idle000,hk_newcode,hk_newrevk,hk_oldcode,hk_oldrevk', 'and another account''s old rows are untouched');
+
+-- 19. the connector's read function and the daily meter (CN-3). Users of this section's own, c3000000-...-00 to 11:
+--   1 validity and last_used, 2 a bystander's meter, 3 the refresh meter, 4 events and last, 5 a guardian with a managed learner (T6),
+--   6 deleted with its meter, 7 hostile last values, 8 a reset (T16), 9 an empty account, 10 the call meter, 11 the 6,000-row ceiling
+insert into auth.users (id, email)
+  select ('c3000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, 'c3u' || n || '@example.test' from generate_series(1, 11) n;
+create function pg_temp.c3_u(n integer) returns uuid language sql as $$ select ('c3000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid $$;
+/* as the worker (anon): a raise comes back as {"raised": message} so a test can tell it from a refusal */
+create function pg_temp.mc(k text, f boolean, b bigint default null) returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  execute 'set local role anon';
+  begin
+    r := public.mcp_context(k, f, b);
+  exception when others then
+    r := jsonb_build_object('raised', sqlerrm);
+  end;
+  execute 'reset role';
+  return r;
+end $$;
+/* mint a connection for the account and return its keys and grant id */
+create function pg_temp.c3_mint(uid uuid) returns table (acc text, ref text, gid uuid) language plpgsql as $$
+declare j jsonb;
+begin
+  j := pg_temp.cn_mint(uid);
+  return query select j->>'access', j->>'refresh', g.id from public.connect_grants g where g.access_hash = pg_temp.cn_sha(j->>'access');
+end $$;
+/* the answer's events array, element by element, against the rows of public.events: the number of differences */
+create function pg_temp.c3_misses(ans jsonb, uid uuid) returns bigint language sql as $$
+  select count(*) from (
+    select r.i, a.e from (select row_number() over (order by seq) i, * from public.events where user_id = uid) r
+    full join jsonb_array_elements(ans->'events') with ordinality a(e, i) on a.i = r.i
+    where a.e is null or r.id is null
+       or not (a.e->>0 = r.id and (a.e->>1)::integer = r.t and (a.e->>2)::integer = r.d and a.e->>3 = r.src and a.e->>4 = r.sec
+               and a.e->>5 = r.ref and a.e->>6 = r.k and (a.e->>7)::integer = r.ok and (a.e->>8)::integer = r.n and (a.e->>9)::integer = r.r
+               and (a.e->>10)::integer = r.f
+               and case when r.x is null or r.k <> 'z' then jsonb_array_length(a.e) = 11 else jsonb_array_length(a.e) = 12 and a.e->11 = r.x end)) q
+$$;
+create function pg_temp.c3_keys(j jsonb) returns text language sql as $$ select string_agg(k, ',' order by k) from jsonb_object_keys(j) k $$;
+
+-- the table: row-level security on, no policy, no grant, no direct read
+select has_table('public', 'connect_meter', 'public.connect_meter exists');
+select is((select relrowsecurity from pg_class where oid = 'public.connect_meter'::regclass), true, 'connect_meter has row-level security on');
+select is((select count(*) from pg_policies where schemaname = 'public' and tablename = 'connect_meter'), 0::bigint, 'connect_meter has no policy');
+select is((select count(*) from information_schema.role_table_grants where table_schema = 'public' and table_name = 'connect_meter' and grantee in ('anon', 'authenticated')),
+  0::bigint, 'anon and authenticated hold no grant on connect_meter');
+select is(has_table_privilege('anon', 'public.connect_meter', 'select,insert,update,delete'), false, 'anon holds no privilege on connect_meter');
+select is(has_table_privilege('authenticated', 'public.connect_meter', 'select,insert,update,delete'), false, 'authenticated holds no privilege on connect_meter');
+select is(pg_temp.sqlstate_as(pg_temp.c3_u(1), 'select * from public.connect_meter'), '42501', 'authenticated cannot select connect_meter');
+select is(pg_temp.sqlstate_anon('select * from public.connect_meter'), '42501', 'anon cannot select connect_meter');
+-- the functions
+select is((select prosecdef from pg_proc where oid = 'public.mcp_context(text, boolean, bigint)'::regprocedure), true, 'mcp_context is security definer');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.mcp_context(text, boolean, bigint)'::regprocedure), 'mcp_context pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_meter_tick(uuid, text, integer)'::regprocedure), 'connect_meter_tick pins search_path');
+select ok((select proconfig::text like '%lock_timeout=500ms%' from pg_proc where oid = 'public.mcp_context(text, boolean, bigint)'::regprocedure), 'mcp_context waits at most half a second for a lock');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_meter_at_cap(uuid, text, integer)'::regprocedure), 'connect_meter_at_cap pins search_path');
+select is(has_function_privilege('anon', 'public.mcp_context(text, boolean, bigint)', 'execute'), true, 'anon can run mcp_context');
+select is(has_function_privilege('authenticated', 'public.mcp_context(text, boolean, bigint)', 'execute'), false, 'authenticated cannot run mcp_context');
+select is(has_function_privilege('anon', 'private.connect_meter_tick(uuid, text, integer)', 'execute') or has_function_privilege('authenticated', 'private.connect_meter_tick(uuid, text, integer)', 'execute'), false, 'neither role can run connect_meter_tick');
+select is(has_function_privilege('anon', 'private.connect_meter_at_cap(uuid, text, integer)', 'execute') or has_function_privilege('authenticated', 'private.connect_meter_at_cap(uuid, text, integer)', 'execute'), false, 'neither role can run connect_meter_at_cap');
+
+-- T9: a key of the wrong shape is refused, whatever p_full is, and never raises. Nothing is written.
+create temp table c3_junk (label text, v text);
+insert into c3_junk values ('null', null), ('empty', ''), ('63 digits', repeat('0', 63)), ('65 digits', repeat('0', 65)), ('upper-case hex', repeat('A', 64)),
+  ('100000 characters', repeat('x', 100000)), ('100000 hex digits', repeat('a', 100000)), ('not hex', repeat('g', 64)), ('multibyte', repeat(chr(233), 64)),
+  ('a newline at the end', repeat('0', 63) || E'\n'), ('quotes', repeat('''', 64)), ('96 hex, a refresh key', repeat('0', 96)), ('json', '{"a":1}');
+create temp table c3_m0 as select count(*) n, md5(coalesce(string_agg(row_to_json(m)::text, '|' order by m.user_id), '')) h from public.connect_meter m;
+-- a live connection (user 2) whose stored hash is that of each wrong-shaped key: only the shape check refuses them, since no lookup can
+insert into public.connect_grants (user_id, app, client_id, access_hash, access_expires, refresh_hash, refresh_tag_hash, salt)
+  select pg_temp.c3_u(2), 'claude', 'shapetest', pg_temp.cn_sha(j.v), now() + interval '1 hour', pg_temp.cn_sha('r' || j.label), pg_temp.cn_sha('t' || j.label), pg_temp.cn_sha('s' || j.label)
+    from c3_junk j where j.v is not null;
+select is((select count(*) from public.connect_grants where user_id = pg_temp.c3_u(2) and client_id = 'shapetest'), (select count(*) from c3_junk where v is not null), 'T9: a live grant exists for each wrong-shaped key');
+select is((select coalesce(string_agg(j.label || ' ' || coalesce(f::text, 'null'), ' | '), '') from c3_junk j cross join (values (null::boolean), (false), (true)) fs(f)
+   where pg_temp.mc(j.v, f) is distinct from '{"hint": "refused"}'::jsonb), '', 'T9: mcp_context refuses a key of the wrong shape for p_full null, false and true, without raising');
+select is(pg_temp.mc(repeat('0', 64), true), '{"hint": "refused"}'::jsonb, 'T9: an unknown well-formed key is refused');
+select is(pg_temp.mc(repeat('0', 64), false), '{"hint": "refused"}'::jsonb, 'T9: also for p_full false');
+select is(pg_temp.mc(repeat('0', 64), null), '{"hint": "refused"}'::jsonb, 'T9: and for p_full null');
+select is((select count(*) || md5(coalesce(string_agg(row_to_json(m)::text, '|' order by m.user_id), '')) from public.connect_meter m), (select n || h from c3_m0), 'T9: no refused call created or changed a meter row');
+
+-- validity and last_used (user 1)
+create temp table c3_g1 as select * from pg_temp.c3_mint(pg_temp.c3_u(1));
+select is(pg_temp.mc((select acc from c3_g1), null), '{"ok": true}'::jsonb, 'a fresh access key answers ok for p_full null');
+select is((select count(*) from c3_g1, jsonb_object_keys(pg_temp.mc(c3_g1.acc, null))), 1::bigint, 'and the answer has exactly one key');
+select is(pg_temp.mc(upper((select acc from c3_g1)), null), '{"hint": "refused"}'::jsonb, 'an upper-case copy of a good key is refused');
+select is((select count(*) from public.connect_meter where user_id = pg_temp.c3_u(1)), 0::bigint, 'p_full null creates no meter row');
+select is(pg_temp.mc((select ref from c3_g1), null), '{"hint": "refused"}'::jsonb, 'a refresh key is not an access key');
+update public.connect_grants set access_expires = now() - interval '1 second', last_used = now() - interval '2 hours' where id = (select gid from c3_g1);
+select is(pg_temp.mc((select acc from c3_g1), null), '{"hint": "refused"}'::jsonb, 'an access key that expired 1 second ago is refused');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1)), now() - interval '2 hours', 'and the refusal leaves last_used');
+update public.connect_grants set access_expires = now() + interval '1 second' where id = (select gid from c3_g1);
+select is(pg_temp.mc((select acc from c3_g1), null), '{"ok": true}'::jsonb, 'an access key with a second left is accepted');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1)), now(), 'a use after 2 hours moves last_used to now');
+update public.connect_grants set last_used = now() - interval '30 minutes' where id = (select gid from c3_g1);
+select is(pg_temp.mc((select acc from c3_g1), false), '{"ok": true}'::jsonb, 'a use 30 minutes later is accepted');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1)), now() - interval '30 minutes', 'and leaves last_used');
+update public.connect_grants set last_used = now() - interval '61 minutes' where id = (select gid from c3_g1);
+select is(pg_temp.mc((select acc from c3_g1), true) ->> 'ok', 'true', 'a use of progress after 61 minutes is accepted');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1)), now(), 'and moves last_used');
+-- revoked
+create temp table c3_g1b as select * from pg_temp.c3_mint(pg_temp.c3_u(1));
+select is(pg_temp.mc((select acc from c3_g1b), null), '{"ok": true}'::jsonb, 'a second connection works');
+update public.connect_grants set last_used = now() - interval '2 hours' where id = (select gid from c3_g1b);
+select is(pg_temp.msg_as(pg_temp.c3_u(1), null, format('select public.connect_revoke(%L)', (select gid from c3_g1b))), 'ok', 'the owner revokes it');
+select is(pg_temp.mc((select acc from c3_g1b), null), '{"hint": "refused"}'::jsonb, 'the key of a revoked connection is refused at once');
+select is(pg_temp.mc((select acc from c3_g1b), true), '{"hint": "refused"}'::jsonb, 'also for p_full true');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1b)), now() - interval '2 hours', 'and the refusal leaves last_used');
+-- idle 91 days
+create temp table c3_g1c as select * from pg_temp.c3_mint(pg_temp.c3_u(1));
+update public.connect_grants set last_used = now() - interval '91 days' where id = (select gid from c3_g1c);
+select is(pg_temp.mc((select acc from c3_g1c), null), '{"hint": "refused"}'::jsonb, 'a connection idle for 91 days is refused');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1c)), now() - interval '91 days', 'and the refusal leaves last_used');
+update public.connect_grants set last_used = now() - interval '89 days' where id = (select gid from c3_g1c);
+select is(pg_temp.mc((select acc from c3_g1c), null), '{"ok": true}'::jsonb, 'one idle for 89 days is accepted');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g1c)), now(), 'and the use starts the 90 days again');
+-- a rotation ends the old access key
+create temp table c3_g1d as select * from pg_temp.c3_mint(pg_temp.c3_u(1));
+create temp table c3_g1d2 as select pg_temp.cn_refresh((select ref from c3_g1d)) as j;
+select is(pg_temp.mc((select acc from c3_g1d), null), '{"hint": "refused"}'::jsonb, 'after a rotation the old access key is refused');
+select is(pg_temp.mc((select j->>'access' from c3_g1d2), null), '{"ok": true}'::jsonb, 'and the new one works');
+
+-- the call meter (user 10: two connections; user 2: a bystander with a row of its own)
+create temp table c3_g10a as select * from pg_temp.c3_mint(pg_temp.c3_u(10));
+create temp table c3_g10b as select * from pg_temp.c3_mint(pg_temp.c3_u(10));
+insert into public.connect_meter (user_id, calls, refreshes) values (pg_temp.c3_u(2), 7, 3);
+create temp table c3_by as select row_to_json(m)::text t from public.connect_meter m where user_id = pg_temp.c3_u(2);
+select is(pg_temp.mc((select acc from c3_g10a), null), '{"ok": true}'::jsonb, 'user 10: a p_full null call is accepted');
+select is(pg_temp.mc((select acc from c3_g10b), null), '{"ok": true}'::jsonb, 'also on the second connection');
+select is((select count(*) from public.connect_meter where user_id = pg_temp.c3_u(10)), 0::bigint, 'p_full null calls create no meter row');
+insert into public.connect_meter (user_id, calls) values (pg_temp.c3_u(10), 299);
+select is(pg_temp.mc((select acc from c3_g10a), false), '{"ok": true}'::jsonb, 'the 300th call (p_full false) answers ok');
+select is((select calls from public.connect_meter where user_id = pg_temp.c3_u(10)), 300, 'and calls is 300');
+create temp table c3_ct as select ctid::text c, row_to_json(m)::text t from public.connect_meter m where user_id = pg_temp.c3_u(10);
+select is(pg_temp.mc((select acc from c3_g10a), false), '{"hint": "limit"}'::jsonb, 'the 301st call answers limit');
+select is((select calls from public.connect_meter where user_id = pg_temp.c3_u(10)), 300, 'and calls stays 300');
+select is(pg_temp.mc((select acc from c3_g10a), true), '{"hint": "limit"}'::jsonb, 'a progress call at the cap answers limit too');
+select is(pg_temp.mc((select acc from c3_g10a), false), '{"hint": "limit"}'::jsonb, 'and a third call');
+select is((select ctid::text from public.connect_meter where user_id = pg_temp.c3_u(10)), (select c from c3_ct), 'a call over the cap wrote nothing: the row was not rewritten');
+select is(pg_temp.mc((select acc from c3_g10b), false), '{"hint": "limit"}'::jsonb, 'the account''s other connection shares the meter');
+update public.connect_grants set access_expires = now() where id = (select gid from c3_g10a);
+select is(pg_temp.mc((select acc from c3_g10a), true), '{"hint": "refused"}'::jsonb, 'at the cap, a key whose access_expires is now is refused, not limited: the boundary is expired');
+update public.connect_grants set access_expires = now() + interval '1 hour', revoked_at = now() where id = (select gid from c3_g10a);
+select is(pg_temp.mc((select acc from c3_g10a), true), '{"hint": "refused"}'::jsonb, 'at the cap, a revoked key is refused, not limited');
+select is((select count(*) from public.connect_meter where user_id = pg_temp.c3_u(10)), 1::bigint, 'two connections of one account share one meter row');
+select is(pg_temp.mc((select acc from c3_g10b), null), '{"ok": true}'::jsonb, 'p_full null is not metered, so it still answers ok at the cap');
+select is((select row_to_json(m)::text from public.connect_meter m where user_id = pg_temp.c3_u(10)), (select t from c3_ct), 'and changes nothing');
+update public.connect_meter set day = ((now() at time zone 'UTC')::date) - 1, refreshes = 5 where user_id = pg_temp.c3_u(10);
+select is(pg_temp.mc((select acc from c3_g10b), false), '{"ok": true}'::jsonb, 'the day after, a call answers ok');
+select is((select calls || '/' || refreshes || '/' || (day = (now() at time zone 'UTC')::date) from public.connect_meter where user_id = pg_temp.c3_u(10)), '1/0/true', 'with calls 1, refreshes 0 and today''s date');
+select is((select row_to_json(m)::text from public.connect_meter m where user_id = pg_temp.c3_u(2)), (select t from c3_by), 'another account''s meter row is untouched');
+
+-- the refresh meter (user 3)
+create temp table c3_g3 as select * from pg_temp.c3_mint(pg_temp.c3_u(3));
+insert into public.connect_meter (user_id, refreshes) values (pg_temp.c3_u(3), 199);
+create temp table c3_r1 as select pg_temp.cn_refresh((select ref from c3_g3)) as j;
+select matches((select j->>'refresh' from c3_r1), '^[0-9a-f]{96}$', 'the 200th rotation of the day succeeds');
+select is((select refreshes from public.connect_meter where user_id = pg_temp.c3_u(3)), 200, 'and refreshes is 200');
+create temp table c3_s1 as select refresh_hash, access_hash, salt, rotated_at, prev_refresh_hash, last_used, access_expires from public.connect_grants where id = (select gid from c3_g3);
+create temp table c3_ct3 as select ctid::text c from public.connect_meter where user_id = pg_temp.c3_u(3);
+update public.connect_grants set rotated_at = now() - interval '40 seconds' where id = (select gid from c3_g3);
+select is(pg_temp.cn_refresh((select j->>'refresh' from c3_r1)), '{"hint": "limit"}'::jsonb, 'the 201st rotation answers limit');
+select is((select refresh_hash || access_hash || salt || prev_refresh_hash from public.connect_grants where id = (select gid from c3_g3)),
+  (select refresh_hash || access_hash || salt || prev_refresh_hash from c3_s1), 'and the grant''s keys and salt are unchanged');
+select is((select rotated_at from public.connect_grants where id = (select gid from c3_g3)), now() - interval '40 seconds', 'and rotated_at too');
+select is((select refreshes from public.connect_meter where user_id = pg_temp.c3_u(3)), 200, 'and refreshes stays 200');
+select is((select ctid::text from public.connect_meter where user_id = pg_temp.c3_u(3)), (select c from c3_ct3), 'a rotation over the cap wrote nothing to the meter');
+update public.connect_grants set rotated_at = now() - interval '5 seconds' where id = (select gid from c3_g3);
+create temp table c3_r2 as select pg_temp.cn_refresh((select ref from c3_g3)) as j;
+select is((select j from c3_r2), (select j from c3_r1) || jsonb_build_object('expires_in', (select j->'expires_in' from c3_r2)), 'the key just replaced, within 30 seconds, still gets the same keys at the cap');
+select is((select refreshes from public.connect_meter where user_id = pg_temp.c3_u(3)), 200, 'and the retry is not metered');
+select is(pg_temp.cn_refresh(left((select j->>'refresh' from c3_r1), 32) || repeat('0', 64)), '{"hint": "refused"}'::jsonb, 'a spent key at the cap is refused');
+select is((select revoked_at is not null from public.connect_grants where id = (select gid from c3_g3)), true, 'and still ends the grant');
+create temp table c3_g3b as select * from pg_temp.c3_mint(pg_temp.c3_u(3));
+update public.connect_meter set day = ((now() at time zone 'UTC')::date) - 1, calls = 7 where user_id = pg_temp.c3_u(3);
+select matches(pg_temp.cn_refresh((select ref from c3_g3b))->>'refresh', '^[0-9a-f]{96}$', 'the day after, a rotation at yesterday''s cap succeeds');
+select is((select calls || '/' || refreshes from public.connect_meter where user_id = pg_temp.c3_u(3)), '0/1', 'and the new day starts both counters over: calls 0, refreshes 1');
+
+-- the answer for p_full true: an account with no events and no state row (user 9)
+create temp table c3_g9 as select * from pg_temp.c3_mint(pg_temp.c3_u(9));
+create temp table c3_a9 as select pg_temp.mc((select acc from c3_g9), true) as j;
+select is(pg_temp.c3_keys((select j from c3_a9)), 'before,events,last,ok,truncated,v', 'p_full true answers exactly six keys');
+select is((select j->'events' from c3_a9), '[]'::jsonb, 'an account with no events: events is an empty array');
+select is((select j->'truncated' from c3_a9), 'false'::jsonb, 'and truncated is false');
+select is((select j->'before' from c3_a9), 'null'::jsonb, 'before is null: no row');
+select is((select j->'v' from c3_a9), '1'::jsonb, 'and v is 1 with no rows');
+select is((select j->'last' from c3_a9), 'null'::jsonb, 'with no user_state row, last is null');
+select is((select j->'ok' from c3_a9), 'true'::jsonb, 'and ok is true');
+select is(pg_temp.mc((select acc from c3_g9), false), '{"ok": true}'::jsonb, 'p_full false answers exactly ok: no data');
+
+-- events and last (user 4): rows written through events_put, then the ceiling (user 11)
+select is(pg_temp.put(pg_temp.c3_u(4), jsonb_build_array(pg_temp.el('m1', pg_temp.nowmin() - 30, 'ch01/e1'), pg_temp.el('m2', pg_temp.nowmin() - 20, 'ch01/e2', 'c', 0),
+  pg_temp.el('m3', pg_temp.nowmin() - 10, 'ch01/e3', 'c', 1, '{"b":2,"s":"hi"}')), 0)->>'added', '3', 'user 4 has three events');
+insert into public.user_state (user_id, last) values (pg_temp.c3_u(4), '{"id": "ch02", "section": "ab-1", "extra": "dropped"}');
+create temp table c3_g4 as select * from pg_temp.c3_mint(pg_temp.c3_u(4));
+create temp table c3_a4 as select pg_temp.mc((select acc from c3_g4), true) as j;
+select is(pg_temp.c3_keys((select j from c3_a4)), 'before,events,last,ok,truncated,v', 'user 4: exactly six keys');
+select is(jsonb_array_length((select j->'events' from c3_a4)), 3, 'the answer carries the three events');
+select is(pg_temp.c3_misses((select j from c3_a4), pg_temp.c3_u(4)), 0::bigint, 'each element equals its row, in ascending seq, with 11 elements or 12 for a checkpoint row with x');
+select is((select string_agg(e->>0, ',' order by i) from jsonb_array_elements((select j->'events' from c3_a4)) with ordinality a(e, i)), (select string_agg(id, ',' order by seq) from public.events where user_id = pg_temp.c3_u(4)), 'and the order is that of seq');
+select is(jsonb_array_length((select j->'events'->2 from c3_a4)), 11, 'the x of a page row is not returned: 11 elements');
+select is((select j->'before' from c3_a4), to_jsonb((select min(seq) from public.events where user_id = pg_temp.c3_u(4))), 'before is the lowest seq returned');
+insert into public.events (user_id, id, v, t, d, src, sec, ref, k, ok, n, r, f, x, seq)
+  values (pg_temp.c3_u(4), 'zz000000-00000000-0000000', 1, pg_temp.nowmin() - 5, (pg_temp.nowmin() - 5) / 1440, 'ar', 'ch01', '', 'z', 1, 0, 0, 0, '{"s": 20763, "l": 1, "b": 2, "n": 3, "o": 0}', 4);
+create temp table c3_a4z as select pg_temp.mc((select acc from c3_g4), true) as j;
+select is((select j->'events'->3->11 from c3_a4z), '{"s": 20763, "l": 1, "b": 2, "n": 3, "o": 0}'::jsonb, 'a checkpoint row''s x is its twelfth element');
+select is(pg_temp.c3_misses((select j from c3_a4z), pg_temp.c3_u(4)), 0::bigint, 'and the four rows match');
+select is((select j->'v' from c3_a4z), '1'::jsonb, 'v is 1: every row is format 1');
+select is((select j->'last' from c3_a4), '{"id": "ch02", "section": "ab-1"}'::jsonb, 'last carries its id and section and nothing else');
+select is((select j->'truncated' from c3_a4), 'false'::jsonb, 'three events are not truncated');
+select is((select (j::text ~ '"(pet|progress|game|name|email|play|attempts|activity|lesson|diag)"') from c3_a4), false, 'no field of the state, no name, no email');
+
+create temp table c3_g11 as select * from pg_temp.c3_mint(pg_temp.c3_u(11));
+insert into public.events (user_id, id, t, d, src, sec, ref, k, ok, n, r, f, seq)
+  select pg_temp.c3_u(11), 'tr' || lpad(i::text, 6, '0') || '-' || lpad(i::text, 8, '0') || '-' || lpad(i::text, 7, '0'), 29900000, 20763, 'ex', '', '', 'c', 1, 1, 0, 0, i
+    from generate_series(1, 6000) i;
+select is(jsonb_array_length(pg_temp.mc((select acc from c3_g11), true)->'events'), 6000, 'an account with exactly 6,000 events: all 6,000 are returned');
+select is(pg_temp.mc((select acc from c3_g11), true)->'truncated', 'false'::jsonb, 'and truncated is false');
+insert into public.events (user_id, id, t, d, src, sec, ref, k, ok, n, r, f, seq)
+  select pg_temp.c3_u(11), 'tr' || lpad(i::text, 6, '0') || '-' || lpad(i::text, 8, '0') || '-' || lpad(i::text, 7, '0'), 29900000, 20763, 'ex', '', '', 'c', 1, 1, 0, 0, i
+    from generate_series(6001, 6005) i;
+create temp table c3_a11 as select pg_temp.mc((select acc from c3_g11), true) as j;
+select is(jsonb_array_length((select j->'events' from c3_a11)), 6000, 'with 6,005 events, 6,000 are returned');
+select is((select j->'truncated' from c3_a11), 'true'::jsonb, 'and truncated is true');
+select is((select j->'events'->0->>0 from c3_a11), (select id from public.events where user_id = pg_temp.c3_u(11) and seq = 6), 'the first is the row with the 6th-lowest seq');
+select is((select j->'events'->5999->>0 from c3_a11), (select id from public.events where user_id = pg_temp.c3_u(11) and seq = 6005), 'and the last is the newest');
+select is((select count(*) from c3_a11, jsonb_array_elements(c3_a11.j->'events') with ordinality a(e, i) where (a.e->>0) <> (select id from public.events where user_id = pg_temp.c3_u(11) and seq = a.i + 5)), 0::bigint, 'and every element sits in ascending seq');
+select is((select j->'before' from c3_a11), '6'::jsonb, 'before is 6, the lowest seq of the page');
+create temp table c3_a11b as select pg_temp.mc((select acc from c3_g11), true, 6) as j;
+select is(jsonb_array_length((select j->'events' from c3_a11b)), 5, 'the page below 6 holds the five older rows');
+select is((select j->'truncated' from c3_a11b), 'false'::jsonb, 'and is not truncated');
+select is((select j->'before' from c3_a11b), '1'::jsonb, 'and its before is 1');
+select is((select string_agg(e->>0, ',' order by i) from (select e, i from jsonb_array_elements((select j->'events' from c3_a11b)) with ordinality a(e, i) union all select e, i + 5 from jsonb_array_elements((select j->'events' from c3_a11)) with ordinality a(e, i)) q),
+  (select string_agg(id, ',' order by seq) from public.events where user_id = pg_temp.c3_u(11)), 'the two pages together are the whole log in seq order');
+select is(pg_temp.mc((select acc from c3_g11), true, 1), '{"ok": true, "v": 1, "last": null, "events": [], "truncated": false, "before": null}'::jsonb, 'a page below the lowest seq is empty, with before null');
+
+-- T6: a guardian with a managed learner; the connection reads the self learner only (user 5)
+insert into auth.users (id, email) values ('c3000000-0000-4000-8000-000000000f05', 'guardian-cn3@example.test');
+create temp table c3_kid as select pg_temp.val_as('c3000000-0000-4000-8000-000000000f05', $$select public.learner_add('Zed Kidname', false, null)$$)::uuid as id;
+select is(pg_temp.put3('c3000000-0000-4000-8000-000000000f05', jsonb_build_array(pg_temp.el('k1', pg_temp.nowmin() - 30, 'kid1'), pg_temp.el('k2', pg_temp.nowmin() - 20, 'kid2'), pg_temp.el('k3', pg_temp.nowmin() - 10, 'kid3')), 0, (select id from c3_kid))->>'added', '3', 'T6: the managed learner has three events');
+select is(pg_temp.put('c3000000-0000-4000-8000-000000000f05', jsonb_build_array(pg_temp.el('s1', pg_temp.nowmin() - 25, 'self1'), pg_temp.el('s2', pg_temp.nowmin() - 15, 'self2')), 0)->>'added', '2', 'T6: the guardian''s self learner has two');
+insert into public.user_state (user_id, last) select id, '{"id": "ch05", "section": "practice"}' from c3_kid;
+insert into public.user_state (user_id, last) values ('c3000000-0000-4000-8000-000000000f05', '{"id": "ch02", "section": "a"}');
+create temp table c3_g5 as select * from pg_temp.c3_mint('c3000000-0000-4000-8000-000000000f05');
+create temp table c3_a5 as select pg_temp.mc((select acc from c3_g5), true) as j;
+select is(jsonb_array_length((select j->'events' from c3_a5)), 2, 'T6: only the self learner''s events are returned');
+select is((select string_agg(e->>0, ',' order by i) from jsonb_array_elements((select j->'events' from c3_a5)) with ordinality a(e, i)),
+  (select string_agg(id, ',' order by seq) from public.events where user_id = 'c3000000-0000-4000-8000-000000000f05'), 'T6: and they are that learner''s rows');
+select is((select j->'last' from c3_a5), '{"id": "ch02", "section": "a"}'::jsonb, 'T6: last is the self learner''s, ch02/a');
+select is((select count(*) from public.events e where e.user_id = (select id from c3_kid) and position(e.id in (select j::text from c3_a5)) > 0), 0::bigint, 'T6: no event id of the managed learner is in the answer');
+select is(position('Zed Kidname' in (select j::text from c3_a5)) + position('guardian-cn3' in (select j::text from c3_a5)) + position('Zed' in (select j::text from c3_a5)), 0, 'T6: neither the managed learner''s name nor the guardian''s email is in the answer');
+select is(position('ch05' in (select j::text from c3_a5)) + position('practice' in (select j::text from c3_a5)), 0, 'T6: nor the managed learner''s place');
+
+-- hostile values of last (user 7): null, or the two fields only
+insert into public.user_state (user_id) values (pg_temp.c3_u(7));
+create temp table c3_g7 as select * from pg_temp.c3_mint(pg_temp.c3_u(7));
+create temp table c3_last (label text, v jsonb, want jsonb);
+insert into c3_last values
+  ('a string', '"ch02"', 'null'), ('an array', '["ch02"]', 'null'), ('an array of objects', '[{"id": "ch02"}]', 'null'), ('a number', '5', 'null'), ('json null', 'null', 'null'),
+  ('id a number', '{"id": 5}', 'null'), ('id a script', '{"id": "<script>"}', 'null'), ('id missing', '{"section": "a"}', 'null'), ('id an object', '{"id": {"a": 1}}', 'null'),
+  ('id null', '{"id": null}', 'null'), ('id of 41 characters', jsonb_build_object('id', repeat('a', 41)), 'null'),
+  ('id of 40 characters', jsonb_build_object('id', repeat('a', 40)), jsonb_build_object('id', repeat('a', 40), 'section', '')),
+  ('id with an upper-case letter', '{"id": "Ch02"}', 'null'), ('id with a trailing newline', '{"id": "ch02\n"}', 'null'), ('id leading with a hyphen', '{"id": "-ch02"}', 'null'),
+  ('id empty', '{"id": ""}', 'null'), ('id with a space', '{"id": "ch 02"}', 'null'),
+  ('section an object', '{"id": "ch02", "section": {"x": 1}}', '{"id": "ch02", "section": ""}'),
+  ('section a number', '{"id": "ch02", "section": 5}', '{"id": "ch02", "section": ""}'),
+  ('section null', '{"id": "ch02", "section": null}', '{"id": "ch02", "section": ""}'),
+  ('section missing', '{"id": "ch02"}', '{"id": "ch02", "section": ""}'),
+  ('section upper case', '{"id": "ch02", "section": "Ok"}', '{"id": "ch02", "section": ""}'),
+  ('section a script', '{"id": "ch02", "section": "<b>"}', '{"id": "ch02", "section": ""}'),
+  ('section of 81 characters', jsonb_build_object('id', 'ch02', 'section', repeat('a', 81)), '{"id": "ch02", "section": ""}'),
+  ('section of 80 characters', jsonb_build_object('id', 'ch02', 'section', repeat('a', 80)), jsonb_build_object('id', 'ch02', 'section', repeat('a', 80))),
+  ('an extra field', '{"id": "ch02", "section": "ok", "extra": "dropped"}', '{"id": "ch02", "section": "ok"}'),
+  ('a real place', '{"id": "ch05", "section": "practice"}', '{"id": "ch05", "section": "practice"}'),
+  ('another real place', '{"id": "pk-percent", "section": "warmup"}', '{"id": "pk-percent", "section": "warmup"}');
+create function pg_temp.c3_last_misses(k text) returns text language plpgsql as $$
+declare c record; out text := ''; got jsonb;
+begin
+  for c in select * from c3_last loop
+    update public.user_state set last = c.v where user_id = pg_temp.c3_u(7);
+    got := pg_temp.mc(k, true)->'last';
+    if got is distinct from c.want then out := out || c.label || ' -> ' || coalesce(got::text, 'sql null') || ' | '; end if;
+  end loop;
+  return out;
+end $$;
+select is(pg_temp.c3_last_misses((select acc from c3_g7)), '', 'last: hostile values give null or the two checked fields, and nothing else');
+update public.user_state set last = null where user_id = pg_temp.c3_u(7);
+select is(pg_temp.mc((select acc from c3_g7), true)->'last', 'null'::jsonb, 'last: a null column gives null');
+select is((select count(*) from c3_last where want <> 'null'::jsonb and (select count(*) from jsonb_object_keys(want)) <> 2), 0::bigint, 'last: every non-null expectation has exactly two keys');
+
+-- T16: a reset leaves the connection working and the events gone (user 8)
+select is(pg_temp.put(pg_temp.c3_u(8), jsonb_build_array(pg_temp.el('r1', pg_temp.nowmin() - 30, 'reset1')), 0)->>'added', '1', 'T16: user 8 has an event');
+insert into public.user_state (user_id) values (pg_temp.c3_u(8));
+create temp table c3_g8 as select * from pg_temp.c3_mint(pg_temp.c3_u(8));
+select is(jsonb_array_length(pg_temp.mc((select acc from c3_g8), true)->'events'), 1, 'T16: the connection reads it');
+update public.user_state set reset_at = reset_at + 1 where user_id = pg_temp.c3_u(8);
+select is((select count(*) from public.events where user_id = pg_temp.c3_u(8)), 0::bigint, 'T16: the reset removed the events');
+select is(pg_temp.mc((select acc from c3_g8), true)->'events', '[]'::jsonb, 'T16: the connection still works and its events are empty');
+select is((select revoked_at is null from public.connect_grants where id = (select gid from c3_g8)), true, 'T16: and the grant is not revoked');
+
+-- deleting the account deletes its meter row (user 6)
+create temp table c3_g6 as select * from pg_temp.c3_mint(pg_temp.c3_u(6));
+select is(pg_temp.mc((select acc from c3_g6), false), '{"ok": true}'::jsonb, 'user 6 makes a metered call');
+select is((select count(*) from public.connect_meter where user_id = pg_temp.c3_u(6)), 1::bigint, 'and has a meter row');
+delete from auth.users where id = pg_temp.c3_u(6);
+select is((select count(*) from public.connect_meter where user_id = pg_temp.c3_u(6)), 0::bigint, 'deleting the account deletes its meter row');
+
+-- {"hint": "retry"}: an error inside any of the three worker functions answers retry, and what the call wrote is rolled back (user 9)
+create function pg_temp.c3_boom() returns trigger language plpgsql as $$ begin raise exception 'boom'; end $$;
+create temp table c3_g12 as select * from pg_temp.c3_mint(pg_temp.c3_u(9));
+update public.connect_grants set last_used = now() - interval '2 hours' where id = (select gid from c3_g12);
+create temp table c3_m9 as select row_to_json(m)::text t from public.connect_meter m where user_id = pg_temp.c3_u(9);
+create temp table c3_s12 as select refresh_hash, access_hash, salt, rotated_at, prev_refresh_hash from public.connect_grants where id = (select gid from c3_g12);
+create trigger c3_boom_meter before insert or update on public.connect_meter for each row execute function pg_temp.c3_boom();
+select is(pg_temp.mc((select acc from c3_g12), true), '{"hint": "retry"}'::jsonb, 'retry: an error at the meter makes mcp_context answer retry, not raise');
+select is((select last_used from public.connect_grants where id = (select gid from c3_g12)), now() - interval '2 hours', 'retry: and the last_used it had moved is rolled back');
+select is((select row_to_json(m)::text from public.connect_meter m where user_id = pg_temp.c3_u(9)), (select t from c3_m9), 'retry: and the meter row is as it was');
+select is(pg_temp.mc((select acc from c3_g12), null), '{"ok": true}'::jsonb, 'retry: p_full null does not reach the meter, so it still answers ok');
+select is(pg_temp.cn_refresh((select ref from c3_g12)), '{"hint": "retry"}'::jsonb, 'retry: an error at the meter makes connect_refresh answer retry');
+select is((select refresh_hash || access_hash || salt || rotated_at::text || coalesce(prev_refresh_hash, '') from public.connect_grants where id = (select gid from c3_g12)),
+  (select refresh_hash || access_hash || salt || rotated_at::text || coalesce(prev_refresh_hash, '') from c3_s12), 'retry: and the grant''s keys and salt are as they were');
+drop trigger c3_boom_meter on public.connect_meter;
+create temp table c3_c12 as select pg_temp.cn_approve(pg_temp.c3_u(9)) as code;
+create trigger c3_boom_grant before insert on public.connect_grants for each row execute function pg_temp.c3_boom();
+select is(pg_temp.cn_redeem((select code from c3_c12)), '{"hint": "retry"}'::jsonb, 'retry: an error at the grant makes connect_redeem answer retry');
+select is((select used_at is null from public.connect_codes where code_hash = pg_temp.cn_sha((select code from c3_c12))), true, 'retry: and the code is not consumed');
+drop trigger c3_boom_grant on public.connect_grants;
+select matches(pg_temp.cn_redeem((select code from c3_c12))->>'access', '^[0-9a-f]{64}$', 'retry: so presenting it again redeems it');
+
+-- the kill switch: revoking execute from anon stops every call; granting it back restores them
+revoke execute on function public.mcp_context(text, boolean, bigint) from anon;
+select is(pg_temp.sqlstate_anon($$select public.mcp_context(repeat('0', 64), true)$$), '42501', 'kill switch: with execute revoked, an anon call gets 42501');
+select is(has_function_privilege('anon', 'public.mcp_context(text, boolean, bigint)', 'execute'), false, 'kill switch: anon cannot run mcp_context');
+grant execute on function public.mcp_context(text, boolean, bigint) to anon;
+select is(pg_temp.mc((select acc from c3_g9), false), '{"ok": true}'::jsonb, 'kill switch: granted back, the next call works');
 
 select * from finish();
 rollback;

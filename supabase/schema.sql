@@ -1,7 +1,7 @@
 -- Basic Mathematics — accounts, synced progress, and the event log behind the author's analytics.
 -- Run once in the Supabase SQL editor (Dashboard → SQL → New query). Safe to re-run.
 --
--- Seven things live here:
+-- Eight things live here:
 --   user_state  one row per reader: the same JSON the site keeps in localStorage
 --   profiles    an optional display name, and whether the reader joined the Daily board
 --   daily_runs  one Arena Daily result per reader per day, for the opt-in Daily board
@@ -10,6 +10,8 @@
 --                only by events_put(), and the counters that order and limit them
 --   connect_grants, connect_codes  the connections an account has approved for an AI app, and the
 --                one-use codes that make them; only the connect_* functions touch them
+--   connect_meter  one row per account: the day's tool calls and key rotations for those connections,
+--                written only by mcp_context() and connect_refresh(), through private.connect_meter_tick()
 -- Row-level security makes every row private to its owner. The aggregate functions at
 -- the bottom are the only way to read across readers, and only for ids listed in `admins`;
 -- the Daily board functions read across the readers who opted in, and return only a
@@ -986,8 +988,8 @@ grant execute on function public.learner_list(), public.learner_add(text, boolea
 -- makes a one-use code; the site's worker redeems it with a PKCE verifier (connect_redeem) for an access
 -- key and a refresh key, and rotates the refresh key (connect_refresh). Only the SHA-256 of a key or a
 -- code is stored. The two worker-facing functions are granted to anon (the worker has no user identity;
--- the key is the credential), never raise, and answer every refusal with {"hint": "refused"}, so what a
--- refusal wrote (a code marked used, a grant ended) commits. The rest are for the signed-in reader.
+-- the key is the credential) and answer every refusal of a credential with {"hint": "refused"}, so what a
+-- refusal wrote (a code marked used, a grant ended) commits; mcp_context (CN-3) says what else they answer. The rest are for the signed-in reader.
 -- Lock order everywhere: the per-user advisory lock first, then rows. Time is pg_catalog.now().
 -- An access key or a code is 64 hex digits; a refresh key is 96 (connect_refresh says why).
 
@@ -1028,6 +1030,17 @@ create table if not exists public.connect_codes (
 create index if not exists connect_codes_user_idx on public.connect_codes (user_id, created_at);
 alter table public.connect_codes enable row level security;
 revoke all on table public.connect_codes from anon, authenticated;
+
+-- One row per account: the UTC day and how many tool calls and key rotations its connections have made
+-- that day. Written only by private.connect_meter_tick; no policies.
+create table if not exists public.connect_meter (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  day date not null default ((pg_catalog.now() at time zone 'UTC')::date),
+  calls integer not null default 0,        -- tool calls
+  refreshes integer not null default 0     -- key rotations
+);
+alter table public.connect_meter enable row level security;
+revoke all on table public.connect_meter from anon, authenticated;
 
 -- The allow-list of places a code may be sent, and the only place it is written. Exact, case-sensitive
 -- comparison; anything else (a trailing slash, query, fragment, user-info, other scheme or path, an IPv6
@@ -1085,6 +1098,64 @@ returns boolean
 language sql stable set search_path = ''
 as $$
   select p_revoked is null and p_last_used > pg_catalog.now() - interval '90 days';
+$$;
+
+-- Answers whether an account is at or over one of its daily caps, with no lock and no write: a row for
+-- today whose counter is at or past p_cap. p_which is 'calls' or 'refreshes'; anything else counts as at
+-- the cap. The worker functions ask this before any work, so a key at the cap costs one index probe.
+create or replace function private.connect_meter_at_cap(p_user uuid, p_which text, p_cap integer)
+returns boolean
+language plpgsql set search_path = ''
+as $$
+begin
+  if p_user is null or p_cap is null or p_which is null or p_which not in ('calls', 'refreshes') then
+    return true;
+  end if;
+  return exists (select 1 from public.connect_meter x
+                  where x.user_id = p_user and x.day = (pg_catalog.now() at time zone 'UTC')::date
+                    and case p_which when 'calls' then x.calls else x.refreshes end >= p_cap);
+end;
+$$;
+
+-- Counts one use against an account's daily cap. At or over the cap it refuses at once (false, nothing
+-- written, no lock); otherwise it adds the account's row if it has none, locks it, starts the day over
+-- when the row is from an earlier UTC day, and either refuses (at the cap after all: false) or adds one
+-- and answers true. Lock order: a caller that holds a grant row takes it before this row.
+create or replace function private.connect_meter_tick(p_user uuid, p_which text, p_cap integer)
+returns boolean
+language plpgsql set search_path = ''
+as $$
+declare
+  today date := (pg_catalog.now() at time zone 'UTC')::date;
+  m public.connect_meter;
+begin
+  if private.connect_meter_at_cap(p_user, p_which, p_cap) then
+    return false;
+  end if;
+  insert into public.connect_meter (user_id) values (p_user) on conflict do nothing;
+  select * into m from public.connect_meter x where x.user_id = p_user for update;
+  if not found then
+    return false;
+  end if;
+  if m.day < today then
+    m.day := today;
+    m.calls := 0;
+    m.refreshes := 0;
+  end if;
+  if p_which = 'calls' then
+    if m.calls >= p_cap then
+      return false;
+    end if;
+    m.calls := m.calls + 1;
+  else
+    if m.refreshes >= p_cap then
+      return false;
+    end if;
+    m.refreshes := m.refreshes + 1;
+  end if;
+  update public.connect_meter x set day = m.day, calls = m.calls, refreshes = m.refreshes where x.user_id = p_user;
+  return true;
+end;
 $$;
 
 -- Approving: the signed-in reader, after a fresh first-factor sign-in, makes a one-use code for an app
@@ -1167,13 +1238,15 @@ begin
 end;
 $$;
 
--- The worker's: exchange a code and its PKCE verifier for keys. Never raises. A code is consumed by its
--- first presentation whatever the outcome; presenting a used code again with its verifier, within 24
--- hours of its approval, ends the grant it made (the code alone, as a browser's history holds it, ends
--- nothing). The worker must never retry this call: a retry is a replay.
+-- The worker's: exchange a code and its PKCE verifier for keys. A code is consumed by its first
+-- presentation that is answered, whatever the answer; presenting a used code again with its verifier,
+-- within 24 hours of its approval, ends the grant it made (the code alone, as a browser's history holds
+-- it, ends nothing). {"hint": "retry"} wrote nothing (mcp_context says when it is given), so that code
+-- may be presented again. A request that got no answer at all must not be retried: it may have been
+-- answered, and the second presentation is then a replay.
 create or replace function public.connect_redeem(p_code text, p_verifier text, p_client_id text, p_redirect_uri text)
 returns jsonb
-language plpgsql security definer set search_path = '' set lock_timeout = '2s'
+language plpgsql security definer set search_path = '' set lock_timeout = '500ms'
 as $$
 declare
   refused constant jsonb := '{"hint": "refused"}'::jsonb;
@@ -1228,11 +1301,12 @@ begin
   return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
 exception when others then
   raise log 'connect_redeem: %', sqlstate;
-  return refused;
+  return '{"hint": "retry"}'::jsonb;
 end;
 $$;
 
--- The worker's: rotate a refresh key. Never raises. A refresh key is the grant's tag (32 hex digits, the
+-- The worker's: rotate a refresh key (mcp_context says when {"hint": "retry"} is given; it wrote
+-- nothing). A refresh key is the grant's tag (32 hex digits, the
 -- same for the life of the grant) followed by a secret that changes at every rotation. The next keys are
 -- derived from the key presented and a salt chosen at that rotation and kept until the next, so the key
 -- just replaced, presented again within 30 seconds (a retried request, two requests at once), gets the
@@ -1240,7 +1314,7 @@ $$;
 -- the grant. A salt lasts one rotation, so a copy of this table and an old key give nothing later.
 create or replace function public.connect_refresh(p_key text, p_client_id text)
 returns jsonb
-language plpgsql security definer set search_path = '' set lock_timeout = '2s'
+language plpgsql security definer set search_path = '' set lock_timeout = '500ms'
 as $$
 declare
   refused constant jsonb := '{"hint": "refused"}'::jsonb;
@@ -1265,6 +1339,9 @@ begin
   if g.refresh_hash = h then
     if g.client_id <> p_client_id or not private.connect_live(g.revoked_at, g.last_used) then
       return refused;
+    end if;
+    if not private.connect_meter_tick(g.user_id, 'refreshes', 200) then
+      return '{"hint": "limit"}'::jsonb;
     end if;
     s := private.connect_key();
     access_key := private.connect_next(p_key, s, 'a');
@@ -1292,15 +1369,117 @@ begin
   return refused;
 exception when others then
   raise log 'connect_refresh: %', sqlstate;
-  return refused;
+  return '{"hint": "retry"}'::jsonb;
+end;
+$$;
+
+-- The worker's: the one function through which an AI app reads an account's progress. p_key is an
+-- access key. p_full null: check the key only (the protocol's own requests; not metered). false: a tool
+-- call that needs no progress (metered). true: a tool call that reads progress (metered). Answers
+-- {"hint": "refused"} (the key is not accepted), {"hint": "limit"} (a good key over the account's 300
+-- calls a day) or {"hint": "retry"} (the error handler: a lock wait over half a second, a deadlock;
+-- nothing was written), else {"ok": true}, and for true also "v" (the greatest event format among the
+-- rows, 1 when there are none; a worker that knows format 1 only must stop at a larger one), "last",
+-- "events", "truncated" and "before". The events are the account's newest 6,000 rows by seq, in
+-- ascending seq, or the newest 6,000 below p_before when it is given; "before" is the lowest seq
+-- returned (null when none) and "truncated" says rows older than it exist: the worker reads a longer
+-- log by calling again with p_before = before until truncated is false, each page a metered call. An
+-- event's x is returned for a checkpoint row (k = 'z') only; the folds read no other. Only the
+-- account's own self learner is read (its id is the account id): the grant's user_id, never a learner
+-- id from anywhere else. Nothing else leaves: no name, no email, no pet, progress or game state. A use
+-- moves the grant's last_used at most once an hour. Lock order: the grant row, then the meter row; the
+-- meter is ticked after the read, so its row is held for the tick alone. The handler catches every
+-- error but a statement timeout (57014, which PL/pgSQL cannot catch: anon's 3 seconds, which the
+-- half-second lock waits leave room for); that one reaches the worker as a PostgREST error and maps
+-- to 503 like a retry.
+create or replace function public.mcp_context(p_key text, p_full boolean, p_before bigint default null)
+returns jsonb
+language plpgsql security definer set search_path = '' set lock_timeout = '500ms'
+as $$
+declare
+  refused constant jsonb := '{"hint": "refused"}'::jsonb;
+  h text;
+  g record;
+  stored jsonb;
+  last_out jsonb := null;
+  sec text;
+  ev jsonb;
+  cut boolean;
+  lo bigint;
+  fmt integer;
+begin
+  if p_key is null or pg_catalog.char_length(p_key) <> 64 or p_key !~ '^[0-9a-f]{64}$' then
+    return refused;
+  end if;
+  h := private.connect_hash(p_key);
+  select x.id, x.user_id, x.access_expires, x.revoked_at, x.last_used into g
+    from public.connect_grants x where x.access_hash = h;
+  if not found or not private.connect_live(g.revoked_at, g.last_used) or g.access_expires <= pg_catalog.now() then
+    return refused;
+  end if;
+  if g.last_used < pg_catalog.now() - interval '1 hour' then
+    -- the row is checked again as it is written: a key rotated or revoked since the lookup is refused
+    update public.connect_grants x set last_used = pg_catalog.now()
+     where x.id = g.id and x.access_hash = h and x.revoked_at is null;
+    if not found then
+      return refused;
+    end if;
+  end if;
+  if p_full is null then
+    return '{"ok": true}'::jsonb;
+  end if;
+  if private.connect_meter_at_cap(g.user_id, 'calls', 300) then
+    return '{"hint": "limit"}'::jsonb;
+  end if;
+  if not p_full then
+    if not private.connect_meter_tick(g.user_id, 'calls', 300) then
+      return '{"hint": "limit"}'::jsonb;
+    end if;
+    return '{"ok": true}'::jsonb;
+  end if;
+  select s.last into stored from public.user_state s where s.user_id = g.user_id;
+  if coalesce(pg_catalog.jsonb_typeof(stored) = 'object', false)
+     and coalesce(pg_catalog.jsonb_typeof(stored -> 'id') = 'string', false)
+     and (stored ->> 'id') ~ '^[a-z0-9][a-z0-9-]{0,39}$' then
+    sec := '';
+    if coalesce(pg_catalog.jsonb_typeof(stored -> 'section') = 'string', false)
+       and (stored ->> 'section') ~ '^[a-z0-9][a-z0-9-]{0,79}$' then
+      sec := stored ->> 'section';
+    end if;
+    last_out := pg_catalog.jsonb_build_object('id', stored ->> 'id', 'section', sec);
+  end if;
+  -- one statement, one snapshot: the page and whether rows lie below it
+  select pg_catalog.count(*) > 6000,
+         coalesce(pg_catalog.jsonb_agg(
+           pg_catalog.jsonb_build_array(w.id, w.t, w.d, w.src, w.sec, w.ref, w.k, w.ok, w.n, w.r, w.f)
+             || case when w.k = 'z' and w.x is not null then pg_catalog.jsonb_build_array(w.x) else '[]'::jsonb end
+           order by w.seq) filter (where w.rn <= 6000), '[]'::jsonb),
+         pg_catalog.min(w.seq) filter (where w.rn <= 6000),
+         coalesce(pg_catalog.max(w.v) filter (where w.rn <= 6000), 1)
+    into cut, ev, lo, fmt
+    from (select e.id, e.v, e.t, e.d, e.src, e.sec, e.ref, e.k, e.ok, e.n, e.r, e.f, e.x, e.seq,
+                 pg_catalog.row_number() over (order by e.seq desc) as rn
+            from public.events e
+           where e.user_id = g.user_id and (p_before is null or e.seq < p_before)
+           order by e.seq desc limit 6001) w;
+  if not private.connect_meter_tick(g.user_id, 'calls', 300) then
+    return '{"hint": "limit"}'::jsonb;
+  end if;
+  return pg_catalog.jsonb_build_object('ok', true, 'v', fmt, 'last', last_out, 'events', ev, 'truncated', cut, 'before', lo);
+exception when others then
+  raise log 'mcp_context: %', sqlstate;
+  return '{"hint": "retry"}'::jsonb;
 end;
 $$;
 
 revoke all on function private.connect_app(text), private.connect_s256(text), private.connect_key(), private.connect_hash(text),
   private.connect_next(text, text, text), private.connect_live(timestamptz, timestamptz) from public, anon, authenticated;
+revoke all on function private.connect_meter_tick(uuid, text, integer), private.connect_meter_at_cap(uuid, text, integer) from public, anon, authenticated;
 revoke all on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) from public, anon;
 grant execute on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) to authenticated;
 revoke all on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from public, authenticated;
 grant execute on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;
+revoke all on function public.mcp_context(text, boolean, bigint) from public, authenticated;
+grant execute on function public.mcp_context(text, boolean, bigint) to anon;
 
 revoke all on all functions in schema private from public, anon, authenticated;

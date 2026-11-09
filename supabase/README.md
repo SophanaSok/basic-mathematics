@@ -139,6 +139,9 @@ redirect list), add the id to `providers` locally, and open `account.html`.
 | `daily_runs` | One row per reader per day they played the Arena's Daily while on the Daily board: `day` (their local date, `YYYY-MM-DD`), `score`, `n` (questions asked, at most 5), `firsts` (right first time), `ms` (the run's time in milliseconds, kept only when every answer was right first time, and between 250 ms and 10 minutes per question), and `submitted_at`. The first result for a day is the one kept. The numbers are reported by the page and only bounds-checked here (the score at most what its first-try answers and retries can pay, 700 for 5 right first time). |
 | `events` | Per learner (an account's own, or one it manages): a copy of the browser's own log (`bm.events.v1`), pruned the same way on both sides: one row per learner action: which exercise or Arena section, the UTC minute or the day, right or wrong, the try number, the clue level, flags, and for a checkpoint a small optional object; and `rd`, the UTC day the row reached the database. Never typed text. |
 | `event_meta` | Per learner (an account's own, or one it manages): the write counter `seq`, the reset `epoch`, and the day's counters. |
+| `connect_grants` | One row per connection an account has approved for an AI app (Mochi in your AI): which app (`claude`, `chatgpt` or `local`), the SHA-256 of its keys (never a key), when it was approved, when it was last used, and when it was revoked. No name and no email. |
+| `connect_codes` | One row per approval: the SHA-256 of a one-use code (good for two minutes), what the app must present to redeem it, and when it was used. The row stays until the account's next approval more than a day later, so a replayed code can be recognised. Never the code itself. |
+| `connect_meter` | One row per account: the UTC day, and how many tool calls and key rotations its connections have made that day (the daily limits are 300 and 200). |
 | `admins` | The user ids allowed to call the aggregate functions. |
 
 Row-level security restricts every row to its owner (for a learner's rows, the learner's guardian). `exercise_stats()` and `chapter_stats()`
@@ -154,6 +157,15 @@ the hash is keyed, even someone who learns a reader's user id cannot work out th
 cannot link that person's days on the board. `leave_board()` turns `board` off and deletes the
 caller's `daily_runs` rows. `delete_my_account()` removes the caller's auth user, and every table
 cascades from it, through `learners` for the three tables that hang on it.
+
+The three connection tables have row-level security on, no policies and no grants to the browser's
+roles, so no API role reads them directly. `connect_approve()`, `connect_list()` and
+`connect_revoke()` (signed-in readers) and `connect_redeem()`, `connect_refresh()` and `mcp_context()`
+(the site's worker, with a key as its only credential) touch `connect_grants` and `connect_codes`;
+`mcp_context()` and `connect_refresh()` write `connect_meter`, through two private helpers. An
+access key works only on `mcp_context()` and a refresh key only on `connect_refresh()`; no key is
+accepted anywhere else. `mcp_context()` reads the key holder's own events and where they left off,
+and nothing else of the account.
 
 `user_id` in `user_state`, `events` and `event_meta` is a learner id. The policies on those
 tables say a row belongs to the learner's guardian (`guardian = auth.uid()`), and `learners`
