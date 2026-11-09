@@ -280,6 +280,59 @@ function chapter(blocks) {
   eq([assignIds.run({ check: true }, w.io), w.written, w.lines], [0, [], ["nothing to do: every scored exercise on 2 chapter pages has an id"]], "--check afterwards has nothing to do");
 }
 
+/* --------------------------------------------------------- exercise index -- */
+{
+  const { indexOf, pageEntries, REFERS_TO_PAGE } = require("./lib/exercise-index");
+  const { EXERCISE_KEYS } = require("../src/data/exercise-keys.ts");
+  const entries = indexOf();
+  eq(entries.length, 730, "exercise-index: one entry per exercise on the site");
+  eq(entries.map(e => e.ref), Array.from(EXERCISE_KEYS), "exercise-index: the refs are EXERCISE_KEYS, in order");
+  const KINDS = ["text", "choice", "multi", "order", "blank", "figure"];
+  const bad = entries.filter(e => !e.question || KINDS.indexOf(e.kind) === -1 || e.clues.length > 3 || e.clues.length < 1 ||
+    ((e.kind === "choice" || e.kind === "multi") && !e.choices.length) ||
+    (e.kind === "blank" && !e.blanks.length) || (e.kind === "order" && !e.items.length)).map(e => e.ref);
+  eq(bad, [], "exercise-index: every entry has a question, a known kind, 1 to 3 clues and the parts its kind needs");
+  eq(entries.filter(e => e.blanks.some(b => !b.type)).length + entries.filter(e => e.kind === "figure" && !e.compare).length, 0, "exercise-index: every blank has a type and every figure a compare (the browser's defaults)");
+  eq(REFERS_TO_PAGE.filter(r => !entries.some(e => e.ref === r && e.visual)), [], "exercise-index: every exercise that refers to the page exists and is visual");
+  eq(entries.filter(e => /\$\$|\$ \$/.test(e.question) && e.question.indexOf("|") === -1).map(e => e.ref), [], "exercise-index: no question runs table cells together");
+  const dump = JSON.stringify(entries);
+  check(dump.indexOf("Answer:") === -1, "exercise-index: no 'Answer:' text enters the index");
+  ["Two points fix the slope; one of them then fixes $b$; the other is the check.",
+    "Name the objects, compute, factor out the $2$, then conclude.",
+    "A negative times a negative is positive: $(-3)(-5) = 15$"].forEach((s) => {
+    check(dump.indexOf(JSON.stringify(s).slice(1, -1)) === -1, "exercise-index: the solution sentence \"" + s.slice(0, 30) + "…\" is absent");
+  });
+  /* the real pages: text+choice+multi+blank is 575+105+5+19 = 704, order+figure is 5+21 = 26 */
+  const count = (ks) => entries.filter(e => ks.indexOf(e.kind) !== -1).length;
+  eq([count(["text", "choice", "multi", "blank"]), count(["order", "figure"])], [704, 26], "exercise-index: 704 typed or picked exercises, 26 ordered or figure ones");
+
+  const page = chapter([
+    "<h2 id=\"foo\">Foo</h2>",
+    '<div class="ex" data-inline data-hint="h1" data-hint2="" data-hint3="h3" data-answer="4 | four" data-tol="0.5">\n  <div class="ex-q"><p>What is $2+2$?</p></div>\n  <div class="ex-solution"><p class="answer">Answer: 4</p><p>Secret working.</p></div>\n</div>',
+    '<div class="ex" id="s1" data-section="ch99#bar" data-answer="9">\n  <div class="ex-q"><p>Nine?</p></div>\n</div>',
+    '<div class="ex" id="c1" data-answer="2">\n  <div class="ex-q"><p>Pick   one.</p></div>\n  <ul class="choices"><li>red</li><li>$x$ blue</li></ul>\n</div>',
+    '<div class="ex" data-inline id="b1" data-type="blank">\n  <div class="ex-q"><p>Fill <span class="blank" data-answer="3" data-type="number"></span> and <span class="blank" data-answer="x"></span></p></div>\n</div>',
+    '<div class="ex" data-inline id="f1" data-type="figure" data-figure="pointops" data-compare="set" data-answer="1,2">\n  <div class="ex-q"><p>Place it.</p></div>\n</div>',
+    '<div class="ex" data-inline id="f2" data-type="figure" data-figure="numberline" data-answer="3">\n  <div class="ex-q"><p>Mark it.</p></div>\n</div>',
+    '<h2>No id</h2><div class="wrap"><div class="ex" data-inline id="o1" data-type="order" data-hint="h">\n  <div class="ex-q"><p>Sort <svg><title>Hidden</title></svg><table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table></p></div>\n  <ol class="order"><li>one</li><li>two</li></ol>\n  <div class="ex-solution"><ol class="order"><li>Secret</li></ol><span class="blank" data-answer="Secret"></span></div>\n</div></div>',
+    '<div id="warmup"><div class="ex" data-inline id="w1" data-type="blank">\n  <div class="ex-q"><p>Warm <span class="blank" data-answer="1"></span></p></div>\n  <div class="ex-solution"><span class="blank" data-answer="Secret"></span></div>\n</div></div>'
+  ]);
+  const got = pageEntries(parse(page), "ch99");
+  const base = { chapter: "ch99", choices: [], blanks: [], items: [], compare: null, tol: 0, clues: [], visual: false };
+  const want = [
+    { ref: "ch99/i1", key: "i1", section: "foo", inline: true, kind: "text", type: "exact", question: "What is $2+2$?", answer: "4 | four", tol: 0.5, clues: ["h1", "h3"] },
+    { ref: "ch99/s1", key: "s1", section: "ch99#bar", inline: false, kind: "text", type: "exact", question: "Nine?", answer: "9" },
+    { ref: "ch99/c1", key: "c1", section: "", inline: false, kind: "choice", type: "exact", question: "Pick one.", answer: "2", choices: ["red", "$x$ blue"] },
+    { ref: "ch99/b1", key: "b1", section: "foo", inline: true, kind: "blank", type: "blank", question: "Fill ___ and ___", answer: "", blanks: [{ answer: "3", type: "number" }, { answer: "x", type: "number" }] },
+    { ref: "ch99/f1", key: "f1", section: "foo", inline: true, kind: "figure", type: "figure", question: "Place it.", answer: "1,2", compare: "set", visual: true },
+    { ref: "ch99/f2", key: "f2", section: "foo", inline: true, kind: "figure", type: "figure", question: "Mark it.", answer: "3", compare: "exact", visual: true },
+    { ref: "ch99/o1", key: "o1", section: "foo", inline: true, kind: "order", type: "order", question: "Sort a | b | ; 1 | 2 | ;", answer: "", items: ["one", "two"], clues: ["h"], visual: true },
+    { ref: "ch99/w1", key: "w1", section: "warmup", inline: true, kind: "blank", type: "blank", question: "Warm ___", answer: "", blanks: [{ answer: "1", type: "number" }] }
+  ].map((w, i) => { const o = Object.assign({}, base, w, { line: got[i].line }); const r = {}; Object.keys(got[i]).forEach(k => { r[k] = o[k]; }); return r; });
+  eq(got, want, "exercise-index: a synthetic page gives every field exactly");
+  check(JSON.stringify(got).indexOf("Secret") === -1, "exercise-index: the synthetic solution stays out");
+}
+
 /* ------------------------------------------------------------------ shell -- */
 /* a page as the source tree writes one: the two markers, its own head, and content */
 const HEAD = '<title>A title</title>\n<meta name="description" content="What it is.">';
