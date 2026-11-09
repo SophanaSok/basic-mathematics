@@ -185,8 +185,8 @@ insert into hv values
   ('a checkpoint with s = today + 2', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20802'), 'l', '20790'), 1, '20801'), 0, '29953440'), true),
   ('a checkpoint with s = today + 3', pg_temp.setp(pg_temp.setp(pg_temp.setx(pg_temp.setx(pg_temp.vz(), 's', '20803'), 'l', '20790'), 1, '20802'), 0, '29954880'), false);
 
--- 254 hand-counted tests below, plus one per row of the three tables
-select plan(254 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
+-- 424 hand-counted tests below, plus one per row of the three tables
+select plan(424 + (select count(*)::integer from hv) + (select count(*)::integer from private.valid_cases)
   + (select count(*)::integer from private.prune_expected));
 
 -- 1. tables, row-level security, policies, grants
@@ -412,8 +412,8 @@ select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select count
 select is(pg_temp.count_as('b0000000-0000-4000-8000-00000000000b', 'select count(*) from public.events_usage()'), 0::bigint, 'a reader who is not an admin gets none');
 select is(pg_temp.count_as('a0000000-0000-4000-8000-00000000000a', 'select rows from public.events_usage()'), (select count(*) from public.events), 'events_usage counts every row');
 
--- 14. the migration is complete: seven functions in private (it was applied twice by the runner)
-select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 7::bigint, 'schema private holds exactly seven functions');
+-- 14. the migration is complete: thirteen functions in private (it was applied twice by the runner)
+select is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private'), 13::bigint, 'schema private holds exactly thirteen functions');
 select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('events', 'event_meta') and c.relkind = 'r'), 2::bigint, 'both tables exist once');
 
 -- 15. the fresh start (P7): public.attempts is gone, private.fresh_start runs once per key
@@ -765,6 +765,373 @@ select is(pg_temp.g_rows(), 0::bigint, 'and the account, its learners, state, ev
 -- E deletes their account (fresh sign-in): their learners and data go
 select is(pg_temp.msg_as('e0000000-0000-4000-8000-00000000000e', pg_temp.now_s() - 60, 'select public.delete_my_account()'), 'ok', 'E deletes their account');
 select is((select count(*) from auth.users where id = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.learners where guardian = 'e0000000-0000-4000-8000-00000000000e') + (select count(*) from public.events where user_id = 'e0000000-0000-4000-8000-00000000000e'), 0::bigint, 'E, their learners and their events are gone');
+
+-- 18. connections (CN-2): the approve / redeem / refresh / revoke state machine. Users 1 to 9 are this section's own:
+--   1 the main flow, 2 another account, 3 the five-connection cap, 4 the cap at redeem, 5 the cascade,
+--   6 an account whose old rows must survive housekeeping, 7 the 24-hour approval cap, 8 the allow-list, 9 housekeeping
+insert into auth.users (id, email)
+  select ('1000000' || n || '-0000-4000-8000-00000000000' || n)::uuid, 'cn' || n || '@example.test' from generate_series(1, 9) n;
+create function pg_temp.cn_u(n integer) returns uuid language sql as $$ select ('1000000' || n || '-0000-4000-8000-00000000000' || n)::uuid $$;
+/* the RFC 7636 appendix B vector, a client id and a redirect address every happy path uses */
+create function pg_temp.cn_v() returns text language sql as $$ select 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk' $$;
+create function pg_temp.cn_ch() returns text language sql as $$ select 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM' $$;
+/* as the signed-in reader with a sign-in a minute old: approve, and return the raw code */
+create function pg_temp.cn_approve(uid uuid, ru text default 'https://claude.ai/api/mcp/auth_callback') returns text language plpgsql as $$
+declare r text;
+begin
+  perform pg_temp.as_user_amr(uid, pg_temp.now_s() - 60);
+  r := public.connect_approve('clientaa1', ru, 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+  execute 'reset role';
+  return r;
+end $$;
+/* as the worker (anon): a raise comes back as {"raised": message} so a test can tell it from a refusal */
+create function pg_temp.cn_redeem(code text, ver text default 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', cid text default 'clientaa1',
+  ru text default 'https://claude.ai/api/mcp/auth_callback') returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  execute 'set local role anon';
+  begin
+    r := public.connect_redeem(code, ver, cid, ru);
+  exception when others then
+    r := jsonb_build_object('raised', sqlerrm);
+  end;
+  execute 'reset role';
+  return r;
+end $$;
+create function pg_temp.cn_refresh(k text, cid text default 'clientaa1') returns jsonb language plpgsql as $$
+declare r jsonb;
+begin
+  execute 'set local role anon';
+  begin
+    r := public.connect_refresh(k, cid);
+  exception when others then
+    r := jsonb_build_object('raised', sqlerrm);
+  end;
+  execute 'reset role';
+  return r;
+end $$;
+create function pg_temp.cn_mint(uid uuid) returns jsonb language sql as $$ select pg_temp.cn_redeem(pg_temp.cn_approve(uid)) $$;
+create function pg_temp.cn_list(uid uuid) returns text language plpgsql as $$
+declare r text;
+begin
+  perform pg_temp.as_user(uid);
+  select coalesce(string_agg(l.id::text, ',' order by l.created_at desc, l.id), '') into r from public.connect_list() l;
+  execute 'reset role';
+  return r;
+end $$;
+create function pg_temp.sqlstate_anon(stmt text) returns text language plpgsql as $$
+declare st text := 'ok';
+begin
+  execute 'set local role anon';
+  begin
+    execute stmt;
+  exception when others then
+    st := sqlstate;
+  end;
+  execute 'reset role';
+  return st;
+end $$;
+create function pg_temp.cn_sha(k text) returns text language sql as $$ select encode(sha256(convert_to(k, 'UTF8')), 'hex') $$;
+
+-- the tables: row-level security on, no policy, no grant, no direct read
+select has_table('public', 'connect_grants', 'public.connect_grants exists');
+select has_table('public', 'connect_codes', 'public.connect_codes exists');
+select is((select relrowsecurity from pg_class where oid = 'public.connect_grants'::regclass), true, 'connect_grants has row-level security on');
+select is((select relrowsecurity from pg_class where oid = 'public.connect_codes'::regclass), true, 'connect_codes has row-level security on');
+select is((select count(*) from pg_policies where schemaname = 'public' and tablename in ('connect_grants', 'connect_codes')), 0::bigint, 'the two connection tables have no policy');
+select is((select count(*) from information_schema.role_table_grants where table_schema = 'public' and table_name in ('connect_grants', 'connect_codes') and grantee in ('anon', 'authenticated')),
+  0::bigint, 'anon and authenticated hold no grant on the two connection tables');
+select is(pg_temp.sqlstate_as(pg_temp.cn_u(1), 'select * from public.connect_grants'), '42501', 'authenticated cannot select connect_grants');
+select is(pg_temp.sqlstate_as(pg_temp.cn_u(1), 'select * from public.connect_codes'), '42501', 'authenticated cannot select connect_codes');
+select is(pg_temp.sqlstate_anon('select * from public.connect_grants'), '42501', 'anon cannot select connect_grants');
+select is(pg_temp.sqlstate_anon('select * from public.connect_codes'), '42501', 'anon cannot select connect_codes');
+
+-- definer settings and privileges
+select is((select prosecdef from pg_proc where oid = 'public.connect_approve(text, text, text)'::regprocedure), true, 'connect_approve is security definer');
+select is((select prosecdef from pg_proc where oid = 'public.connect_list()'::regprocedure), true, 'connect_list is security definer');
+select is((select prosecdef from pg_proc where oid = 'public.connect_revoke(uuid)'::regprocedure), true, 'connect_revoke is security definer');
+select is((select prosecdef from pg_proc where oid = 'public.connect_redeem(text, text, text, text)'::regprocedure), true, 'connect_redeem is security definer');
+select is((select prosecdef from pg_proc where oid = 'public.connect_refresh(text, text)'::regprocedure), true, 'connect_refresh is security definer');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.connect_approve(text, text, text)'::regprocedure), 'connect_approve pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.connect_list()'::regprocedure), 'connect_list pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.connect_revoke(uuid)'::regprocedure), 'connect_revoke pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.connect_redeem(text, text, text, text)'::regprocedure), 'connect_redeem pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'public.connect_refresh(text, text)'::regprocedure), 'connect_refresh pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_app(text)'::regprocedure), 'connect_app pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_s256(text)'::regprocedure), 'connect_s256 pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_key()'::regprocedure), 'connect_key pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_hash(text)'::regprocedure), 'connect_hash pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_live(timestamptz, timestamptz)'::regprocedure), 'connect_live pins search_path');
+select ok((select proconfig::text like '%search_path=%' from pg_proc where oid = 'private.connect_next(text, text, text)'::regprocedure), 'connect_next pins search_path');
+select ok((select proconfig::text like '%lock_timeout=2s%' from pg_proc where oid = 'public.connect_redeem(text, text, text, text)'::regprocedure), 'connect_redeem waits at most 2 seconds for a lock');
+select ok((select proconfig::text like '%lock_timeout=2s%' from pg_proc where oid = 'public.connect_refresh(text, text)'::regprocedure), 'connect_refresh waits at most 2 seconds for a lock');
+select is((select count(*) from pg_constraint where conrelid = 'public.connect_grants'::regclass and contype = 'u' and pg_get_constraintdef(oid) like '%(refresh_tag_hash)%'), 1::bigint, 'a refresh tag belongs to one grant: refresh_tag_hash is unique');
+select is(has_function_privilege('anon', 'public.connect_approve(text, text, text)', 'execute'), false, 'anon cannot run connect_approve');
+select is(has_function_privilege('authenticated', 'public.connect_approve(text, text, text)', 'execute'), true, 'authenticated can run connect_approve');
+select is(has_function_privilege('anon', 'public.connect_list()', 'execute'), false, 'anon cannot run connect_list');
+select is(has_function_privilege('authenticated', 'public.connect_list()', 'execute'), true, 'authenticated can run connect_list');
+select is(has_function_privilege('anon', 'public.connect_revoke(uuid)', 'execute'), false, 'anon cannot run connect_revoke');
+select is(has_function_privilege('authenticated', 'public.connect_revoke(uuid)', 'execute'), true, 'authenticated can run connect_revoke');
+select is(has_function_privilege('anon', 'public.connect_redeem(text, text, text, text)', 'execute'), true, 'anon can run connect_redeem');
+select is(has_function_privilege('authenticated', 'public.connect_redeem(text, text, text, text)', 'execute'), false, 'authenticated cannot run connect_redeem');
+select is(has_function_privilege('anon', 'public.connect_refresh(text, text)', 'execute'), true, 'anon can run connect_refresh');
+select is(has_function_privilege('authenticated', 'public.connect_refresh(text, text)', 'execute'), false, 'authenticated cannot run connect_refresh');
+select is(has_function_privilege('anon', 'private.connect_app(text)', 'execute') or has_function_privilege('authenticated', 'private.connect_app(text)', 'execute'), false, 'neither role can run connect_app');
+select is(has_function_privilege('anon', 'private.connect_s256(text)', 'execute') or has_function_privilege('authenticated', 'private.connect_s256(text)', 'execute'), false, 'neither role can run connect_s256');
+select is(has_function_privilege('anon', 'private.connect_key()', 'execute') or has_function_privilege('authenticated', 'private.connect_key()', 'execute'), false, 'neither role can run connect_key');
+select is(has_function_privilege('anon', 'private.connect_hash(text)', 'execute') or has_function_privilege('authenticated', 'private.connect_hash(text)', 'execute'), false, 'neither role can run connect_hash');
+select is(has_function_privilege('anon', 'private.connect_live(timestamptz, timestamptz)', 'execute') or has_function_privilege('authenticated', 'private.connect_live(timestamptz, timestamptz)', 'execute'), false, 'neither role can run connect_live');
+select is(has_function_privilege('anon', 'private.connect_next(text, text, text)', 'execute') or has_function_privilege('authenticated', 'private.connect_next(text, text, text)', 'execute'), false, 'neither role can run connect_next');
+select is((select array_to_string(proargnames, ',') from pg_proc where oid = 'public.connect_list()'::regprocedure), 'id,app,created_at,last_used', 'connect_list returns only id, app, created_at and last_used');
+
+-- T1: among the functions in public that no extension owns, anon can run exactly the two worker functions
+select is(
+  (select string_agg(p.proname::text, ',' order by p.proname::text) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
+     and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')),
+  'connect_redeem,connect_refresh', 'T1: anon can execute exactly connect_redeem and connect_refresh in public');
+
+-- T3: the allow-list, on its own and through connect_approve (user 8)
+create temp table cn_good (n integer, uri text, app text);
+insert into cn_good values
+  (1, 'https://claude.ai/api/mcp/auth_callback', 'claude'), (2, 'https://claude.com/api/mcp/auth_callback', 'claude'),
+  (3, 'https://chatgpt.com/connector_platform_oauth_redirect', 'chatgpt'), (4, 'http://localhost:8080/callback', 'local'),
+  (5, 'http://127.0.0.1:8080/callback', 'local'), (6, 'http://localhost:1/callback', 'local'), (7, 'http://localhost:65535/callback', 'local'),
+  (8, 'http://127.0.0.1:1/callback', 'local'), (9, 'http://127.0.0.1:65535/callback', 'local');
+create temp table cn_bad (uri text);
+insert into cn_bad values
+  ('https://claude.ai.evil.example/api/mcp/auth_callback'), ('https://claude.ai@evil.example/api/mcp/auth_callback'),
+  ('https://claude.ai/api/mcp/auth_callback/'), ('https://claude.ai/api/mcp/auth_callback?x=1'), ('https://claude.ai/api/mcp/auth_callback#x'),
+  ('http://claude.ai/api/mcp/auth_callback'), ('https://CLAUDE.ai/api/mcp/auth_callback'), ('https://chatgpt.com/connector/oauth/abc'),
+  ('http://localhost/callback'), ('http://localhost:0/callback'), ('http://localhost:65536/callback'), ('http://localhost:08080/callback'),
+  ('http://localhost:8080/callback/'), ('http://localhost:8080/cb'), ('https://localhost:8080/callback'),
+  ('http://localhost.evil.example:8080/callback'), ('http://127.0.0.1.evil.example:8080/callback'), ('http://user@localhost:8080/callback'),
+  ('http://127a0a0a1:8080/callback'), ('http://localhostx:8080/callback'), ('http://localhost:8080/callbackx'),
+  ('http://[::1]:8080/callback'), (E'https://claude.ai/api/mcp/auth_callback\n'), (E'http://localhost:8080/callback\n'), (null),
+  ('https://claude.ai/api/mcp/auth_callback?' || repeat('a', 200));
+select is((select string_agg(coalesce(private.connect_app(uri), 'null'), ',' order by n) from cn_good), (select string_agg(app, ',' order by n) from cn_good),
+  'T3: the allow-list accepts the exact addresses and both loopback forms, with ports 1 and 65535');
+select is((select coalesce(string_agg(coalesce(uri, '<null>'), ' | '), '') from cn_bad where private.connect_app(uri) is not null), '',
+  'T3: no near miss passes the allow-list');
+select is((select coalesce(string_agg(uri, ' | '), '') from cn_good where pg_temp.msg_as(pg_temp.cn_u(8), pg_temp.now_s() - 60,
+    format('select public.connect_approve(%L, %L, %L)', 'clientaa1', uri, pg_temp.cn_ch())) <> 'ok'), '',
+  'T3: connect_approve accepts every good address');
+select is((select coalesce(string_agg(coalesce(uri, '<null>'), ' | '), '') from cn_bad where pg_temp.msg_as(pg_temp.cn_u(8), pg_temp.now_s() - 60,
+    format('select public.connect_approve(%L, %L, %L)', 'clientaa1', uri, pg_temp.cn_ch())) <> 'bad request'), '',
+  'T3: connect_approve raises bad request for every near miss');
+select is((select string_agg(distinct app, ',' order by app) from public.connect_codes where user_id = pg_temp.cn_u(8)), 'chatgpt,claude,local',
+  'T3: the app stored with a code comes from the allow-list');
+select is((select count(*) from public.connect_codes where user_id = pg_temp.cn_u(8)), (select count(*) from cn_good), 'T3: the refused approvals wrote no code');
+select is((select private.connect_s256(pg_temp.cn_v())), pg_temp.cn_ch(), 'T7: the S256 transform gives the RFC 7636 appendix B value');
+
+-- T5: connect_approve needs a fresh sign-in (user 1)
+select is(pg_temp.msg_as(null, null, $$select public.connect_approve('clientaa1', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')$$), 'not signed in', 'connect_approve with nobody signed in raises not signed in');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), null, $$select public.connect_approve('clientaa1', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')$$), 'stale sign-in', 'T5: connect_approve with no amr raises stale sign-in');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), pg_temp.now_s() - 660, $$select public.connect_approve('clientaa1', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')$$), 'stale sign-in', 'T5: connect_approve with a sign-in 11 minutes old raises stale sign-in');
+select is((select count(*) from public.connect_codes where user_id = pg_temp.cn_u(1)), 0::bigint, 'T5: the stale calls wrote no code');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), pg_temp.now_s() - 60, $$select public.connect_approve('short', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')$$), 'bad request', 'connect_approve with a short client id raises bad request');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), pg_temp.now_s() - 60, $$select public.connect_approve('clientaa1', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-c')$$), 'bad request', 'connect_approve with a 42-character challenge raises bad request');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), pg_temp.now_s() - 60, $$select public.connect_approve(null, 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')$$), 'bad request', 'connect_approve with a null client id raises bad request');
+select is(pg_temp.msg_as(null, null, 'select * from public.connect_list()'), 'not signed in', 'connect_list with nobody signed in raises not signed in');
+select is(pg_temp.msg_as(null, null, 'select public.connect_revoke(gen_random_uuid())'), 'not signed in', 'connect_revoke with nobody signed in raises not signed in');
+create temp table cn_c1 as select pg_temp.cn_approve(pg_temp.cn_u(1)) as code;
+select matches((select code from cn_c1), '^[0-9a-f]{64}$', 'T5: connect_approve with a sign-in 1 minute old returns a 64-digit hex code');
+select is((select expires_at - created_at from public.connect_codes where code_hash = pg_temp.cn_sha((select code from cn_c1))), interval '2 minutes', 'T7: a code lives two minutes');
+
+-- T7: redeeming (user 1)
+create temp table cn_r1 as select pg_temp.cn_redeem((select code from cn_c1)) as j;
+select matches((select j->>'access' from cn_r1), '^[0-9a-f]{64}$', 'T7: a code redeems once: the access key is 64 hex');
+select matches((select j->>'refresh' from cn_r1), '^[0-9a-f]{96}$', 'T7: the refresh key is 96 hex');
+select is((select access_expires from public.connect_grants where user_id = pg_temp.cn_u(1)), now() + interval '1 hour', 'T7: the access key lasts one hour');
+select is((select j->'expires_in' from cn_r1), '3600'::jsonb, 'T7: expires_in is 3600');
+select is((select count(*) from cn_r1, jsonb_object_keys(cn_r1.j)), 3::bigint, 'T7: the answer has exactly three keys');
+select is((select access_hash from public.connect_grants where user_id = pg_temp.cn_u(1)), pg_temp.cn_sha((select j->>'access' from cn_r1)), 'T7: the stored access hash is the SHA-256 of the access key');
+select is((select refresh_hash from public.connect_grants where user_id = pg_temp.cn_u(1)), pg_temp.cn_sha((select j->>'refresh' from cn_r1)), 'T7: the stored refresh hash is the SHA-256 of the refresh key');
+select is((select code_hash from public.connect_codes where user_id = pg_temp.cn_u(1) and used_at is not null), pg_temp.cn_sha((select code from cn_c1)), 'T7: the stored code hash is the SHA-256 of the code');
+select is((select count(*) from public.connect_grants g where g.user_id = pg_temp.cn_u(1) and row_to_json(g)::text like '%' || (select j->>'access' from cn_r1) || '%'
+   or row_to_json(g)::text like '%' || (select j->>'refresh' from cn_r1) || '%'), 0::bigint, 'T7: no grant column holds a raw key');
+select is((select count(*) from public.connect_codes c where row_to_json(c)::text like '%' || (select code from cn_c1) || '%'), 0::bigint, 'T7: no code column holds a raw code');
+select is((select app from public.connect_grants where user_id = pg_temp.cn_u(1)), 'claude', 'the grant takes its app from the code');
+select is(pg_temp.cn_redeem((select code from cn_c1)), '{"hint": "refused"}'::jsonb, 'T7: a second redeem of the same code is refused');
+select isnt((select revoked_at from public.connect_grants where user_id = pg_temp.cn_u(1)), null, 'T7: and the grant the code made is now revoked');
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_r1)), '{"hint": "refused"}'::jsonb, 'T7: the replayed code''s grant can no longer refresh');
+create temp table cn_c2 as select pg_temp.cn_approve(pg_temp.cn_u(1)) as code;
+select is(pg_temp.cn_redeem((select code from cn_c2), repeat('A', 43)), '{"hint": "refused"}'::jsonb, 'T7: a wrong verifier is refused');
+select isnt((select used_at from public.connect_codes where code_hash = pg_temp.cn_sha((select code from cn_c2))), null, 'T7: and it burns the code');
+select is(pg_temp.cn_redeem((select code from cn_c2)), '{"hint": "refused"}'::jsonb, 'T7: the right verifier then fails too');
+select is((select count(*) from public.connect_grants where user_id = pg_temp.cn_u(1)), 1::bigint, 'T7: neither made a grant');
+select is(pg_temp.cn_redeem(pg_temp.cn_approve(pg_temp.cn_u(1)), pg_temp.cn_v(), 'otherclient'), '{"hint": "refused"}'::jsonb, 'T7: a wrong client id is refused');
+select is(pg_temp.cn_redeem(pg_temp.cn_approve(pg_temp.cn_u(1)), pg_temp.cn_v(), 'clientaa1', 'https://claude.com/api/mcp/auth_callback'), '{"hint": "refused"}'::jsonb, 'T7: a wrong redirect address is refused');
+create temp table cn_c5 as select pg_temp.cn_approve(pg_temp.cn_u(1)) as code;
+update public.connect_codes set expires_at = now() - interval '1 second' where code_hash = pg_temp.cn_sha((select code from cn_c5));
+select is(pg_temp.cn_redeem((select code from cn_c5)), '{"hint": "refused"}'::jsonb, 'T7: an expired code is refused');
+select is(pg_temp.cn_redeem(repeat('1', 64)), '{"hint": "refused"}'::jsonb, 'T7: an unknown code is refused');
+select is(pg_temp.cn_redeem(pg_temp.cn_approve(pg_temp.cn_u(1)), pg_temp.cn_ch()), '{"hint": "refused"}'::jsonb, 'T7: a verifier equal to the challenge (the plain method) is refused');
+select is((select count(*) from public.connect_grants where user_id = pg_temp.cn_u(1)), 1::bigint, 'T7: no refused redeem made a grant');
+create temp table cn_c6 as select pg_temp.cn_approve(pg_temp.cn_u(1)) as code;
+select is(pg_temp.cn_redeem((select code from cn_c6), 'short'), '{"hint": "refused"}'::jsonb, 'T9: a verifier of the wrong shape is refused');
+select is((select used_at is null from public.connect_codes where code_hash = pg_temp.cn_sha((select code from cn_c6))), true, 'T9: before any lookup, so the code is not consumed');
+create temp table cn_r6 as select pg_temp.cn_redeem((select code from cn_c6)) as j;
+select matches((select j->>'access' from cn_r6), '^[0-9a-f]{64}$', 'T9: and the right verifier still redeems it');
+select is(pg_temp.cn_redeem((select code from cn_c6), repeat('A', 43), 'xxxxxxxx', ''), '{"hint": "refused"}'::jsonb, 'T7: a used code presented again without its verifier is refused');
+select is((select revoked_at is null from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_r6))), true, 'T7: and ends nothing: the code alone, as a browser''s history holds it, is not enough');
+update public.connect_codes set created_at = now() - interval '25 hours' where code_hash = pg_temp.cn_sha((select code from cn_c6));
+select is(pg_temp.cn_redeem((select code from cn_c6)), '{"hint": "refused"}'::jsonb, 'T7: a code replayed more than 24 hours after its approval is refused');
+select is((select revoked_at is null from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_r6))), true, 'T7: and no longer ends the grant it made');
+
+-- T8: refreshing (user 1, grants of its own). A refresh key is the grant's tag (32 hex) and a secret (64 hex).
+create temp table cn_g as select pg_temp.cn_mint(pg_temp.cn_u(1)) as j;
+create temp table cn_gid as select id from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_g));
+select is((select refresh_tag_hash from public.connect_grants where id = (select id from cn_gid)), pg_temp.cn_sha(left((select j->>'refresh' from cn_g), 32)), 'T8: the stored tag hash is the SHA-256 of the refresh key''s first 32 digits');
+update public.connect_grants set last_used = now() - interval '89 days', access_expires = now() - interval '1 minute' where id = (select id from cn_gid);
+create temp table cn_s0 as select salt from public.connect_grants where id = (select id from cn_gid);
+create temp table cn_f1 as select pg_temp.cn_refresh((select j->>'refresh' from cn_g)) as j;
+select is((select count(*) from cn_f1, jsonb_object_keys(cn_f1.j)), 3::bigint, 'T8: the answer has exactly three keys');
+select isnt((select salt from public.connect_grants where id = (select id from cn_gid)), (select salt from cn_s0), 'T8: a rotation chooses a new salt');
+select is((select j->>'access' from cn_f1), private.connect_next((select j->>'refresh' from cn_g), (select salt from public.connect_grants where id = (select id from cn_gid)), 'a'), 'T8: the new access key is derived from the key presented and that salt');
+select is(right((select j->>'refresh' from cn_f1), 64), private.connect_next((select j->>'refresh' from cn_g), (select salt from public.connect_grants where id = (select id from cn_gid)), 'r'), 'T8: and so is the new refresh secret');
+select isnt(private.connect_next('k', repeat('a', 64), 'r'), private.connect_next('k', repeat('b', 64), 'r'), 'T8: another salt gives another key');
+select isnt(private.connect_next('k', repeat('a', 64), 'r'), private.connect_next('k', repeat('a', 64), 'a'), 'T8: the access key is not the refresh secret');
+select matches((select j->>'access' from cn_f1), '^[0-9a-f]{64}$', 'T8: refresh returns a new access key');
+select matches((select j->>'refresh' from cn_f1), '^[0-9a-f]{96}$', 'T8: refresh returns a new refresh key');
+select is((select j->'expires_in' from cn_f1), '3600'::jsonb, 'T8: refresh answers expires_in 3600');
+select is(left((select j->>'refresh' from cn_f1), 32), left((select j->>'refresh' from cn_g), 32), 'T8: the new refresh key keeps the grant''s tag');
+select isnt(right((select j->>'refresh' from cn_f1), 64), right((select j->>'refresh' from cn_g), 64), 'T8: and carries a new secret');
+select is((select prev_refresh_hash from public.connect_grants where id = (select id from cn_gid)), pg_temp.cn_sha((select j->>'refresh' from cn_g)), 'T8: the old refresh key''s hash moves to prev_refresh_hash');
+select is((select refresh_hash from public.connect_grants where id = (select id from cn_gid)), pg_temp.cn_sha((select j->>'refresh' from cn_f1)), 'T8: the new refresh key''s hash is stored');
+select is((select access_hash from public.connect_grants where id = (select id from cn_gid)), pg_temp.cn_sha((select j->>'access' from cn_f1)), 'T8: the new access key''s hash is stored');
+select is((select access_expires from public.connect_grants where id = (select id from cn_gid)), now() + interval '1 hour', 'T8: the new access key lasts one hour');
+select is((select last_used from public.connect_grants where id = (select id from cn_gid)), now(), 'T8: a refresh counts as use, so the 90 idle days start again');
+create temp table cn_t0 as select rotated_at, prev_refresh_hash, salt from public.connect_grants where id = (select id from cn_gid);
+update public.connect_grants set rotated_at = now() - interval '29 seconds', access_expires = now() + interval '3571 seconds' where id = (select id from cn_gid);
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_g), 'wrongclient'), '{"hint": "refused"}'::jsonb, 'T8: the old key inside the 30 seconds with a wrong client id is refused');
+select is((select revoked_at is null from public.connect_grants where id = (select id from cn_gid)), true, 'T8: and that does not end the grant');
+create temp table cn_f2 as select pg_temp.cn_refresh((select j->>'refresh' from cn_g)) as j;
+select is((select j->>'refresh' from cn_f2), (select j->>'refresh' from cn_f1), 'T8: the old key 29 seconds after rotation gets the same refresh key again');
+select is((select j->>'access' from cn_f2), (select j->>'access' from cn_f1), 'T8: and the same access key');
+select is((select j->'expires_in' from cn_f2), '3571'::jsonb, 'T8: with the time that access key has left');
+select is((select rotated_at from public.connect_grants where id = (select id from cn_gid)), now() - interval '29 seconds', 'T8: and rotated_at does not slide');
+select is((select prev_refresh_hash from public.connect_grants where id = (select id from cn_gid)), (select prev_refresh_hash from cn_t0), 'T8: and prev_refresh_hash stays');
+select is((select refresh_hash || access_hash || salt from public.connect_grants where id = (select id from cn_gid)), pg_temp.cn_sha((select j->>'refresh' from cn_f1)) || pg_temp.cn_sha((select j->>'access' from cn_f1)) || (select salt from cn_t0), 'T8: and nothing was written');
+select is((select count(*) from cn_f2, jsonb_object_keys(cn_f2.j)), 3::bigint, 'T8: that answer has exactly three keys too');
+update public.connect_grants set access_expires = now() + interval '2 hours' where id = (select id from cn_gid);
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_g))->'expires_in', '3600'::jsonb, 'T8: and expires_in is never above an hour');
+update public.connect_grants set rotated_at = now() - interval '31 seconds' where id = (select id from cn_gid);
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_g)), '{"hint": "refused"}'::jsonb, 'T8: the old key 31 seconds after rotation is refused');
+select is((select revoked_at is not null from public.connect_grants where id = (select id from cn_gid)), true, 'T8: and the reuse ends the grant');
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_f1)), '{"hint": "refused"}'::jsonb, 'T8: and the current refresh key then fails too');
+update public.connect_grants set revoked_at = now() - interval '1 hour' where id = (select id from cn_gid);
+create temp table cn_x as select pg_temp.cn_refresh((select j->>'refresh' from cn_g)) as j;
+select is((select revoked_at from public.connect_grants where id = (select id from cn_gid)), now() - interval '1 hour', 'T8: a spent key on a grant already ended writes nothing');
+-- a key two rotations old ends the grant, however fresh the last rotation is
+create temp table cn_m as select pg_temp.cn_mint(pg_temp.cn_u(1)) as j;
+create temp table cn_m1 as select pg_temp.cn_refresh((select j->>'refresh' from cn_m)) as j;
+create temp table cn_m2 as select pg_temp.cn_refresh((select j->>'refresh' from cn_m1)) as j;
+select matches((select j->>'refresh' from cn_m2), '^[0-9a-f]{96}$', 'T8: a second rotation, straight after the first, works');
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_m)), '{"hint": "refused"}'::jsonb, 'T8: a refresh key two rotations old is refused');
+select is((select revoked_at is not null from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_m2))), true, 'T8: and ends the grant, though the last rotation was this instant');
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_m2)), '{"hint": "refused"}'::jsonb, 'T8: and the current key then fails too');
+-- the tag with a secret the grant never issued is a spent key too
+create temp table cn_n as select pg_temp.cn_mint(pg_temp.cn_u(1)) as j;
+select is(pg_temp.cn_refresh(left((select j->>'refresh' from cn_n), 32) || repeat('0', 64)), '{"hint": "refused"}'::jsonb, 'T8: a grant''s tag with an unknown secret is refused');
+select is((select revoked_at is not null from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_n))), true, 'T8: and ends the grant');
+select is((select count(distinct salt) from public.connect_grants), (select count(*) from public.connect_grants), 'T8: every grant has a salt of its own');
+create temp table cn_h as select pg_temp.cn_mint(pg_temp.cn_u(1)) as j;
+create temp table cn_hid as select id from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_h));
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_h), 'wrongclient'), '{"hint": "refused"}'::jsonb, 'T8: a wrong client id is refused');
+select is((select refresh_hash from public.connect_grants where id = (select id from cn_hid)), pg_temp.cn_sha((select j->>'refresh' from cn_h)), 'T8: and nothing changed');
+create temp table cn_k as select pg_temp.cn_mint(pg_temp.cn_u(1)) as j;
+create temp table cn_kid as select id from public.connect_grants where access_hash = pg_temp.cn_sha((select j->>'access' from cn_k));
+select ok(position((select id::text from cn_kid) in pg_temp.cn_list(pg_temp.cn_u(1))) > 0, 'T8: a fresh grant is in connect_list');
+update public.connect_grants set last_used = now() - interval '91 days' where id = (select id from cn_kid);
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_k)), '{"hint": "refused"}'::jsonb, 'T8: a grant idle for 91 days cannot refresh');
+select is(position((select id::text from cn_kid) in pg_temp.cn_list(pg_temp.cn_u(1))), 0, 'T8: and is absent from connect_list');
+select is(pg_temp.cn_refresh(repeat('7', 96)), '{"hint": "refused"}'::jsonb, 'T8: an unknown refresh key is refused');
+
+-- T9: the worker functions never raise and refuse with exactly {"hint": "refused"}
+create temp table cn_junk (label text, v text);
+insert into cn_junk values ('null', null), ('empty', ''), ('100000 characters', repeat('x', 100000)), ('100000 hex digits', repeat('a', 100000)),
+  ('upper-case hex', repeat('A', 64)), ('a space', ' '), ('a newline', E'\n'), ('json', '{"a":1}'), ('multibyte', repeat(chr(233), 64)), ('quotes', repeat('''', 64));
+select is((select coalesce(string_agg(p.pos || ' ' || j.label, ' | '), '') from cn_junk j cross join generate_series(1, 4) p(pos)
+   where pg_temp.cn_redeem(case when p.pos = 1 then j.v else repeat('0', 64) end, case when p.pos = 2 then j.v else pg_temp.cn_v() end,
+                           case when p.pos = 3 then j.v else 'clientaa1' end, case when p.pos = 4 then j.v else 'https://claude.ai/api/mcp/auth_callback' end)
+         is distinct from '{"hint": "refused"}'::jsonb), '', 'T9: connect_redeem refuses bad input in every position, without raising');
+select is((select coalesce(string_agg(p.pos || ' ' || j.label, ' | '), '') from cn_junk j cross join generate_series(1, 2) p(pos)
+   where pg_temp.cn_refresh(case when p.pos = 1 then j.v else repeat('0', 96) end, case when p.pos = 2 then j.v else 'clientaa1' end)
+         is distinct from '{"hint": "refused"}'::jsonb), '', 'T9: connect_refresh refuses bad input in either position, without raising');
+select is(pg_temp.cn_redeem(upper((select code from cn_c1))), '{"hint": "refused"}'::jsonb, 'T9: an upper-case code is refused');
+select is(pg_temp.cn_refresh(upper((select j->>'refresh' from cn_h))), '{"hint": "refused"}'::jsonb, 'T9: an upper-case refresh key is refused');
+select is((select refresh_hash from public.connect_grants where id = (select id from cn_hid)), pg_temp.cn_sha((select j->>'refresh' from cn_h)), 'T9: and no junk call changed a grant');
+
+-- T10: the caps (user 3: five connections), and who may see or end a connection (users 1 and 2)
+create temp table cn_five as select n, pg_temp.cn_mint(pg_temp.cn_u(3)) as j from generate_series(1, 5) n;
+select is((select count(*) from cn_five where j ? 'access'), 5::bigint, 'T10: the fifth live connection is allowed');
+create temp table cn_n3 as select count(*) as n from public.connect_codes where user_id = pg_temp.cn_u(3);
+select is(pg_temp.msg_as(pg_temp.cn_u(3), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())),
+  'too many connections', 'T10: the sixth connect_approve raises too many connections');
+select is((select count(*) from public.connect_codes where user_id = pg_temp.cn_u(3)), (select n from cn_n3), 'T10: and the refused call wrote nothing');
+select is(pg_temp.msg_as(pg_temp.cn_u(3), null, format('select public.connect_revoke(%L)', (select id from public.connect_grants where user_id = pg_temp.cn_u(3) order by id limit 1))), 'ok',
+  'T10: revoking needs no fresh sign-in');
+select is(pg_temp.msg_as(pg_temp.cn_u(3), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())),
+  'ok', 'T10: revoking one frees a slot');
+-- user 4: four live grants, then five approved codes redeemed
+create temp table cn_four as select n, pg_temp.cn_mint(pg_temp.cn_u(4)) as j from generate_series(1, 4) n;
+create temp table cn_codes4 as select n, pg_temp.cn_approve(pg_temp.cn_u(4)) as code from generate_series(1, 5) n;
+create temp table cn_redeemed4 as select n, pg_temp.cn_redeem(code) as j from cn_codes4;
+select is((select count(*) from cn_redeemed4 where j ? 'access'), 1::bigint, 'T10: five approved codes for an account at four connections yield one grant');
+select is((select count(*) from public.connect_grants where user_id = pg_temp.cn_u(4) and revoked_at is null), 5::bigint, 'T10: and the cap of five holds at redeem');
+-- user 7: the 24-hour approval cap
+create temp table cn_codes7 as select n, pg_temp.cn_approve(pg_temp.cn_u(7)) as code from generate_series(1, 20) n;
+select is(pg_temp.msg_as(pg_temp.cn_u(7), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())),
+  'too many approvals', 'T10: the 21st approval in 24 hours raises too many approvals');
+update public.connect_codes set created_at = now() - interval '23 hours 59 minutes'
+ where code_hash = (select code_hash from public.connect_codes where user_id = pg_temp.cn_u(7) order by code_hash limit 1);
+select is(pg_temp.msg_as(pg_temp.cn_u(7), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())),
+  'too many approvals', 'T10: a code 23 hours 59 minutes old still counts');
+update public.connect_codes set created_at = now() - interval '25 hours'
+ where code_hash = (select code_hash from public.connect_codes where user_id = pg_temp.cn_u(7) order by code_hash limit 1);
+select is(pg_temp.msg_as(pg_temp.cn_u(7), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())),
+  'ok', 'T10: backdating the oldest code past 24 hours allows one more');
+select is((select count(*) from public.connect_codes where user_id = pg_temp.cn_u(7)), 20::bigint, 'T10: and the old code was cleaned up, so twenty remain');
+-- users 1 and 2: ownership (the grant of cn_h is user 1's live one)
+select is(pg_temp.cn_list(pg_temp.cn_u(2)), '', 'T10: another account sees no connection in connect_list');
+select is(pg_temp.msg_as(pg_temp.cn_u(2), null, format('select public.connect_revoke(%L)', (select id from cn_hid))), 'not your connection', 'T10: another account''s connect_revoke raises not your connection');
+select ok(position((select id::text from cn_hid) in pg_temp.cn_list(pg_temp.cn_u(1))) > 0, 'T10: and the grant is still live for its owner');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), null, 'select public.connect_revoke(gen_random_uuid())'), 'not your connection', 'T10: an unknown id raises not your connection');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), null, format('select public.connect_revoke(%L)', (select id from cn_hid))), 'ok', 'T10: the owner''s revoke works');
+select is(position((select id::text from cn_hid) in pg_temp.cn_list(pg_temp.cn_u(1))), 0, 'T10: and the grant leaves the list');
+select is(pg_temp.cn_refresh((select j->>'refresh' from cn_h)), '{"hint": "refused"}'::jsonb, 'T10: and its refresh key is refused');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), null, format('select public.connect_revoke(%L)', (select id from cn_hid))), 'not your connection', 'T10: a second revoke raises not your connection');
+select is(pg_temp.msg_as(pg_temp.cn_u(1), null, format('select public.connect_revoke(%L)', (select id from cn_kid))), 'not your connection', 'T10: a connection idle for 91 days cannot be revoked either, it is gone from the list');
+
+-- lifecycle: deleting the account removes its grants and codes (user 5)
+create temp table cn_five5 as select pg_temp.cn_mint(pg_temp.cn_u(5)) as j, pg_temp.cn_approve(pg_temp.cn_u(5)) as code;
+select cmp_ok((select count(*) from public.connect_grants where user_id = pg_temp.cn_u(5)) + (select count(*) from public.connect_codes where user_id = pg_temp.cn_u(5)), '>=', 3::bigint, 'user 5 holds a grant and two codes');
+delete from auth.users where id = pg_temp.cn_u(5);
+select is((select count(*) from public.connect_grants where user_id = pg_temp.cn_u(5)) + (select count(*) from public.connect_codes where user_id = pg_temp.cn_u(5)), 0::bigint, 'deleting the account removes its grants and codes');
+
+-- housekeeping: an approve cleans the caller's old rows only (user 9 calls, user 6 is the bystander)
+create function pg_temp.cn_old_rows(uid uuid) returns void language plpgsql as $$
+begin
+  insert into public.connect_codes (code_hash, user_id, app, client_id, redirect_uri, challenge, created_at, expires_at) values
+    (pg_temp.cn_sha(gen_random_uuid()::text), uid, 'claude', 'hk_oldcode', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', now() - interval '25 hours', now() - interval '25 hours'),
+    (pg_temp.cn_sha(gen_random_uuid()::text), uid, 'claude', 'hk_newcode', 'https://claude.ai/api/mcp/auth_callback', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', now() - interval '1 hour', now() - interval '1 hour');
+  insert into public.connect_grants (user_id, app, client_id, access_hash, access_expires, refresh_hash, created_at, last_used, revoked_at, refresh_tag_hash, salt) values
+    (uid, 'claude', 'hk_oldrevk', pg_temp.cn_sha(gen_random_uuid()::text), now(), pg_temp.cn_sha(gen_random_uuid()::text), now() - interval '3 days', now() - interval '3 days', now() - interval '25 hours', pg_temp.cn_sha(gen_random_uuid()::text), pg_temp.cn_sha(gen_random_uuid()::text)),
+    (uid, 'claude', 'hk_newrevk', pg_temp.cn_sha(gen_random_uuid()::text), now(), pg_temp.cn_sha(gen_random_uuid()::text), now() - interval '3 days', now() - interval '3 days', now() - interval '1 hour', pg_temp.cn_sha(gen_random_uuid()::text), pg_temp.cn_sha(gen_random_uuid()::text)),
+    (uid, 'claude', 'hk_idle000', pg_temp.cn_sha(gen_random_uuid()::text), now(), pg_temp.cn_sha(gen_random_uuid()::text), now() - interval '200 days', now() - interval '91 days', null, pg_temp.cn_sha(gen_random_uuid()::text), pg_temp.cn_sha(gen_random_uuid()::text));
+end $$;
+select pg_temp.cn_old_rows(pg_temp.cn_u(9));
+select pg_temp.cn_old_rows(pg_temp.cn_u(6));
+select is(pg_temp.msg_as(pg_temp.cn_u(9), pg_temp.now_s() - 60, format('select public.connect_approve(%L, %L, %L)', 'clientaa1', 'https://claude.ai/api/mcp/auth_callback', pg_temp.cn_ch())), 'ok', 'user 9 approves');
+select is((select string_agg(c, ',' order by c) from (
+    select client_id c from public.connect_codes where user_id = pg_temp.cn_u(9) and client_id like 'hk\_%'
+    union all select client_id from public.connect_grants where user_id = pg_temp.cn_u(9) and client_id like 'hk\_%') x),
+  'hk_newcode,hk_newrevk', 'housekeeping removed the caller''s code over 24 hours old, grant revoked over 24 hours ago, and idle grant');
+select is((select string_agg(c, ',' order by c) from (
+    select client_id c from public.connect_codes where user_id = pg_temp.cn_u(6) and client_id like 'hk\_%'
+    union all select client_id from public.connect_grants where user_id = pg_temp.cn_u(6) and client_id like 'hk\_%') x),
+  'hk_idle000,hk_newcode,hk_newrevk,hk_oldcode,hk_oldrevk', 'and another account''s old rows are untouched');
 
 select * from finish();
 rollback;
