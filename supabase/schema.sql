@@ -1,13 +1,15 @@
 -- Basic Mathematics — accounts, synced progress, and the event log behind the author's analytics.
 -- Run once in the Supabase SQL editor (Dashboard → SQL → New query). Safe to re-run.
 --
--- Six things live here:
+-- Seven things live here:
 --   user_state  one row per reader: the same JSON the site keeps in localStorage
 --   profiles    an optional display name, and whether the reader joined the Daily board
 --   daily_runs  one Arena Daily result per reader per day, for the opt-in Daily board
 --   board_secret  one random key the Daily board's generated names are hashed with
 --   events, event_meta  the event log (src/sync/events.ts): one row per learner action, written
 --                only by events_put(), and the counters that order and limit them
+--   connect_grants, connect_codes  the connections an account has approved for an AI app, and the
+--                one-use codes that make them; only the connect_* functions touch them
 -- Row-level security makes every row private to its owner. The aggregate functions at
 -- the bottom are the only way to read across readers, and only for ids listed in `admins`;
 -- the Daily board functions read across the readers who opted in, and return only a
@@ -978,4 +980,303 @@ revoke all on function public.learner_list(), public.learner_add(text, boolean, 
   public.learner_mark_under13(uuid, smallint), public.learner_delete(uuid), public.learner_export(uuid) from public, anon;
 grant execute on function public.learner_list(), public.learner_add(text, boolean, smallint), public.learner_rename(uuid, text),
   public.learner_mark_under13(uuid, smallint), public.learner_delete(uuid), public.learner_export(uuid) to authenticated;
+
+-- Mochi in your AI (docs/decisions/0016-mochi-in-your-ai.md, card CN-2): the connection state machine.
+-- An AI app is never handed a Supabase credential. A signed-in reader approves (connect_approve), which
+-- makes a one-use code; the site's worker redeems it with a PKCE verifier (connect_redeem) for an access
+-- key and a refresh key, and rotates the refresh key (connect_refresh). Only the SHA-256 of a key or a
+-- code is stored. The two worker-facing functions are granted to anon (the worker has no user identity;
+-- the key is the credential), never raise, and answer every refusal with {"hint": "refused"}, so what a
+-- refusal wrote (a code marked used, a grant ended) commits. The rest are for the signed-in reader.
+-- Lock order everywhere: the per-user advisory lock first, then rows. Time is pg_catalog.now().
+
+-- One row per connection. No policies: only the connect_* functions touch it.
+create table if not exists public.connect_grants (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  app text not null check (app in ('claude', 'chatgpt', 'local')),
+  client_id text not null check (client_id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  access_hash text not null unique check (access_hash ~ '^[0-9a-f]{64}$'),
+  access_expires timestamptz not null,
+  refresh_hash text not null unique check (refresh_hash ~ '^[0-9a-f]{64}$'),
+  prev_refresh_hash text check (prev_refresh_hash ~ '^[0-9a-f]{64}$'),   -- the refresh key just replaced ...
+  rotated_at timestamptz,                                                -- ... and when
+  created_at timestamptz not null default now(),
+  last_used timestamptz not null default now(),
+  revoked_at timestamptz
+);
+create index if not exists connect_grants_user_idx on public.connect_grants (user_id);
+create index if not exists connect_grants_prev_idx on public.connect_grants (prev_refresh_hash);
+alter table public.connect_grants enable row level security;
+revoke all on table public.connect_grants from anon, authenticated;
+
+-- One row per approval: a code that lives two minutes and is consumed by its first presentation.
+create table if not exists public.connect_codes (
+  code_hash text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  app text not null check (app in ('claude', 'chatgpt', 'local')),
+  client_id text not null check (client_id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  redirect_uri text not null check (char_length(redirect_uri) <= 200),
+  challenge text not null check (challenge ~ '^[A-Za-z0-9_-]{43}$'),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  grant_id uuid references public.connect_grants (id) on delete set null
+);
+create index if not exists connect_codes_user_idx on public.connect_codes (user_id, created_at);
+alter table public.connect_codes enable row level security;
+revoke all on table public.connect_codes from anon, authenticated;
+
+-- The allow-list of places a code may be sent, and the only place it is written. Exact, case-sensitive
+-- comparison; anything else (a trailing slash, query, fragment, user-info, other scheme or path, an IPv6
+-- loopback, a missing port, a port with a leading zero or above 65535, over 200 characters) is null.
+create or replace function private.connect_app(uri text)
+returns text
+language sql immutable set search_path = ''
+as $$
+  select case
+    when uri is null or pg_catalog.char_length(uri) > 200 then null
+    when uri in ('https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback') then 'claude'
+    when uri = 'https://chatgpt.com/connector_platform_oauth_redirect' then 'chatgpt'
+    when uri ~ '^http://(localhost|127\.0\.0\.1):[1-9][0-9]{0,4}/callback$'
+         and substring(uri from '^http://[^:]+:([0-9]+)/callback$')::integer <= 65535 then 'local'
+    else null
+  end;
+$$;
+
+-- The PKCE S256 transform: base64url, no padding, of the SHA-256 of the verifier's bytes (RFC 7636).
+create or replace function private.connect_s256(verifier text)
+returns text
+language sql immutable set search_path = ''
+as $$
+  select pg_catalog.rtrim(pg_catalog.translate(pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(verifier, 'UTF8')), 'base64'), '+/', '-_'), '=');
+$$;
+
+-- A new key or code: 64 hex digits from two random UUIDs, as board_secret is made.
+create or replace function private.connect_key()
+returns text
+language sql volatile set search_path = ''
+as $$
+  select pg_catalog.replace(pg_catalog.gen_random_uuid()::text || pg_catalog.gen_random_uuid()::text, '-', '');
+$$;
+
+-- The stored form of a key or code.
+create or replace function private.connect_hash(k text)
+returns text
+language sql immutable set search_path = ''
+as $$
+  select pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(k, 'UTF8')), 'hex');
+$$;
+
+-- A grant is live when it is not revoked and was used within the last 90 days. Written once, used everywhere.
+create or replace function private.connect_live(p_revoked timestamptz, p_last_used timestamptz)
+returns boolean
+language sql stable set search_path = ''
+as $$
+  select p_revoked is null and p_last_used > pg_catalog.now() - interval '90 days';
+$$;
+
+-- Approving: the signed-in reader, after a fresh first-factor sign-in, makes a one-use code for an app
+-- that will redeem it. Returns the raw code; only its hash is stored. A refused call writes nothing.
+create or replace function public.connect_approve(p_client_id text, p_redirect_uri text, p_challenge text)
+returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+  code text;
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  if not private.fresh_auth() then
+    raise exception 'stale sign-in';
+  end if;
+  if coalesce(p_client_id !~ '^[A-Za-z0-9_-]{8,64}$', true)
+     or coalesce(p_challenge !~ '^[A-Za-z0-9_-]{43}$', true)
+     or private.connect_app(p_redirect_uri) is null then
+    raise exception 'bad request';
+  end if;
+  -- one account's approve and redeem calls run one at a time
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('connect:' || uid::text, 0));
+  delete from public.connect_codes c where c.user_id = uid and c.created_at < pg_catalog.now() - interval '24 hours';
+  delete from public.connect_grants g
+   where g.user_id = uid
+     and (g.revoked_at < pg_catalog.now() - interval '24 hours'
+          or (g.revoked_at is null and g.last_used <= pg_catalog.now() - interval '90 days'));
+  if (select count(*) from public.connect_codes c where c.user_id = uid and c.created_at >= pg_catalog.now() - interval '24 hours') >= 20 then
+    raise exception 'too many approvals';
+  end if;
+  if (select count(*) from public.connect_grants g where g.user_id = uid and private.connect_live(g.revoked_at, g.last_used)) >= 5 then
+    raise exception 'too many connections';
+  end if;
+  code := private.connect_key();
+  insert into public.connect_codes (code_hash, user_id, app, client_id, redirect_uri, challenge, created_at, expires_at)
+  values (private.connect_hash(code), uid, private.connect_app(p_redirect_uri), p_client_id, p_redirect_uri, p_challenge,
+          pg_catalog.now(), pg_catalog.now() + interval '2 minutes');
+  return code;
+end;
+$$;
+
+-- The caller's live connections, newest first. Never a hash or a client id.
+create or replace function public.connect_list()
+returns table (id uuid, app text, created_at timestamptz, last_used timestamptz)
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  return query
+    select g.id, g.app, g.created_at, g.last_used
+      from public.connect_grants g
+     where g.user_id = uid and private.connect_live(g.revoked_at, g.last_used)
+     order by g.created_at desc, g.id;
+end;
+$$;
+
+-- Ends one of the caller's live connections. No fresh sign-in is needed to revoke.
+create or replace function public.connect_revoke(p_id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  uid uuid := (select auth.uid());
+begin
+  if uid is null then
+    raise exception 'not signed in';
+  end if;
+  update public.connect_grants g set revoked_at = pg_catalog.now()
+   where g.id = p_id and g.user_id = uid and private.connect_live(g.revoked_at, g.last_used);
+  if not found then
+    raise exception 'not your connection';
+  end if;
+end;
+$$;
+
+-- The worker's: exchange a code and its PKCE verifier for keys. Never raises. A code is consumed by its
+-- first presentation whatever the outcome; presenting a used code again ends the grant it made.
+create or replace function public.connect_redeem(p_code text, p_verifier text, p_client_id text, p_redirect_uri text)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  refused constant jsonb := '{"hint": "refused"}'::jsonb;
+  h text;
+  uid uuid;
+  c public.connect_codes;
+  access_key text;
+  refresh_key text;
+  gid uuid;
+begin
+  if p_code is null or p_verifier is null or p_client_id is null or p_redirect_uri is null
+     or pg_catalog.char_length(p_code) <> 64 or pg_catalog.char_length(p_verifier) not between 43 and 128
+     or pg_catalog.char_length(p_client_id) not between 8 and 64 or pg_catalog.char_length(p_redirect_uri) > 200
+     or p_code !~ '^[0-9a-f]{64}$' or p_verifier !~ '^[A-Za-z0-9._~-]{43,128}$' or p_client_id !~ '^[A-Za-z0-9_-]{8,64}$' then
+    return refused;
+  end if;
+  h := private.connect_hash(p_code);
+  select k.user_id into uid from public.connect_codes k where k.code_hash = h;
+  if not found then
+    return refused;
+  end if;
+  -- the user lock first, then the row: approve's housekeeping takes them in this order
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('connect:' || uid::text, 0));
+  select * into c from public.connect_codes k where k.code_hash = h for update;
+  if not found then
+    return refused;
+  end if;
+  if c.used_at is not null then
+    if c.grant_id is not null then
+      update public.connect_grants g set revoked_at = pg_catalog.now() where g.id = c.grant_id and g.revoked_at is null;
+    end if;
+    return refused;
+  end if;
+  update public.connect_codes k set used_at = pg_catalog.now() where k.code_hash = h;
+  if c.expires_at <= pg_catalog.now()
+     or c.client_id <> p_client_id
+     or c.redirect_uri <> p_redirect_uri
+     or private.connect_s256(p_verifier) <> c.challenge
+     or (select count(*) from public.connect_grants g where g.user_id = c.user_id and private.connect_live(g.revoked_at, g.last_used)) >= 5 then
+    return refused;
+  end if;
+  access_key := private.connect_key();
+  refresh_key := private.connect_key();
+  insert into public.connect_grants (user_id, app, client_id, access_hash, access_expires, refresh_hash)
+  values (c.user_id, c.app, c.client_id, private.connect_hash(access_key), pg_catalog.now() + interval '1 hour', private.connect_hash(refresh_key))
+  returning id into gid;
+  update public.connect_codes k set grant_id = gid where k.code_hash = h;
+  return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
+exception when others then
+  return refused;
+end;
+$$;
+
+-- The worker's: rotate a refresh key. Never raises. The key just replaced works again for 30 seconds
+-- (a retried request); after that, presenting it ends the grant.
+create or replace function public.connect_refresh(p_key text, p_client_id text)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  refused constant jsonb := '{"hint": "refused"}'::jsonb;
+  h text;
+  g public.connect_grants;
+  access_key text;
+  refresh_key text;
+begin
+  if p_key is null or p_client_id is null
+     or pg_catalog.char_length(p_key) <> 64 or pg_catalog.char_length(p_client_id) not between 8 and 64
+     or p_key !~ '^[0-9a-f]{64}$' or p_client_id !~ '^[A-Za-z0-9_-]{8,64}$' then
+    return refused;
+  end if;
+  h := private.connect_hash(p_key);
+  access_key := private.connect_key();
+  refresh_key := private.connect_key();
+  select * into g from public.connect_grants x where x.refresh_hash = h for update;
+  if found then
+    if not private.connect_live(g.revoked_at, g.last_used) or g.client_id <> p_client_id then
+      return refused;
+    end if;
+    update public.connect_grants x
+       set prev_refresh_hash = x.refresh_hash, rotated_at = pg_catalog.now(),
+           access_hash = private.connect_hash(access_key), refresh_hash = private.connect_hash(refresh_key),
+           access_expires = pg_catalog.now() + interval '1 hour', last_used = pg_catalog.now()
+     where x.id = g.id;
+    return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
+  end if;
+  select * into g from public.connect_grants x where x.prev_refresh_hash = h for update;
+  if found then
+    if g.revoked_at is not null then
+      return refused;
+    end if;
+    if g.rotated_at <= pg_catalog.now() - interval '30 seconds' then
+      update public.connect_grants x set revoked_at = pg_catalog.now() where x.id = g.id;
+      return refused;
+    end if;
+    if g.client_id <> p_client_id or not private.connect_live(g.revoked_at, g.last_used) then
+      return refused;
+    end if;
+    -- prev_refresh_hash and rotated_at stay: the window is 30 seconds from the first rotation
+    update public.connect_grants x
+       set access_hash = private.connect_hash(access_key), refresh_hash = private.connect_hash(refresh_key),
+           access_expires = pg_catalog.now() + interval '1 hour', last_used = pg_catalog.now()
+     where x.id = g.id;
+    return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
+  end if;
+  return refused;
+exception when others then
+  return refused;
+end;
+$$;
+
+revoke all on function private.connect_app(text), private.connect_s256(text), private.connect_key(), private.connect_hash(text),
+  private.connect_live(timestamptz, timestamptz) from public, anon, authenticated;
+revoke all on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) from public, anon;
+grant execute on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) to authenticated;
+revoke all on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from public, authenticated;
+grant execute on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;
+
 revoke all on all functions in schema private from public, anon, authenticated;
