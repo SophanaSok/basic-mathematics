@@ -530,6 +530,36 @@ functions only. Decision: `docs/decisions/0016-mochi-in-your-ai.md`.
 
 applied: 2026-11-09 (the project was paused and was resumed first; both runs succeeded; the five checks passed; through the API with the public key, `connect_redeem` and `connect_refresh` answer `{"hint": "refused"}`, and `connect_approve`, `connect_list` and a read of `connect_grants` answer 401)
 
+### The connector's read function (CN-3)
+
+Nothing deployed calls `mcp_context` yet (the worker that will is a later card), so the migration
+can be applied at any time and the live site is unaffected. It adds one table and two functions,
+and replaces `connect_redeem` and `connect_refresh` (a rotation is now counted, and a lock wait
+answers `{"hint": "retry"}` instead of `{"hint": "refused"}`). Decision:
+`docs/decisions/0016-mochi-in-your-ai.md`.
+
+1. The owner applies `supabase/migrations/20261109195700_mcp_context.sql` in Dashboard → SQL → New
+   query, then runs it a second time: the second run changes nothing.
+2. Verify, each in its own read-only query:
+   - the meter table exists with row-level security on and no policy:
+     `select c.relname, c.relrowsecurity, (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname) as policies from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname = 'connect_meter';`
+     returns one row: `true` and `0`.
+   - no grant to `anon` or `authenticated` on it:
+     `select r.name as role, has_table_privilege(r.name, 'public.connect_meter', 'select, insert, update, delete') as may from unnest(array['anon', 'authenticated']) r(name);`
+     returns two rows, each `false`.
+   - the three worker functions and who may run each:
+     `select p.proname, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as authenticated from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('connect_redeem', 'connect_refresh', 'mcp_context') order by p.proname;`
+     returns all three with anon `true` and authenticated `false`.
+   - a smoke call is refused without an error:
+     `select public.mcp_context(repeat('0', 64), true);`
+     returns `{"hint": "refused"}`.
+   - `select count(*) from public.connect_meter;` returns `0`.
+3. Rollback: `revoke execute on function public.mcp_context(text, boolean) from anon;` is the stop.
+   The table and functions can stay; nothing deployed is harmed by them. While stopped, do not
+   run this file or `schema.sql` again: both grant the function back to `anon`.
+
+applied: (not yet)
+
 ### Bumping the consent version (when the statement changes)
 
 The text a parent agrees to for an under-13 learner (`CONSENT_TEXT` in `assets/account.js`) has a

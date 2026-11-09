@@ -1,7 +1,7 @@
 -- Basic Mathematics — accounts, synced progress, and the event log behind the author's analytics.
 -- Run once in the Supabase SQL editor (Dashboard → SQL → New query). Safe to re-run.
 --
--- Seven things live here:
+-- Eight things live here:
 --   user_state  one row per reader: the same JSON the site keeps in localStorage
 --   profiles    an optional display name, and whether the reader joined the Daily board
 --   daily_runs  one Arena Daily result per reader per day, for the opt-in Daily board
@@ -10,6 +10,8 @@
 --                only by events_put(), and the counters that order and limit them
 --   connect_grants, connect_codes  the connections an account has approved for an AI app, and the
 --                one-use codes that make them; only the connect_* functions touch them
+--   connect_meter  one row per account: the day's tool calls and key rotations for those connections,
+--                written only by mcp_context() and connect_refresh()
 -- Row-level security makes every row private to its owner. The aggregate functions at
 -- the bottom are the only way to read across readers, and only for ids listed in `admins`;
 -- the Daily board functions read across the readers who opted in, and return only a
@@ -1029,6 +1031,17 @@ create index if not exists connect_codes_user_idx on public.connect_codes (user_
 alter table public.connect_codes enable row level security;
 revoke all on table public.connect_codes from anon, authenticated;
 
+-- One row per account: the UTC day and how many tool calls and key rotations its connections have made
+-- that day. Written only by private.connect_meter_tick; no policies.
+create table if not exists public.connect_meter (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  day date not null default ((pg_catalog.now() at time zone 'UTC')::date),
+  calls integer not null default 0,        -- tool calls
+  refreshes integer not null default 0     -- key rotations
+);
+alter table public.connect_meter enable row level security;
+revoke all on table public.connect_meter from anon, authenticated;
+
 -- The allow-list of places a code may be sent, and the only place it is written. Exact, case-sensitive
 -- comparison; anything else (a trailing slash, query, fragment, user-info, other scheme or path, an IPv6
 -- loopback, a missing port, a port with a leading zero or above 65535, over 200 characters) is null.
@@ -1085,6 +1098,44 @@ returns boolean
 language sql stable set search_path = ''
 as $$
   select p_revoked is null and p_last_used > pg_catalog.now() - interval '90 days';
+$$;
+
+-- Counts one use against an account's daily cap. Adds the account's row if it has none, locks it, starts
+-- the day over when the row is from an earlier UTC day, and then either refuses (at or over the cap:
+-- false, nothing written) or adds one and answers true. p_which is 'calls' or 'refreshes'; anything else
+-- is refused. Lock order: a caller that holds a grant row takes it before this row.
+create or replace function private.connect_meter_tick(p_user uuid, p_which text, p_cap integer)
+returns boolean
+language plpgsql set search_path = ''
+as $$
+declare
+  today date := (pg_catalog.now() at time zone 'UTC')::date;
+  m public.connect_meter;
+begin
+  if p_user is null or p_cap is null or p_which is null or p_which not in ('calls', 'refreshes') then
+    return false;
+  end if;
+  insert into public.connect_meter (user_id) values (p_user) on conflict do nothing;
+  select * into m from public.connect_meter x where x.user_id = p_user for update;
+  if m.day < today then
+    m.day := today;
+    m.calls := 0;
+    m.refreshes := 0;
+  end if;
+  if p_which = 'calls' then
+    if m.calls >= p_cap then
+      return false;
+    end if;
+    m.calls := m.calls + 1;
+  else
+    if m.refreshes >= p_cap then
+      return false;
+    end if;
+    m.refreshes := m.refreshes + 1;
+  end if;
+  update public.connect_meter x set day = m.day, calls = m.calls, refreshes = m.refreshes where x.user_id = p_user;
+  return true;
+end;
 $$;
 
 -- Approving: the signed-in reader, after a fresh first-factor sign-in, makes a one-use code for an app
@@ -1228,7 +1279,7 @@ begin
   return pg_catalog.jsonb_build_object('access', access_key, 'refresh', refresh_key, 'expires_in', 3600);
 exception when others then
   raise log 'connect_redeem: %', sqlstate;
-  return refused;
+  return '{"hint": "retry"}'::jsonb;
 end;
 $$;
 
@@ -1266,6 +1317,9 @@ begin
     if g.client_id <> p_client_id or not private.connect_live(g.revoked_at, g.last_used) then
       return refused;
     end if;
+    if not private.connect_meter_tick(g.user_id, 'refreshes', 200) then
+      return '{"hint": "limit"}'::jsonb;
+    end if;
     s := private.connect_key();
     access_key := private.connect_next(p_key, s, 'a');
     refresh_key := tag || private.connect_next(p_key, s, 'r');
@@ -1292,15 +1346,93 @@ begin
   return refused;
 exception when others then
   raise log 'connect_refresh: %', sqlstate;
-  return refused;
+  return '{"hint": "retry"}'::jsonb;
+end;
+$$;
+
+-- The worker's: the one function through which an AI app reads an account's progress. Never raises.
+-- p_key is an access key. p_full null: check the key only (the protocol's own requests; not metered).
+-- false: a tool call that needs no progress (metered). true: a tool call that reads progress (metered).
+-- Answers {"hint": "refused"} (the key is not accepted), {"hint": "limit"} (a good key over the account's
+-- 300 calls a day) or {"hint": "retry"} (a lock wait or deadlock; nothing was written), else
+-- {"ok": true}, and for true also "last", "events" and "truncated". Only the account's own self learner
+-- is read (its id is the account id): the grant's user_id, never a learner id from anywhere else. Nothing
+-- else leaves: no name, no email, no pet, progress or game state. A use moves the grant's last_used
+-- at most once an hour. Lock order: the grant row, then the meter row.
+create or replace function public.mcp_context(p_key text, p_full boolean)
+returns jsonb
+language plpgsql security definer set search_path = '' set lock_timeout = '2s'
+as $$
+declare
+  refused constant jsonb := '{"hint": "refused"}'::jsonb;
+  h text;
+  g record;
+  stored jsonb;
+  last_out jsonb := null;
+  sec text;
+  ev jsonb;
+  cut boolean;
+begin
+  if p_key is null or pg_catalog.char_length(p_key) <> 64 or p_key !~ '^[0-9a-f]{64}$' then
+    return refused;
+  end if;
+  h := private.connect_hash(p_key);
+  select x.id, x.user_id, x.access_expires, x.revoked_at, x.last_used into g
+    from public.connect_grants x where x.access_hash = h;
+  if not found or not private.connect_live(g.revoked_at, g.last_used) or g.access_expires <= pg_catalog.now() then
+    return refused;
+  end if;
+  if g.last_used < pg_catalog.now() - interval '1 hour' then
+    -- the row is checked again as it is written: a key rotated or revoked since the lookup is refused
+    update public.connect_grants x set last_used = pg_catalog.now()
+     where x.id = g.id and x.access_hash = h and x.revoked_at is null;
+    if not found then
+      return refused;
+    end if;
+  end if;
+  if p_full is null then
+    return '{"ok": true}'::jsonb;
+  end if;
+  if not private.connect_meter_tick(g.user_id, 'calls', 300) then
+    return '{"hint": "limit"}'::jsonb;
+  end if;
+  if not p_full then
+    return '{"ok": true}'::jsonb;
+  end if;
+  select s.last into stored from public.user_state s where s.user_id = g.user_id;
+  if coalesce(pg_catalog.jsonb_typeof(stored) = 'object', false)
+     and coalesce(pg_catalog.jsonb_typeof(stored -> 'id') = 'string', false)
+     and (stored ->> 'id') ~ '^[a-z0-9][a-z0-9-]{0,39}$' then
+    sec := '';
+    if coalesce(pg_catalog.jsonb_typeof(stored -> 'section') = 'string', false)
+       and (stored ->> 'section') ~ '^[a-z0-9][a-z0-9-]{0,79}$' then
+      sec := stored ->> 'section';
+    end if;
+    last_out := pg_catalog.jsonb_build_object('id', stored ->> 'id', 'section', sec);
+  end if;
+  select coalesce(pg_catalog.jsonb_agg(
+           pg_catalog.jsonb_build_array(w.id, w.t, w.d, w.src, w.sec, w.ref, w.k, w.ok, w.n, w.r, w.f)
+             || case when w.x is null then '[]'::jsonb else pg_catalog.jsonb_build_array(w.x) end
+           order by w.seq), '[]'::jsonb)
+    into ev
+    from (select e.id, e.t, e.d, e.src, e.sec, e.ref, e.k, e.ok, e.n, e.r, e.f, e.x, e.seq
+            from public.events e where e.user_id = g.user_id order by e.seq desc limit 6000) w;
+  select (select pg_catalog.count(*) from (select 1 from public.events e where e.user_id = g.user_id limit 6001) c) > 6000 into cut;
+  return pg_catalog.jsonb_build_object('ok', true, 'last', last_out, 'events', ev, 'truncated', cut);
+exception when others then
+  raise log 'mcp_context: %', sqlstate;
+  return '{"hint": "retry"}'::jsonb;
 end;
 $$;
 
 revoke all on function private.connect_app(text), private.connect_s256(text), private.connect_key(), private.connect_hash(text),
   private.connect_next(text, text, text), private.connect_live(timestamptz, timestamptz) from public, anon, authenticated;
+revoke all on function private.connect_meter_tick(uuid, text, integer) from public, anon, authenticated;
 revoke all on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) from public, anon;
 grant execute on function public.connect_approve(text, text, text), public.connect_list(), public.connect_revoke(uuid) to authenticated;
 revoke all on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from public, authenticated;
 grant execute on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;
+revoke all on function public.mcp_context(text, boolean) from public, authenticated;
+grant execute on function public.mcp_context(text, boolean) to anon;
 
 revoke all on all functions in schema private from public, anon, authenticated;
