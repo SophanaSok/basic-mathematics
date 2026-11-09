@@ -528,7 +528,7 @@ functions only. Decision: `docs/decisions/0016-mochi-in-your-ai.md`.
    stopped, do not run this file or `schema.sql` again: both grant the two functions back to
    `anon`.
 
-applied: (not yet)
+applied: 2026-11-09 (the project was paused and was resumed first; both runs succeeded; the five checks passed; through the API with the public key, `connect_redeem` and `connect_refresh` answer `{"hint": "refused"}`, and `connect_approve`, `connect_list` and a read of `connect_grants` answer 401)
 
 ### Bumping the consent version (when the statement changes)
 
