@@ -8,9 +8,10 @@ import { PROTOCOL_VERSIONS, type Course } from "./protocol.ts";
 
 /* the overview is spied on, so a test can see what the worker handed it */
 const seen: OverviewInput[] = [];
+const seenToday: string[] = [];
 vi.mock("./overview.ts", async (orig) => {
   const real = await orig<typeof import("./overview.ts")>();
-  return { ...real, overview: (input: OverviewInput, c: Curriculum, today: string) => { seen.push(input); return real.overview(input, c, today); } };
+  return { ...real, overview: (input: OverviewInput, c: Curriculum, today: string) => { seen.push(input); seenToday.push(today); return real.overview(input, c, today); } };
 });
 const { createWorker, MCP_PATH } = await import("./worker.ts");
 type Worker = ReturnType<typeof createWorker>;
@@ -49,14 +50,14 @@ const curriculum = {
 } as unknown as Curriculum;
 const course: Course = { index, curriculum };
 
-interface Call { url: string; method: string; headers: Record<string, string>; body: string }
+interface Call { url: string; method: string; headers: Record<string, string>; body: string; signal: unknown }
 type Reply = { status?: number; body?: unknown; raw?: string } | Error;
 
 function setup(connect: "off" | "preview" | "on" = "on", now = new Date("2026-11-09T12:00:00Z")) {
   const calls: Call[] = [];
   const queue: Reply[] = [];
   const fetchFake = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    calls.push({ url: String(input), method: String(init?.method), headers: { ...(init?.headers as Record<string, string>) }, body: String(init?.body) });
+    calls.push({ url: String(input), method: String(init?.method), headers: { ...(init?.headers as Record<string, string>) }, body: String(init?.body), signal: init?.signal });
     const r = queue.shift();
     if (!r) throw new Error("unexpected fetch");
     if (r instanceof Error) throw r;
@@ -243,6 +244,24 @@ describe("/mcp: the rules, in order", () => {
     const s = setup();
     const req = new Request(ORIGIN + "/mcp", { method: "POST", headers: { Origin: "https://evil.example" }, body: "{}" });
     expect((await run(s, req)).res.status).toBe(403);
+  });
+  it("4 before 5: an unsupported version is refused before the key is looked at", async () => {
+    const s = setup();
+    const r = await run(s, new Request(ORIGIN + "/mcp", { method: "POST", headers: { "MCP-Protocol-Version": "2020-01-01" }, body: "{}" }));
+    expect(r.res.status).toBe(400);
+  });
+  it("5 before 6: no key with an oversize body is 401, not 413", async () => {
+    const s = setup();
+    const r = await run(s, new Request(ORIGIN + "/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: "x".repeat(20000) }));
+    expect(r.res.status).toBe(401);
+  });
+  it("6 counts bytes: a body of multibyte characters under 16,384 characters but over 16,384 bytes is 413", async () => {
+    const s = setup();
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping", params: { pad: "é".repeat(9000) } });
+    expect(body.length).toBeLessThan(16384);
+    const r = await run(s, post(JSON.parse(body)));
+    expect(r.res.status).toBe(413);
+    expect(s.calls).toHaveLength(0);
   });
   it("4. an unsupported protocol version is 400 -32600; the three supported pass", async () => {
     const s = setup();
@@ -525,6 +544,32 @@ describe("/mcp: paging mcp_context", () => {
     expect(seen[0].truncated).toBe(true);
     expect(json.result.structuredContent.totals.truncated).toBe(true);
   });
+  it("says the log was cut when four full pages hold more rows than the overview folds", async () => {
+    seen.length = 0;
+    const big = (n: number, from: number): unknown[] => Array.from({ length: n }, (_, i) => ["r" + (from + i)]);
+    // 3 pages of 6,000 reach 18,000, under ROWS_MAX, so a 4th is fetched: 24,000 rows, 4,000 more than overview() keeps
+    const { s, json } = await prog([
+      page(big(6000, 18000), { truncated: true, before: 18000 }),
+      page(big(6000, 12000), { truncated: true, before: 12000 }),
+      page(big(6000, 6000), { truncated: true, before: 6000 }),
+      page(big(6000, 0), { truncated: false, before: 1 })
+    ]);
+    expect(s.calls).toHaveLength(4);
+    expect((seen[0].events as unknown[]).length).toBe(24000);
+    expect(seen[0].truncated).toBe(true);
+    expect(json.result.structuredContent.totals.truncated).toBe(true);
+  });
+  it("fetches no further page once the rows reach ROWS_MAX", async () => {
+    seen.length = 0;
+    const big = (n: number, from: number): unknown[] => Array.from({ length: n }, (_, i) => ["r" + (from + i)]);
+    const { s } = await prog([
+      page(big(10000, 10000), { truncated: true, before: 10000 }),
+      page(big(10000, 0), { truncated: true, before: 1 }),
+      page([["never"]], { truncated: false, before: 0 })
+    ]);
+    expect(s.calls).toHaveLength(2);
+    expect(seen[0].truncated).toBe(true);
+  });
   it("stops, still marked cut, when a truncated page has no usable before", async () => {
     seen.length = 0;
     const { s } = await prog([page([["a"]], { truncated: true, before: null }), good()]);
@@ -701,7 +746,10 @@ describe("/mcp: the methods", () => {
   it("passes the UTC day of the injected clock to the overview", async () => {
     const s = setup("on", new Date("2026-03-04T23:59:59Z"));
     s.queue.push(page([]));
+    seenToday.length = 0;
     const { json } = await run(s, post(call("get_progress")));
     expect(json.result.structuredContent).toBeDefined();
+    expect(seenToday).toEqual(["2026-03-04"]);
+    expect(s.calls[0].signal).toBeInstanceOf(AbortSignal);
   });
 });

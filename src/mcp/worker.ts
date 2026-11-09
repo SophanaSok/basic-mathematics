@@ -18,6 +18,7 @@ import {
 import {
   PROTOCOL_VERSIONS, handle, needs, parseMessage, rpcError, type Course, type JsonRpcResponse
 } from "./protocol.ts";
+import { ROWS_MAX } from "./overview.ts";
 import type { OverviewInput } from "./types.ts";
 
 export const MCP_PATH = "/mcp";
@@ -35,6 +36,7 @@ export interface WorkerOptions {
   now?: () => Date;
 }
 
+/** bytes (T12) */
 const MAX_BODY = 16384;
 const MAX_PAGES = 4;
 const KEY = /^[0-9a-f]{64}$/;
@@ -126,7 +128,9 @@ export function createWorker(o: WorkerOptions): { fetch(req: Request, env: Env):
     return { body: b };
   }
 
-  /* The newest page, then older ones while the log says there are more: at most MAX_PAGES. */
+  /* The newest page, then older ones while the log says there are more: at most MAX_PAGES, and no
+     further once the rows reach ROWS_MAX, the most overview() folds; `truncated` is true whenever a
+     row that exists was not handed over, so the overview never calls a cut log whole. */
   async function progressOf(key: string, issuer: string):
     Promise<{ progress: OverviewInput | null; progressError: string | null } | { fail: Response }> {
     const first = await context(key, true, issuer);
@@ -140,7 +144,7 @@ export function createWorker(o: WorkerOptions): { fetch(req: Request, env: Env):
       if (page.v > 1) newer = true;
       events = page.events.concat(events);
       const before = page.before;
-      const more = page.truncated === true && !newer && fetched < MAX_PAGES
+      const more = page.truncated === true && !newer && fetched < MAX_PAGES && events.length < ROWS_MAX
         && (typeof before === "number" || (typeof before === "string" && /^[0-9]{1,19}$/.test(before)));
       if (!more) break;
       const next = await context(key, true, issuer, before);
@@ -149,7 +153,8 @@ export function createWorker(o: WorkerOptions): { fetch(req: Request, env: Env):
       fetched++;
     }
     if (newer) return { progress: null, progressError: NEWER_FORMAT };
-    return { progress: { events, last: first.body.last, truncated: page.truncated === true }, progressError: null };
+    const cut = page.truncated === true || events.length > ROWS_MAX;
+    return { progress: { events, last: first.body.last, truncated: cut }, progressError: null };
   }
 
   async function mcp(req: Request, issuer: string): Promise<Response> {
@@ -179,7 +184,7 @@ export function createWorker(o: WorkerOptions): { fetch(req: Request, env: Env):
       const len = req.headers.get("content-length");
       if (len !== null && /^[0-9]+$/.test(len.trim()) && Number(len.trim()) > MAX_BODY) return reply(413, { error: "too_large" });
       const text = await req.text();
-      if (text.length > MAX_BODY) return reply(413, { error: "too_large" });
+      if (new TextEncoder().encode(text).length > MAX_BODY) return reply(413, { error: "too_large" });
       // 7
       const type = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
       if (type !== "application/json") return reply(415, { error: "unsupported_media_type" });
