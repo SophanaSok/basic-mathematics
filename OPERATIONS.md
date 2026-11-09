@@ -512,8 +512,8 @@ functions only. Decision: `docs/decisions/0016-mochi-in-your-ai.md`.
      `select c.relname, c.relrowsecurity, (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname) as policies from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('connect_grants', 'connect_codes');`
      returns two rows, each `true` and `0`.
    - no grant to `anon` or `authenticated` on either table:
-     `select count(*) from information_schema.role_table_grants where table_schema = 'public' and table_name in ('connect_grants', 'connect_codes') and grantee in ('anon', 'authenticated');`
-     returns `0`.
+     `select t.name, r.name as role, has_table_privilege(r.name, 'public.' || t.name, 'select, insert, update, delete') as may from unnest(array['connect_grants', 'connect_codes']) t(name), unnest(array['anon', 'authenticated']) r(name);`
+     returns four rows, each `false`.
    - the five functions and who may run each:
      `select p.proname, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as authenticated from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('connect_approve', 'connect_list', 'connect_revoke', 'connect_redeem', 'connect_refresh') order by p.proname;`
      returns `connect_approve`, `connect_list` and `connect_revoke` with anon `false` and
@@ -524,7 +524,9 @@ functions only. Decision: `docs/decisions/0016-mochi-in-your-ai.md`.
      returns `{"hint": "refused"}`.
    - `select count(*) from public.connect_grants;` returns `0`.
 3. Rollback: `revoke execute on function public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from anon;`
-   is the stop. The tables and functions can stay; nothing deployed is harmed by them.
+   is the stop. The tables and functions can stay; nothing deployed is harmed by them. While
+   stopped, do not run this file or `schema.sql` again: both grant the two functions back to
+   `anon`.
 
 applied: (not yet)
 
