@@ -53,3 +53,29 @@ export type CheckResult =
   | { ref: string; onPage: true }
   | { ref: string; verdict: "right" | "form" | "wrong" | "unread"; message: string | null; blank?: number; question?: string }
   | ToolError;
+
+/* get_progress (CN-6): numbers, curriculum titles and authored text only. */
+export type OverviewBand = "none" | "weak" | "building" | "strong";
+
+export interface OverviewInput { events: unknown; last: unknown; truncated?: unknown }
+
+export interface OverviewSection {
+  id: string;
+  title: string;
+  band: OverviewBand;
+  /** the mastery fold's evidence count (c) */
+  evidence: number;
+  box: number;
+  due: boolean;
+}
+
+export interface OverviewChapter { id: string; name: string; sections: OverviewSection[] }
+
+export interface Overview {
+  chapters: OverviewChapter[];
+  due: number;
+  continue: { chapterId: string; text: string; why: string } | null;
+  totals: { sections: number; strong: number; building: number; weak: number; none: number; events: number; truncated: boolean };
+}
+
+export interface PersonaPrompt { name: string; description: string; text: string }
