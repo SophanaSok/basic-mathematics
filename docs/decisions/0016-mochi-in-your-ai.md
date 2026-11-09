@@ -94,7 +94,7 @@ The full model is the spec for the build cards; this is its shape.
   static site does not. There is no rate limit at the edge.
 - Every preview deployment keeps a working copy of the worker, so the database functions
   are the boundary, and the stop is
-  `revoke execute on function public.mcp_context(text, boolean) from anon`.
+  `revoke execute on function public.mcp_context(text, boolean, bigint) from anon`.
 
 ## Deferred
 
