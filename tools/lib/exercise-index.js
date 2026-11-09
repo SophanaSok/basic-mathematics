@@ -28,13 +28,35 @@ function sectionOf(el, inline) {
 
 const texts = (list) => list.map((li) => normText(li.textContent));
 
-/* the question's text with each blank shown as ___, so a reader knows where the blanks are */
+/* true when the node sits inside the worked solution */
+function inSolution(node) {
+  for (let n = node.parent; n; n = n.parent) if (n.type === "element" && n.hasClass("ex-solution")) return true;
+  return false;
+}
+
+/* Exercises whose question refers to something on the page outside .ex-q (a table of an
+   earlier example, a layered picture), so the text alone misleads; they count as visual:
+   the tools say "see this one on the page". Hand-picked (CN-4 review); check it when a
+   page changes. */
+const REFERS_TO_PAGE = ["ch11/t3", "pk-chance/t7", "pk-data/t6", "pk-growth/e2", "pk-growth/e6"];
+
+/* the question's text: each blank shown as ___ so a reader knows where the blanks are,
+   a table's cells set apart by | and its rows by ; so they do not run together, and
+   the raw-text elements (script, style, svg title) left out */
+const RAW = { script: 1, style: 1, title: 1, textarea: 1 };
 function questionText(node) {
   if (node.type === "text") return node.text;
   if (node.type !== "element" && node.type !== "document") return "";
-  if (node.type === "element" && node.hasClass("blank")) return " ___ ";
+  if (node.type === "element") {
+    if (node.hasClass("blank")) return " ___ ";
+    if (RAW[node.name]) return "";
+  }
   let s = "";
-  for (const c of node.children) s += questionText(c);
+  for (const c of node.children) {
+    s += questionText(c);
+    if (c.type === "element" && (c.name === "td" || c.name === "th")) s += " | ";
+    if (c.type === "element" && c.name === "tr") s += " ; ";
+  }
   return s;
 }
 
@@ -44,21 +66,24 @@ function entryOf(ex, chapter, section) {
   const q = el.query(".ex-q");
   const choicesEl = el.query("ul.choices, ol.choices");
   const choices = choicesEl ? texts(choicesEl.queryAll("li")) : [];
-  const orderEl = ex.kind === "order" ? el.query(".order") : null;
+  // site.js takes the first ol.order/ul.order; here one in the solution is passed over
+  const orderEl = ex.kind === "order" ? el.queryAll("ol.order, ul.order").filter((o) => !inSolution(o))[0] : null;
   const items = orderEl ? texts(orderEl.queryAll("li")) : [];
-  const blanks = ex.kind === "blank"
-    ? el.queryAll(".blank").map((b) => ({ answer: b.getAttribute("data-answer"), type: b.getAttribute("data-type") }))
+  // the blanks of the question (site.js: .ex-q .blank); a blank's type defaults to number, as the browser's does
+  const blanks = ex.kind === "blank" && q
+    ? q.queryAll(".blank").map((b) => ({ answer: b.getAttribute("data-answer"), type: b.getAttribute("data-type") || "number" }))
     : [];
   const clues = ["data-hint", "data-hint2", "data-hint3"].map((a) => el.getAttribute(a) || "").filter(Boolean);
-  const visual = ex.kind === "figure" ||
+  const ref = chapter + "/" + ex.key;
+  const visual = ex.kind === "figure" || REFERS_TO_PAGE.indexOf(ref) !== -1 ||
     (!!q && q.queryAll("svg, img, canvas, .widget, [data-figure]").length > 0);
   return {
-    ref: chapter + "/" + ex.key, chapter, key: ex.key, section,
+    ref, chapter, key: ex.key, section,
     inline: ex.inline, kind: ex.kind, type: ex.type,
     question: q ? normText(questionText(q)) : "",
     choices, blanks, items,
     answer: ex.answer,
-    compare: ex.kind === "figure" ? (el.getAttribute("data-compare") || null) : null,
+    compare: ex.kind === "figure" ? (el.getAttribute("data-compare") || "exact") : null,   // site.js: exact when unset
     tol: parseFloat(el.getAttribute("data-tol") || "") || 0,
     clues, visual, line: ex.line
   };
@@ -81,4 +106,4 @@ function indexOf(root = site.ROOT) {
   return out;
 }
 
-module.exports = { indexOf, entryOf, pageEntries, sectionOf };
+module.exports = { indexOf, entryOf, pageEntries, sectionOf, REFERS_TO_PAGE };
