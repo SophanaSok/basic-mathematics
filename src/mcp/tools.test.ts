@@ -4,7 +4,10 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
-import { alternatives, matches } from "../core/grade.ts";
+import { alternatives, judge, matches, specOf } from "../core/grade.ts";
+import { OWNER } from "../core/answer/check.ts";
+import { formMessage, unreadMessage } from "../core/answer/messages.ts";
+import { detect } from "../learn/detectors.ts";
 import { leaks, type LeakExercise, type Matches } from "../learn/leak.ts";
 import { checkAnswer, getClue, getExercise } from "./tools.ts";
 import type { ExerciseEntry, ExerciseIndex } from "./types.ts";
@@ -39,6 +42,70 @@ const junk = (e: ExerciseEntry): string | string[] => (e.kind === "blank" ? e.bl
 /* refs whose first alternative the grader does not call right (none today) */
 const PARITY_EXCEPTIONS: string[] = [];
 
+/* The page's own grading, transcribed line by line from assets/site.js read(), judge(),
+   question() and the verdict's wording (lines 1305-1393), so a regression in tools.ts that
+   still passes the key itself shows up on the variants below. Kept literal on purpose. */
+function page(e: ExerciseEntry, given: string | string[]): Record<string, unknown> {
+  const kind = e.kind, type = e.type, tol = e.tol, answers = alternatives(e.answer);
+  const blanks = e.blanks.map((b) => ({ a: b.answer || "", t: b.type, ok: "", form: false }));
+  const on = (keys: string[], cmp: string) => (c: string) => keys.some((a) => matches(c, a, cmp, tol));
+  // read(): what is empty is said before anything is judged
+  if (kind === "blank") { if ((given as string[]).some((v, j) => j < blanks.length && String(v).trim() === "") || (given as string[]).length < blanks.length) return { verdict: "unread", message: "Fill in every blank, then press Check." }; }
+  else if (String(given).trim() === "") return { verdict: "unread", message: kind === "multi" ? "Choose every option that applies first." : kind === "choice" ? "Choose one of the options first." : "Type an answer, then press Check." };
+  let v: Record<string, unknown>;
+  if (kind === "blank") {
+    const g = given as string[];
+    const vs = blanks.map((b, j) => judge(g[j], specOf({ answer: b.a, type: b.t, tol })));
+    let card: Record<string, unknown> = { kind: "right" };
+    for (let u = 0; u < vs.length; u++) if (vs[u].kind === "unread") { card = { ...vs[u], blank: u }; break; }
+    if (card.kind === "right") blanks.forEach((b, j) => {
+      const x = vs[j]; b.ok = x.kind === "right" ? "true" : "false"; b.form = x.kind === "form";
+      if ((x.kind === "wrong" && card.kind !== "wrong") || (x.kind === "form" && card.kind === "right")) card = { ...x, blank: j };
+    });
+    v = card;
+  } else {
+    const cmp = kind === "choice" ? "number" : kind === "multi" ? "set" : type;
+    v = { ...judge(given, specOf({ answer: e.answer, type: cmp, tol })) };
+  }
+  const out: Record<string, unknown> = { verdict: v.kind, message: v.kind === "unread" ? unreadMessage(v.reason as never, OWNER.q4) : v.kind === "form" ? formMessage(v.reason as never, v.read as string) : null };
+  if (kind === "blank" && v.kind !== "right") out.blank = v.blank;
+  if (v.kind === "wrong") {
+    let q = null;
+    if (kind === "text") q = detect({ given: given as string, kind: "text", type, answers, grade: on(answers, type) });
+    else if (kind === "multi") q = detect({ given: given as string, kind: "multi", type: "multi", answers, grade: on(answers, "set") });
+    else if (kind === "blank") for (let j = 0; j < blanks.length && !q; j++) {
+      if (blanks[j].ok !== "false" || blanks[j].form) continue;
+      const keys = alternatives(blanks[j].a), bt = blanks[j].t;
+      q = detect({ given: (given as string[])[j], kind: "text", type: bt, answers: keys, grade: on(keys, bt) });
+    }
+    if (q) out.question = q.question;
+  }
+  return out;
+}
+
+/* answers near a key: its alternatives, each padded, signed, doubled, rounded, reversed, and some fixed junk */
+function variants(key: string): string[] {
+  const s = new Set<string>(["", " ", "zzz", "0", "1", "-1", "2", "1/2", "0.5", "x", "1,2", "3,1", "2,1"]);
+  for (const a of alternatives(key)) {
+    s.add(a); s.add(" " + a + " "); s.add("0" + a); s.add("-" + a); s.add(a.replace(/^[-−]/, "")); s.add(a + "0"); s.add(a + ".0");
+    s.add(a.split(",").reverse().join(",")); s.add(a.split("/").reverse().join("/")); s.add(a.replace(/(\d)/, "$1$1"));
+    const n = Number(a.replace("−", "-"));
+    if (isFinite(n)) { s.add(String(n * 2)); s.add(String(n / 10)); s.add(n.toFixed(3)); s.add(String(-n)); }
+    if (/^\d+\/\d+$/.test(a)) { const [p, q] = a.split("/"); s.add(+p * 2 + "/" + +q * 2); s.add((+p / +q).toFixed(2)); }
+  }
+  return [...s].filter((x) => x.length <= 200);
+}
+/* the inputs tried on one entry: for blanks, 40 mixed combinations and the last alternatives */
+function inputs(e: ExerciseEntry): (string | string[])[] {
+  if (e.kind !== "blank") return variants(e.answer);
+  const per = e.blanks.map((b) => variants(b.answer).slice(0, 12));
+  const out: string[][] = [];
+  for (let i = 0; i < 40; i++) out.push(per.map((vs, j) => vs[(i * (j + 3) + j) % vs.length]));
+  out.push(e.blanks.map((b) => alternatives(b.answer).slice(-1)[0]));
+  return out;
+}
+const strip = (r: unknown): Record<string, unknown> => { const { ref: _ref, ...rest } = r as { ref?: string }; return rest; };
+
 describe("the real index", () => {
   it("has the gradable exercises", () => {
     expect(gradable.length).toBe(704);
@@ -53,12 +120,29 @@ describe("the real index", () => {
       const r = checkAnswer(INDEX, e.ref, junk(e));
       if ((r as { verdict?: string }).verdict === "right") bad.push(e.ref + " right");
       // the ref (ch02/t3) is the caller's own input, not help text, so it is left out of the sweep
-      const { ref: _ref, ...rest } = r as { ref?: string };
-      const l = leaks(JSON.stringify(rest), leakEx(e), lint);
+      const l = leaks(JSON.stringify(strip(r)), leakEx(e), lint);
       if (l.length) bad.push(e.ref + " leaks " + JSON.stringify(l));
     });
     expect(bad).toEqual([]);
   });
+  it("grades every variant answer exactly as the page does, and no wrong or right result holds an accepted answer", () => {
+    const diffs: string[] = [], leaked: string[] = [];
+    let n = 0;
+    gradable.forEach((e) => {
+      const ex = leakEx(e);
+      inputs(e).forEach((g) => {
+        n++;
+        const got = strip(checkAnswer(INDEX, e.ref, g)), want = page(e, g);
+        if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(e.ref + " " + JSON.stringify(g) + " tool=" + JSON.stringify(got) + " page=" + JSON.stringify(want));
+        // form and unread wording is the page's fixed text (form names the accepted form of a value the learner
+        // already gave; unread gives examples like 0.5); wrong and right results are the ones whose content varies
+        if ((got.verdict === "wrong" || got.verdict === "right") && leaks(JSON.stringify(got), ex, lint).length) leaked.push(e.ref + " " + JSON.stringify(g) + " " + JSON.stringify(got));
+      });
+    });
+    expect(n).toBeGreaterThan(15000);
+    expect(diffs).toEqual([]);
+    expect(leaked).toEqual([]);
+  }, 60000);
   it("get_exercise has only the documented keys", () => {
     const allowed = new Set(["ref", "chapter", "section", "kind", "question", "choices", "blanks", "clues", "visual", "onPage"]);
     const bad: string[] = [];
@@ -100,6 +184,8 @@ const MINI: ExerciseIndex = [
   entry({ ref: "chX/c", kind: "choice", type: "exact", answer: "2", choices: ["a", "b", "c"] }),
   entry({ ref: "chX/m", kind: "multi", type: "multi", answer: "1,3", choices: ["a", "b", "c"] }),
   entry({ ref: "chX/b", kind: "blank", type: "blank", answer: "", question: " ___ and ___ ", blanks: [{ answer: "5", type: "number" }, { answer: "2/3", type: "number" }] }),
+  entry({ ref: "chX/b2", kind: "blank", type: "blank", answer: "", question: " ___ then ___ ", blanks: [{ answer: "2/3", type: "number" }, { answer: "5", type: "number" }] }),
+  entry({ ref: "chX/bt", kind: "blank", type: "blank", answer: "", question: " ___ ", tol: 0.01, blanks: [{ answer: "3.14", type: "number" }] }),
   entry({ ref: "chX/o", kind: "order", type: "order", answer: "0,1,2", items: ["x", "y", "z"] }),
   entry({ ref: "chX/f", kind: "figure", type: "figure", answer: "secret", compare: "exact", visual: true }),
   entry({ ref: "chX/v", answer: "7", visual: true, question: "see the picture" })
@@ -180,9 +266,24 @@ describe("checkAnswer", () => {
     expect(checkAnswer(MINI, "chX/b", ["5", "1"])).toMatchObject({ verdict: "wrong", blank: 1 });
     expect(checkAnswer(MINI, "chX/b", ["5", "0.667"])).toMatchObject({ verdict: "form", blank: 1, message: "That is rounded. Give the exact value." });
     expect(checkAnswer(MINI, "chX/b", ["5", "two"])).toMatchObject({ verdict: "unread", blank: 1 });
-    expect(checkAnswer(MINI, "chX/b", ["5"])).toMatchObject({ verdict: "unread", blank: 1, message: "Type an answer, then press Check." });
-    // a wrong blank outranks a form blank before it
+    // an empty blank, or one not given, is the page's "fill in every blank", said before any judging and with no blank number
+    expect(checkAnswer(MINI, "chX/b", ["5"])).toEqual({ ref: "chX/b", verdict: "unread", message: "Fill in every blank, then press Check." });
+    expect(checkAnswer(MINI, "chX/b", ["two", " "])).toEqual({ ref: "chX/b", verdict: "unread", message: "Fill in every blank, then press Check." });
+    // a wrong blank is the card though a form blank follows it
     expect(checkAnswer(MINI, "chX/b", ["0.5", "0.667"])).toMatchObject({ verdict: "wrong", blank: 0 });
+    // and a wrong blank outranks a form blank before it
+    const r = checkAnswer(MINI, "chX/b2", ["0.667", "4"]) as { verdict: string; blank?: number; question?: string };
+    expect(r).toMatchObject({ verdict: "wrong", blank: 1 });
+    // a form blank is right in value, so no detector is asked about it (an unreduced 4/6 is right with a note under the owner's Q3(a))
+    expect(checkAnswer(MINI, "chX/b", ["5", "0.667"])).toEqual({ ref: "chX/b", verdict: "form", blank: 1, message: formMessage("rounded", "0.667") });
+    expect(checkAnswer(MINI, "chX/b", ["5", "4/6"])).toEqual({ ref: "chX/b", verdict: "right", message: null });
+    // a blank exercise's tolerance applies to each blank
+    expect(checkAnswer(MINI, "chX/bt", ["3.141"])).toMatchObject({ verdict: "right" });
+    expect(checkAnswer(MINI, "chX/bt", ["3.2"])).toMatchObject({ verdict: "wrong", blank: 0 });
+  });
+  it("says what the page says when nothing is given", () => {
+    expect(checkAnswer(MINI, "chX/c", " ")).toEqual({ ref: "chX/c", verdict: "unread", message: "Choose one of the options first." });
+    expect(checkAnswer(MINI, "chX/m", "")).toEqual({ ref: "chX/m", verdict: "unread", message: "Choose every option that applies first." });
   });
   it("never throws on odd input", () => {
     [null, {}, [], [[]], NaN, Symbol("x"), () => 1].forEach((g) => {

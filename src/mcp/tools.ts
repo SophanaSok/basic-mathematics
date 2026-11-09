@@ -4,7 +4,8 @@
    on the page agree. Nothing is recorded: the page records a right answer.
 
    Every function is total: any input gives a result, never a throw. The key, the items of an
-   order exercise and the blanks' answers never leave here.
+   order exercise and the blanks' answers are never handed out; the one echo is the page's own:
+   a form verdict's wording shows the accepted form of a value the learner already gave.
 
    Pure: no `window`, no DOM, no storage. */
 
@@ -67,7 +68,16 @@ function askText(given: string, type: string, keys: string[], tol: number, kind:
   return d ? d.question : null;
 }
 
+/* what the page says before it judges, when nothing was given (site.js read()) */
+function emptyMessage(kind: string): string {
+  return kind === "multi" ? "Choose every option that applies first."
+    : kind === "choice" ? "Choose one of the options first."
+    : kind === "blank" ? "Fill in every blank, then press Check."
+    : "Type an answer, then press Check.";
+}
+
 function checkBlanks(e: ExerciseEntry, given: readonly string[]): CheckResult {
+  if (e.blanks.some((_, j) => (given[j] ?? "").trim() === "")) return { ref: e.ref, verdict: "unread", message: emptyMessage("blank") };
   const vs = e.blanks.map((b, j) => judge(given[j] ?? "", specOf({ answer: b.answer, type: b.type, tol: e.tol })));
   for (let u = 0; u < vs.length; u++) {
     const v = vs[u];
@@ -104,6 +114,7 @@ export function checkAnswer(index: ExerciseIndex, ref: unknown, given: unknown):
     }
     if (tooLong(given)) return { error: "bad-answer" };
     const text = given as string;
+    if (text.trim() === "") return { ref: e.ref, verdict: "unread", message: emptyMessage(e.kind) };
     const v = judge(text, specOf({ answer: e.answer, type: compareOf(e), tol: e.tol }));
     const out: CheckResult = { ref: e.ref, verdict: v.kind, message: messageOf(v) };
     if (v.kind === "wrong" && (e.kind === "text" || e.kind === "multi")) {
