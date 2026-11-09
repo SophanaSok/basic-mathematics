@@ -8,10 +8,20 @@
    isValid does not accept, hash included, is dropped silently.
 
    Only a section the curriculum has and the Arena schedules (ARENA_SECTIONS, which the
-   mastery and schedule folds key on) appears. `due` is checkDue on { box, last, seen }, as the
-   site's due review builds it, for a section with a place in the schedule or a page solve
-   (a section never touched is not due); `seen` is the day of the section's latest right
-   answer on its page (a class "p" entry with ok = 1), the attempt log's `solved` day.
+   mastery and schedule folds key on) appears. `due` follows the Arena's own deck
+   (assets/game.js statusOf and deck): a section is "new", and never due, until it is met well
+   enough to go under the clock: its band is weak, or it has a first-try right Arena answer
+   (an "a" entry with ok = 1), or two exercises solved on its page (distinct refs with a right
+   check), or a scored exercise right first time (a "c" entry, src "ex", ok = 1, try 1), or a
+   checkpoint (which exists only after many Arena days). Otherwise `due` is checkDue on
+   { box, last, seen } as the deck builds it; `seen` is the day of the section's latest right
+   page answer, the attempt log's `solved` day. One Your-turn check alone is not enough, as on
+   the site.
+
+   `today` is a "YYYY-MM-DD" day key, the learner's local day as the page's dayKey gives it;
+   a worker that cannot know the learner's zone passes the UTC day, which can shift due-ness
+   by a day at the edges. `truncated` is the worker's word that it stopped before the start of
+   the log (CN-3's paging), so the bands and due flags are then lower bounds.
 
    Total: never throws. Pure: no window, no DOM, no storage (tools/check-static.js pure-core). */
 
@@ -60,10 +70,21 @@ export function overview(input: OverviewInput, curriculum: Curriculum, today: st
     out.totals.events = n;
     out.totals.truncated = inp.truncated === true;
     const pre = preOf(V);
-    const seenDay = new Map<string, number>();
+    /* per section, from one pass: the latest right page day, the refs solved on the page, and
+       whether an Arena first-try right or a scored first-try right exists (the deck's rule) */
+    const seenDay = new Map<string, number>(), solved = new Map<string, Set<string>>();
+    const arenaRight = new Set<string>(), scoredFirst = new Set<string>();
     Object.keys(V).forEach((id) => {
-      const P = V[id];
-      if (classOf(P) === "p" && P[6] === 1 && P[3] !== "") seenDay.set(P[3], Math.max(seenDay.get(P[3]) ?? -Infinity, P[1]));
+      const P = V[id], sec = P[3];
+      if (sec === "" || P[6] !== 1) return;
+      const cls = classOf(P);
+      if (cls === "s") { arenaRight.add(sec); return; }
+      if (cls === "p" && P[5] === "c") {
+        seenDay.set(sec, Math.max(seenDay.get(sec) ?? -Infinity, P[1]));
+        if (!solved.has(sec)) solved.set(sec, new Set());
+        solved.get(sec)!.add(P[4]);
+        if (P[2] === "ex" && P[7] === 1) scoredFirst.add(sec);
+      }
     });
     const parts = curriculum && Array.isArray(curriculum.parts) ? curriculum.parts : [];
     const cont: ContinueChapter[] = [];
@@ -77,8 +98,8 @@ export function overview(input: OverviewInput, curriculum: Curriculum, today: st
           if (!ARENA.has(ref)) continue;
           const m = masteryOf(V, ref, pre), band = bandFor(m), sch = scheduleOf(V, ref, today, pre);
           const sd = seenDay.get(ref);
-          const touched = sch.last !== undefined || sd !== undefined;
-          const due = touched && checkDue({ box: sch.box, last: sch.last, seen: sd === undefined ? undefined : dayKeyOf(sd) }, today);
+          const inDeck = band === "weak" || arenaRight.has(ref) || (solved.get(ref)?.size ?? 0) >= 2 || scoredFirst.has(ref) || !!pre.W[ref];
+          const due = inDeck && checkDue({ box: sch.box, last: sch.last, seen: sd === undefined ? undefined : dayKeyOf(sd) }, today);
           secs.push({ id: s.id, title: s.title, band, evidence: m.c, box: sch.box, due });
           out.totals.sections++;
           out.totals[band]++;

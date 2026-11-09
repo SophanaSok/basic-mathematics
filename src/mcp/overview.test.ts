@@ -33,7 +33,7 @@ function arena(sec: string, d: number, ok: 0 | 1): [string, Payload] {
 }
 function pageP(sec: string, ref: string, k: string, ok: number, n: number, r: number, d: number): [string, Payload] {
   const t = d * 1440 + 700;
-  const P: Payload = [t, d, "ex", sec, ref, k, ok, n, r, 0];
+  const P: Payload = [t, d, /\/e\d+$/.test(ref) ? "ex" : "in", sec, ref, k, ok, n, r, 0];   // e-keys are scored, the rest Your turn
   return [eventId("dev00001", P, freshRand()), P];
 }
 function cpOf(sec: string, s: number, b: number, l: number, n = 10, o = 5, extra: Record<string, unknown> = {}): [string, Payload] {
@@ -112,6 +112,23 @@ describe("overview", () => {
     expect(Date.now() - t0).toBeLessThan(2000);
     expect(overview({ events: [], last: null }, null as any, "nonsense").chapters).toEqual([]);
     expect(overview({ events: [], last: null, truncated: true }, curriculum, TODAY).totals.truncated).toBe(true);
+  });
+
+  it("marks due only what the Arena's deck would hold", () => {
+    const sec = "ch03#order", ch = "ch03", d = D0 + 2;   // 17 days before TODAY
+    const due = (es: [string, Payload][]) => overview({ events: rowsOf(build(es)), last: null }, curriculum, TODAY).chapters
+      .find((c) => c.id === ch)!.sections.find((s) => s.id === "order")!.due;
+    expect(due([])).toBe(false);                                                   // never touched
+    expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d)])).toBe(false);            // one Your-turn check: still new
+    expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d), pageP(sec, ch + "/t2", "c", 1, 2, 0, d)])).toBe(true);   // two exercises solved
+    expect(due([pageP(sec, ch + "/e1", "c", 1, 1, 0, d)])).toBe(true);             // a scored exercise right first time
+    expect(due([pageP(sec, ch + "/e1", "c", 1, 2, 0, d)])).toBe(false);            // a scored exercise right on the second try, alone
+    expect(due([arena(sec, d, 1)])).toBe(true);                                    // an Arena first-try right, 17 days ago
+    expect(due([arena(sec, d, 0), arena(sec, d + 1, 0)])).toBe(false);             // misses only
+    expect(due([arena(sec, D0 + 17, 1)])).toBe(false);                             // placed in box 1 two days ago: not yet
+    expect(due([cpOf(sec, D0 + 5, 0, D0 + 2)])).toBe(true);                        // a checkpoint: under the clock already
+    expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d), pageP(sec, ch + "/t2", "c", 1, 1, 0, D0 + 18)])).toBe(true);    // seen yesterday: box 0 waits one day
+    expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d), pageP(sec, ch + "/t2", "c", 1, 1, 0, D0 + 19)])).toBe(false);   // seen today: not yet
   });
 
   it("adds up", () => {
