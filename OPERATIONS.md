@@ -568,7 +568,7 @@ lock is waited for half a second, and a lock wait answers `{"hint": "retry"}` in
    `supabase/migrations/20261109190057_connect.sql` again: it replaces both and touches nothing else
    that exists.
 
-applied: (not yet)
+applied: 2026-11-09 (Claude in Chrome, after the fix pass 9965402, before #300 merged; both runs succeeded; every check above passed: one `mcp_context(text, boolean, bigint)`, both private helpers unrunnable by the API roles, `lock_timeout=500ms` pinned, the meter empty; through the API with the public key, `mcp_context` answers `{"hint": "refused"}` with two or three parameters, `Prefer: tx=rollback` is not applied, and a read of `connect_meter` answers 401; `log_min_duration_statement` is -1, so no key is logged)
 
 ### Bumping the consent version (when the statement changes)
 
