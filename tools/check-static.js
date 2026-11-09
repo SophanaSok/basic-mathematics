@@ -1690,7 +1690,7 @@ function checkSectionWork(ctx, r) {
    test helpers and declaration files are left out: the tests build a stub window to run
    assets/site.js under. Erasable TypeScript only is tsconfig.json's erasableSyntaxOnly
    (typecheck). */
-const PURE_DIRS = ["src/core", "src/sync", "src/learn", "src/data"];
+const PURE_DIRS = ["src/core", "src/sync", "src/learn", "src/data", "src/mcp"];
 const PURE_FILE = /\.[cm]?[jt]sx?$/;
 const NOT_PURE = /\.(test|test-helper|d)\.[cm]?[jt]sx?$/;
 const PAGE_GLOBALS = /\b(window|document|localStorage|sessionStorage)\b/g;
@@ -2344,7 +2344,7 @@ const CHECKS = [
   { name: "placeholders", run: checkPlaceholders, what: "no answer box shows an example its own key judges right or form" },
   { name: "answer-spec", run: checkAnswerSpec, what: "data-tol finite, >= 0, never on exact or expr keys; every alternative of a key judged right against it; no barred expr key splits a |e|; site.js judge() grades through BMCore.judge" },
   { name: "schedule-readers", run: checkScheduleReaders, what: "assets/*.js read a section's box and last only from the event log (BMEvents.schedule/scheduleAll), never from bm.game.v1.sec, and never write them there" },
-  { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/ names window, document, localStorage or sessionStorage (comments aside)" },
+  { name: "pure-core", run: checkPureCore, what: "no module under src/core/, src/sync/, src/learn/, src/data/, src/mcp/ names window, document, localStorage or sessionStorage (comments aside)" },
   { name: "merge", run: checkMerge, what: "BMAccount.merge (src/sync/merge.ts, through BMMerge) is commutative, associative, idempotent (2000 seeded cases); the merged event log holds only valid entries either side held, the larger v and the greater payload for a colliding id; account.js has no mergeGame of its own" },
   { name: "animations", run: checkAnimations, what: "no CSS animation loops forever, repeats more than 3 times, or more than 3 times a second" },
   { name: "colours", run: checkColours, what: "colour literals only in src/styles/tokens.css; answer marks carry their tokens; WebGL tokens plain hex" },
