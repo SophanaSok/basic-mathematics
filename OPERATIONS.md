@@ -533,9 +533,10 @@ applied: 2026-11-09 (the project was paused and was resumed first; both runs suc
 ### The connector's read function (CN-3)
 
 Nothing deployed calls `mcp_context` yet (the worker that will is a later card), so the migration
-can be applied at any time and the live site is unaffected. It adds one table and two functions,
-and replaces `connect_redeem` and `connect_refresh` (a rotation is now counted, and a lock wait
-answers `{"hint": "retry"}` instead of `{"hint": "refused"}`). Decision:
+can be applied at any time and the live site is unaffected. It adds one table, two private helpers
+and one function, and replaces `connect_redeem` and `connect_refresh` (a rotation is now counted, a
+lock is waited for half a second, and a lock wait answers `{"hint": "retry"}` instead of
+`{"hint": "refused"}`). Decision:
 `docs/decisions/0016-mochi-in-your-ai.md`.
 
 1. The owner applies `supabase/migrations/20261109195700_mcp_context.sql` in Dashboard → SQL → New
@@ -550,13 +551,22 @@ answers `{"hint": "retry"}` instead of `{"hint": "refused"}`). Decision:
    - the three worker functions and who may run each:
      `select p.proname, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as authenticated from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('connect_redeem', 'connect_refresh', 'mcp_context') order by p.proname;`
      returns all three with anon `true` and authenticated `false`.
+   - the two private helpers, which no API role may run:
+     `select p.proname, has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute') as may from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and p.proname in ('connect_meter_tick', 'connect_meter_at_cap') order by p.proname;`
+     returns two rows, each `false`.
+   - the read function runs as its owner with its settings pinned:
+     `select prosecdef, proconfig from pg_proc where oid = 'public.mcp_context(text, boolean, bigint)'::regprocedure;`
+     returns `true` and a list holding `search_path=` and `lock_timeout=500ms`.
    - a smoke call is refused without an error:
      `select public.mcp_context(repeat('0', 64), true);`
      returns `{"hint": "refused"}`.
    - `select count(*) from public.connect_meter;` returns `0`.
-3. Rollback: `revoke execute on function public.mcp_context(text, boolean) from anon;` is the stop.
+3. Rollback: `revoke execute on function public.mcp_context(text, boolean, bigint) from anon;` is the stop.
    The table and functions can stay; nothing deployed is harmed by them. While stopped, do not
-   run this file or `schema.sql` again: both grant the function back to `anon`.
+   run this file or `schema.sql` again: both grant the function back to `anon`. To put
+   `connect_redeem` and `connect_refresh` back as CN-2 left them, run
+   `supabase/migrations/20261109190057_connect.sql` again: it replaces both and touches nothing else
+   that exists.
 
 applied: (not yet)
 
