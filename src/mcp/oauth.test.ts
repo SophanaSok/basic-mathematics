@@ -105,6 +105,15 @@ function noStore(r: Response) {
 }
 
 describe("register", () => {
+  it("a throw inside the handler is a bare 500", async () => {
+    const r = await register({ method: "POST", get headers(): Headers { throw new Error("boom"); } } as unknown as Request);
+    expect(r.status).toBe(500);
+    expect(await r.json()).toEqual({ error: "server_error", error_description: "The server could not answer." });
+  });
+  it("Retry-After is readable across origins", async () => {
+    const r = await tok(REDEEM, stub({ status: 200, body: { hint: "limit" } }).rpc);
+    expect(r.headers.get("access-control-expose-headers")).toBe("Retry-After");
+  });
   it("201 with the fixed shape and no echo of the app's claims", async () => {
     const r = await reg({ redirect_uris: [CLAUDE], client_name: "zq9marker", logo_uri: "zq9marker", scope: "zq9marker" });
     expect(r.status).toBe(201);
@@ -377,6 +386,14 @@ describe("token: what the rpc gets and what comes back", () => {
     expect(s.seen.fn).toBe("connect_redeem");
     expect(s.seen.args).toEqual({ p_code: CODE, p_verifier: VERIFIER, p_client_id: CLIENT, p_redirect_uri: "http://localhost:8080/callback" });
   });
+  it("a redirect_uri that URL would rewrite reaches the rpc byte for byte", async () => {
+    // new URL("http://localhost:80/callback").href is "http://localhost/callback", which the SQL refuses.
+    const s = stub({ status: 200, body: GOOD });
+    const r = await tok({ ...REDEEM, redirect_uri: "http://localhost:80/callback" }, s.rpc);
+    expect(r.status).toBe(200);
+    expect(s.seen.calls).toBe(1);
+    expect(s.seen.args.p_redirect_uri).toBe("http://localhost:80/callback");
+  });
   it("refresh passes the key and client, once", async () => {
     const s = stub({ status: 200, body: GOOD });
     const r = await tok(REFRESHING, s.rpc);
@@ -397,6 +414,9 @@ describe("token: what the rpc gets and what comes back", () => {
     ["200 with another hint", { status: 200, body: { hint: "other" } }, 503, "temporarily_unavailable", "5"],
     ["200 with null", { status: 200, body: null }, 503, "temporarily_unavailable", "5"],
     ["200 with a short access key", { status: 200, body: { ...GOOD, access: "c".repeat(63) } }, 503, "temporarily_unavailable", "5"],
+    ["200 with a short refresh key", { status: 200, body: { ...GOOD, refresh: "d".repeat(95) } }, 503, "temporarily_unavailable", "5"],
+    ["200 with a refresh key that is not hex", { status: 200, body: { ...GOOD, refresh: "g".repeat(96) } }, 503, "temporarily_unavailable", "5"],
+    ["200 with a non-string hint beside good keys", { status: 200, body: { ...GOOD, hint: 1 } }, 503, "temporarily_unavailable", "5"],
     ["200 with a bad expires_in", { status: 200, body: { ...GOOD, expires_in: 0 } }, 503, "temporarily_unavailable", "5"],
     ["200 with a fractional expires_in", { status: 200, body: { ...GOOD, expires_in: 1.5 } }, 503, "temporarily_unavailable", "5"],
     ["rejection", "reject", 503, "temporarily_unavailable", "5"],

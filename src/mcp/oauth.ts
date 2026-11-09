@@ -32,6 +32,7 @@ function cors(methods: string): Record<string, string> {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": methods,
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Expose-Headers": "Retry-After",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -159,12 +160,13 @@ export async function register(req: Request): Promise<Response> {
 function mapAnswer(answer: { status: number; body: unknown }): Response {
   const b = answer.body;
   if (answer.status === 200 && isObject(b)) {
-    if (typeof b.hint === "string") {
+    if ("hint" in b) {
       if (b.hint === "refused") return fail(400, "invalid_grant", "The grant is not valid.");
       if (b.hint === "limit") {
         return fail(429, "temporarily_unavailable", "Too many requests. Try again later.", { "Retry-After": "3600" });
       }
       if (b.hint === "retry") return fail(503, "temporarily_unavailable", "Try again.", { "Retry-After": "1" });
+      // any other hint falls through to the 503 below
     } else if (typeof b.access === "string" && ACCESS.test(b.access)
         && typeof b.refresh === "string" && REFRESH.test(b.refresh)
         && typeof b.expires_in === "number" && Number.isInteger(b.expires_in) && b.expires_in > 0) {
