@@ -838,6 +838,99 @@ case to watch: a contents page left open from before it, whose `home.js` then fe
 `world.js`, would find the two disagreeing, and fall back to the list (`BMMap3D.why()` says
 `error`) until it is reloaded; keep the exports' names when changing the world, or accept that.
 
+### The connector: preview, go-live and stop
+
+Mochi in your AI (decision 0016, `docs/decisions/0016-mochi-in-your-ai.md`) is a worker inside
+the Pages deployment, `dist/_worker.js`, that `npm run build` writes from `src/mcp/` with
+`tools/build-mcp.js`. It runs only for the paths in `dist/_routes.json` (`/mcp`, `/oauth/*`,
+`/.well-known/oauth-*`) and passes everything else to the static files; it holds no secret and
+no storage, and every call it makes is a PostgREST call with the public key to the three
+worker-facing functions (`connect_redeem`, `connect_refresh`, `mcp_context`). The site's side is
+the `connect` setting in `assets/config.js`; its value is baked into the worker at build, so
+`npm run check:dist` refuses a build whose worker disagrees with the config, and a change to the
+setting always ships as a normal pull request, build and deploy. The database side is already
+applied ([The connections](#the-connections-cn-2), [The connector's read function](#the-connectors-read-function-cn-3)).
+
+**The address readers paste** is `https://learn.groundupmath.org/mcp`; the two metadata documents
+are `https://learn.groundupmath.org/.well-known/oauth-authorization-server` and
+`https://learn.groundupmath.org/.well-known/oauth-protected-resource/mcp`. The sign-in page is the
+account page itself. The callbacks a code may go to are the fixed list in `private.connect_app`
+(`supabase/schema.sql`): Claude's two, ChatGPT's one, and a loopback port for Claude Code.
+
+**Preview first (O-4), on a pull request.** The live Supabase project must be awake (it pauses
+after a quiet week; [What to watch](#what-to-watch)).
+
+1. On a branch, set `connect: "preview"` in `assets/config.js`, run `npm run build && npm run
+   check:dist`, commit, open the pull request and label it `ci` so the preview deploys. In
+   preview the account page shows the Connect your AI panel only to an account that already
+   has a connection, so nobody is invited yet.
+2. Probe the preview, `P=https://pr-<number>.groundupmath.pages.dev`:
+   - `curl -si -X POST $P/mcp -H 'Content-Type: application/json' -d '{}' | head -5` → `401`
+     with a `WWW-Authenticate` header naming `resource_metadata` (a plain `curl` sends GET, and
+     the worker answers `405` before it looks for a key).
+   - `curl -s $P/.well-known/oauth-authorization-server` and
+     `curl -s $P/.well-known/oauth-protected-resource/mcp` → `200`, JSON, with `issuer` equal to
+     `P` in both (the second confirms Pages' mid-segment `*` route).
+   - `curl -sI $P/parts/1-algebra/01-numbers | grep -i content-security-policy` → the static
+     page keeps its CSP (the extensionless address: Pages redirects `.html`, and `-I` does not
+     follow; a page never invokes the worker, `_routes.json` excludes it).
+3. End to end, from a signed-in account of your own with the preview's address. Previews are on
+   Supabase's redirect list by wildcard, but Google refuses them
+   ([8.4](#84-sign-in-supabase-google-and-github)): sign in with email and password or GitHub.
+   - Claude Code: `claude mcp add --transport http groundup $P/mcp`, then `/mcp` in a session,
+     sign in on the preview's account page, press Allow, and ask Mochi for help on an exercise
+     (`ch01`, exercise 3, say). Note which loopback form arrived (`localhost` or `127.0.0.1`).
+   - claude.ai: Settings → Connectors → Add custom connector, the same address; the same
+     flow. This is the COOP check (threat model, probe 3): the consent page must send the
+     browser back to Claude and the connection must complete. If it does not, the follow-up in
+     the plan is a consent page with a relaxed opener policy.
+   - ChatGPT: Settings → Connectors → Create, the same address. **Read which callback arrived**
+     (the `redirect_uri` the consent panel was refused or approved with: a refused one shows the
+     "address this site does not know" note). If it is `https://chatgpt.com/connector/oauth/…`
+     and not `https://chatgpt.com/connector_platform_oauth_redirect`, stop: a new migration adds
+     one bounded pattern for it, with the threat model's T3 amended first; do not guess the
+     id's alphabet before seeing one.
+   - On the account page press Remove on one connection and confirm the app's next request
+     fails (Claude Code asks to authenticate again).
+   - Confirm the site still syncs (the sync line) and that nothing the app did wrote an event:
+     `select count(*), max(seq) from public.events where user_id = '<your id>';` before and
+     after the tool calls gives the same numbers, while
+     `select day, calls, refreshes from public.connect_meter where user_id = '<your id>';`
+     shows `calls` rising with each tool call. (`connect_grants.last_used` moves at most once an
+     hour, so it is no use as a liveness check straight after approval.)
+4. Worker CPU (the free plan's 10 ms is marginal, decision 0016): while asking for progress on
+   an account with a long log, read the Pages project's Functions metrics in the Cloudflare
+   dashboard (CPU time per invocation; `wrangler pages deployment tail --project-name
+   groundupmath --environment preview` shows each request and its outcome, and an exceeded
+   limit shows there as an error). Over 10 ms means Workers Paid ($5 a month) or a lower event
+   cap before `"on"`.
+5. Merge with `connect: "preview"`: production then serves the worker, and the panel still
+   shows only to accounts with a connection. Repeat step 2 against `https://learn.groundupmath.org`.
+
+**Go live (O-5).** A normal pull request that sets `connect: "on"`; the account page then
+shows the panel, the address and the steps to every signed-in account holder. Before merging:
+step 3 above has passed on production for all three apps; the about page's paragraph
+`#mochi-in-your-ai` and the panel's wording have been read by the owner; the weekly duty is on
+the calendar ([Recurring duties](#5-recurring-duties)).
+
+**Stop.** The site's side is `connect` back to absent (a pull request and a deploy; open tabs
+keep the old page until reloaded). The server's side, at once and for every app that already
+holds keys, is the `revoke execute … from anon` line in [Kill switches](#6-kill-switches);
+nothing is deleted, the apps see `503` until it is lifted, and `grant` puts the same connections
+back if it is lifted within 90 days of their last use (a grant idle for 90 days is no longer
+live, and the account's next approval deletes it). To end every connection for good,
+`update public.connect_grants set revoked_at = now() where revoked_at is null;`.
+
+**What can go wrong.** `/mcp` answering a page or `404` on production means the deployed
+`dist` has no worker or no routes (the build step `node tools/build-mcp.js` did not run, or
+`_routes.json` was lost): redeploy from `main`. `503` from the worker is PostgREST not answering
+`200`: the project paused, a statement timeout, or **the stop above in force** (a revoked grant
+of execute answers 401 to the worker, which says 503 to the app); check the stop before waking
+the project. `429` is an account at its daily cap. An app that reports `invalid_grant` is a
+refresh the database refused: the connection was removed on the account page, idle for 90
+days, or its refresh key was replayed and the grant ended itself (threat model T7); in every
+case the reader reconnects from the app.
+
 ### The Pages source: GitHub Actions
 
 The GitHub Pages source is a repository setting and not a file: Settings → Pages → Build and
@@ -1005,6 +1098,38 @@ The plan's go-live checklist moves the project to a paid plan before the tutor i
   reader (the per-user cap, so someone is at the wall), or `events_bytes` near 300 MB, the ceiling
   past which `events_put()` refuses everyone's writes.
 - **The account page.** Sign in on the live site now and then and read the sync line.
+- **The connections** (once `connect` is `"preview"` or `"on"`). As the admin, weekly at first,
+  then monthly:
+
+  ```sql
+  -- connections by app: live (not revoked, used within 90 days, private.connect_live's test) and held
+  select app, count(*) filter (where private.connect_live(revoked_at, last_used)) as live, count(*) as held,
+         max(created_at) as newest, max(last_used) as last_used
+    from public.connect_grants group by app order by app;
+
+  -- an account over the cap of five live connections (none expected: the cap is checked at approval)
+  select user_id, count(*) as live from public.connect_grants
+   where private.connect_live(revoked_at, last_used) group by user_id having count(*) > 5;
+
+  -- the meter: one row per account, its latest UTC day (the caps are 300 tool calls, 200 key rotations)
+  select day, count(*) as accounts, max(calls) as max_calls, max(refreshes) as max_refreshes,
+         count(*) filter (where calls >= 250 or refreshes >= 150) as near_cap
+    from public.connect_meter where day >= current_date - 7 group by day order by day desc;
+
+  -- recent approvals (the cap is 20 an account in a rolling 24 hours) and how many were never redeemed
+  select created_at::date as day, count(*) as approvals, count(distinct user_id) as accounts,
+         count(*) filter (where used_at is null and expires_at < now()) as unredeemed
+    from public.connect_codes where created_at >= now() - interval '7 days' group by 1 order by 1 desc;
+  ```
+
+  These are counts of what is held now, not history: an account's next approval deletes its codes
+  older than 24 hours and its grants revoked more than 24 hours ago or idle for 90 days, so `held`
+  and the approval counts under-report for accounts that keep approving. Worrying looks like one
+  account at `max_calls` 300 day after day (an app in a loop, or a key shared; the account page's
+  Remove ends it), `near_cap` more than a handful, any row from the second query (the cap is
+  broken), or many `unredeemed` codes (approvals that never reached an app, which a scripted
+  consent view or a phishing attempt looks like). No row holds a key or a name: the columns are
+  hashes, dates and counts, and `user_id` is the account's id.
 
 ## 4. Secrets
 
@@ -1070,6 +1195,8 @@ check it when the first function exists.
 | Keep `groundupmath.org` renewed | from the purchase | yearly; auto-renew on | Porkbun → Domain Management → the domain → Auto Renew on, with a card that will still be valid. A lapsed domain takes the site and every reader's saved progress with it, and lets someone else take the name. The bare domain and `www` forward to `learn` (Porkbun URL Forwarding, [8.3](#83-the-custom-domain-and-the-bare-domain)); after any DNS change there, rerun 8.3's check |
 | Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; a push to main is about 4 billed minutes (build and the deploys), a full run (a pull request labeled `ci`, or Run workflow) about 45, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. On 2026-10-12 the public repository was blocked anyway: the account's Actions budget was $0 with "Stop usage" on, so the included-minutes bar filling stopped every run (public usage is free, but the stop still fires). The fix is GitHub → Settings → Billing → Budgets and alerts → the Actions budget: raise it above $0 or set "Stop usage" to No. |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
+| Watch the connections | once `connect` is `"preview"` or `"on"` | weekly at first, then monthly | The three queries under [What to watch](#what-to-watch): live connections by app, accounts near the daily caps, approvals never redeemed. The stop is in [Kill switches](#6-kill-switches) |
+| Re-check the AI apps' steps | once `connect` is `"on"` | each time Claude or ChatGPT changes its connector settings, and at least every few months | The Connect your AI panel (`connectionsPanel()` in `assets/account.js`) tells a reader where in Claude, Claude Code and ChatGPT to paste the address; those menus are theirs to rename. Also confirm ChatGPT still sends the fixed callback (the allow-list in `supabase/schema.sql`, `private.connect_app`) |
 | The hint review queue | **[deferred past R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |
 | Deploy Edge Functions in step with content | **[not yet: R5]** | every merge that changes exercises, solutions or hints | The tutor function bundles its own index of questions, solutions and rungs, and requests carry a content hash. If the site changes and the function is not redeployed, the hashes differ and the tutor falls back to the authored rungs for those exercises |
@@ -1094,6 +1221,7 @@ without removing its code.
 | `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer, uuid) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer, uuid) to authenticated;` to switch it on |
 | `pet: "off"` | No pool: the button on Mochi (chapter pages, the Arena) and the inline panel on the progress page are gone, and the pool's chunk is not fetched. The record is kept and still syncs, so switching it on again shows the pool as it was; earns keep accruing while the pool is off |
 | `shop: "off"` | No shop tab in the pool, no buys, and the Play act no longer needs a toy (none can be bought). What is owned stays owned, and earns keep accruing (decision 0011) |
+| `connect` absent (or anything but `"preview"` / `"on"`) | No Mochi in your AI (decision 0016): the account page ignores an authorization request and shows no Connect your AI panel, and the worker in `dist/_worker.js` passes `/mcp`, `/oauth/*` and the two `/.well-known/oauth-*` documents to the static files (404). The value is baked into the worker at build, so the config change and the deploy go together. This is the site's side only: an app that already holds keys can still call the three worker-facing functions through PostgREST. For a full stop run `revoke execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from anon;` in the SQL editor: every connected app gets `503` from its next request on, no key is accepted anywhere, and nothing is deleted (the grants and their keys stay; `grant execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;` switches it back on, and a connection used within the last 90 days works again). To end every connection for good instead, `update public.connect_grants set revoked_at = now() where revoked_at is null;` (readers then reconnect from the app). [The connector](#the-connector-preview-go-live-and-stop) has the whole procedure |
 
 **Planned [not yet]:**
 

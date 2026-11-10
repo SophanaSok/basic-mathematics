@@ -45,4 +45,14 @@ window.BM_CONFIG = {
   /* The shop tab in the pool is on by default. To hide it, add  shop: "off"  as a setting here
      (with a comma after the previous setting's value): no tab is drawn and a buy is refused
      (docs/decisions/0011). It uses no network and no account. */
+  /* Mochi in your AI (docs/decisions/0016-mochi-in-your-ai.md), the read-only connector an
+     account holder adds to their own Claude or ChatGPT, is OFF while this setting is absent.
+     Add  connect: "preview"  (with a comma after the previous setting's value) and the worker
+     answers /mcp and the sign-in flow works, but the account page shows its Connect your AI
+     panel only to an account that already has a connection (the owner's end-to-end check,
+     OPERATIONS.md "The connector"); add  connect: "on"  and the panel, with the address and
+     the steps, shows to every signed-in account holder. Only those two exact strings count.
+     The value is baked into dist/_worker.js at build time, so a change here and the build go
+     together (npm run check:dist refuses a worker built from a different value). The server
+     stop, which outlives every open tab, is in OPERATIONS.md "Kill switches". */
 };
