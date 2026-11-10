@@ -1667,6 +1667,109 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     eq(requiresProblems(require("./lib/site").curriculum()), [], "requires: the live curriculum passes");
   }
 
+  /* ---------------------------------------------------------- build-mcp -- */
+  {
+    const mcp = require("./build-mcp");
+    const os = require("os"), cp = require("child_process"), { pathToFileURL } = require("url");
+    const cfgText = (url, extra) => 'window.BM_CONFIG = { supabaseUrl: ' + JSON.stringify(url) + ', supabaseAnonKey: "sb_publishable_x"' + (extra || "") + ' };';
+    eq(mcp.readConfig(cfgText("https://abc.supabase.co/")), { supabaseUrl: "https://abc.supabase.co", anonKey: "sb_publishable_x", connect: "off" }, "build-mcp: readConfig reads the URL (no trailing slash) and the key, connect absent is off");
+    eq(mcp.readConfig(cfgText("https://abc.supabase.co", ', connect: "preview"')).connect, "preview", "build-mcp: readConfig reads connect: preview");
+    eq(mcp.readConfig(cfgText("https://abc.supabase.co", ', connect: "on"')).connect, "on", "build-mcp: readConfig reads connect: on");
+    eq(mcp.readConfig(cfgText("https://abc.supabase.co", ', connect: "yes"')).connect, "off", "build-mcp: readConfig treats a connect that is not one of the three as off");
+    eq(mcp.readConfig(cfgText("https://abc.supabase.co", ", connect: true")).connect, "off", "build-mcp: readConfig treats a connect that is not a string as off");
+    let threw = "";
+    try { mcp.readConfig(cfgText("http://abc.supabase.co")); } catch (e) { threw = e.message; }
+    check(/must be https/.test(threw), "build-mcp: readConfig refuses a URL that is not https — got " + JSON.stringify(threw));
+    eq(mcp.ROUTES, '{"version":1,"include":["/mcp","/oauth/*","/.well-known/oauth-*"],"exclude":[]}', "build-mcp: ROUTES is the exact text");
+    eq(JSON.parse(mcp.ROUTES).include, ["/mcp", "/oauth/*", "/.well-known/oauth-*"], "build-mcp: ROUTES includes the three paths, in order");
+    const src = mcp.entrySource("/x/src/mcp/worker.ts");
+    check(src.includes('"/x/src/mcp/worker.ts"') && src.includes('"./data.json"'), "build-mcp: entrySource names the worker path and ./data.json");
+    const cyc = { title: "t", parts: [{ id: "p", chapters: [{ id: "c" }] }], chapters: [] };
+    cyc.parts[0].chapters[0].part = cyc.parts[0];
+    eq(mcp.plain(cyc), { title: "t", parts: [{ id: "p", chapters: [{ id: "c" }] }] }, "build-mcp: plain drops the cycle and the flat lists");
+
+    /* a real build into a scratch directory, loaded in Node; the connector's own tests are src/mcp/ */
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bm-mcp-test-"));
+    try {
+      const run = async (connect) => {
+        const dist = path.join(tmp, connect);
+        fs.mkdirSync(dist, { recursive: true });
+        await mcp.build({ dist, connect, cache: path.join(tmp, "cache-" + connect) });
+        const file = path.join(dist, "_worker.mjs");
+        fs.copyFileSync(path.join(dist, "_worker.js"), file);
+        check(fs.readFileSync(path.join(dist, "_routes.json"), "utf8") === mcp.ROUTES + "\n", "build-mcp: " + connect + ": _routes.json is ROUTES and a newline");
+        const worker = (await import(pathToFileURL(file).href)).default;
+        const calls = [];
+        const env = { ASSETS: { fetch: async (req) => { calls.push(new URL(req.url).pathname); return new Response("asset"); } } };
+        const ask = async (method, url, init) => { calls.length = 0; const res = await worker.fetch(new Request(url, Object.assign({ method }, init || {})), env); return { res, calls: calls.slice() }; };
+        return { ask, dist };
+      };
+      const on = await run("preview");
+      let a = await on.ask("GET", "https://x.test/ch01/foo.html");
+      eq([a.calls, a.res.status], [["/ch01/foo.html"], 200], "build-mcp: preview: a page goes to the static files");
+      a = await on.ask("GET", "https://x.test/.well-known/oauth-authorization-server");
+      const doc = await a.res.json();
+      eq([a.calls.length, a.res.status, doc.issuer], [0, 200, "https://x.test"], "build-mcp: preview: the authorization server metadata names the host as issuer");
+      a = await on.ask("POST", "https://x.test/mcp", { body: "{}", headers: { "Content-Type": "application/json" } });
+      eq([a.calls.length, a.res.status], [0, 401], "build-mcp: preview: /mcp with no Authorization is a 401");
+      check((a.res.headers.get("WWW-Authenticate") || "").includes('resource_metadata="https://x.test/.well-known/oauth-protected-resource"'), "build-mcp: preview: the 401 names resource_metadata");
+      const off = await run("off");
+      a = await off.ask("POST", "https://x.test/mcp", { body: "{}", headers: { "Content-Type": "application/json" } });
+      eq([a.calls, a.res.status], [["/mcp"], 200], "build-mcp: off: /mcp goes to the static files, the worker is inert");
+      a = await off.ask("GET", "https://x.test/.well-known/oauth-authorization-server");
+      eq(a.calls.length, 1, "build-mcp: off: the OAuth metadata goes to the static files");
+      const text = fs.readFileSync(path.join(off.dist, "_worker.js"), "utf8");
+      const cfgOff = Object.assign(mcp.readConfig(fs.readFileSync(path.join(__dirname, "..", "assets", "config.js"), "utf8")), { connect: "off" });
+      eq(mcp.lint(text, cfgOff), { fails: [], connect: "off" }, "build-mcp: lint passes the bundle it built");
+      eq(mcp.lint(fs.readFileSync(path.join(on.dist, "_worker.js"), "utf8"), cfgOff).fails.length, 1, "build-mcp: lint fails a bundle whose connect is not the config's");
+      /* each control of lint, by a mutation of the real bundle that must fail it and nothing else */
+      const dataLine = /^\s*course: \/\* @__PURE__ \*\/ JSON\.parse\(.*$/m.exec(text);
+      check(dataLine && dataLine[0].length > 100000, "build-mcp: the bundle holds the course data on the one line lint leaves out");
+      const mutations = [
+        ["too small", () => text.slice(0, 5000), /too little/],
+        ["too large", () => text + "/*" + "x".repeat(2 * 1024 * 1024) + "*/", /over the 2 MB/],
+        ["no default export", () => text.replace(/export \{[^}]*as default[^}]*\};?\s*$/, ""), /no default export/],
+        ["a bare import", () => 'import x from "lodash";\n' + text, /"lodash"/],
+        ["an import()", () => text + '\nimport("./chunk.js");\n', /import\(\)/],
+        ["a require", () => text + '\nrequire("fs");\n', /require\(\)/],
+        ["process.env", () => text + "\nconst e = process.env.X;\n", /process\.env/],
+        ["a node: import", () => 'import { readFileSync } from "node:fs";\n' + text, /node: module|"node:fs"/],
+        ["a page global", () => text + "\nwindow.x = 1;\n", /page global `window`/],
+        ["a page global in a doc comment", () => text + "\n/** the document */\n", /page global `document`/],
+        ["no resource_metadata", () => text.split("resource_metadata").join("rm"), /"resource_metadata"/],
+        ["another project", () => text.split(cfgOff.supabaseUrl).join("https://other.supabase.co"), /does not contain/],
+        ["no connect literal", () => text.replace(/\n\tconnect: "off"\n\}\);/, "\n\tconnect: off\n});"), /does not carry/],
+        ["connect preview", () => text.replace(/\n\tconnect: "off"\n\}\);/, '\n\tconnect: "preview"\n});'), /built with connect "preview"/]
+      ];
+      mutations.forEach(([name, mutate, want]) => {
+        const r = mcp.lint(mutate(), cfgOff);
+        check(r.fails.length >= 1 && r.fails.some(f => want.test(f)), "build-mcp: lint fails " + name + " — got " + JSON.stringify(r.fails));
+      });
+      check(mcp.lint(text.replace(dataLine[0], dataLine[0].replace(/"question":"/, '"question":"window document ')), cfgOff).fails.length === 0, "build-mcp: lint lets the words window and document stand inside the course data");
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+
+    /* the check on the real build (made by npm run build: check:dist needs one anyway) */
+    if (fs.existsSync(path.join(__dirname, "..", "dist", "_worker.js"))) {
+      const real = cp.spawnSync(process.execPath, [path.join(__dirname, "check-dist.js"), "--only=worker"], { encoding: "utf8" });
+      check(real.status === 0 && /^PASS\s+worker/m.test(real.stdout), "build-mcp: check-dist --only=worker passes on dist — got " + (real.stdout + real.stderr).slice(0, 600));
+      /* and it fails a dist that is wrong: routes widened, a bare import added */
+      const bad = fs.mkdtempSync(path.join(os.tmpdir(), "bm-dist-bad-"));
+      try {
+        fs.cpSync(path.join(__dirname, "..", "dist"), bad, { recursive: true });
+        fs.writeFileSync(path.join(bad, "_routes.json"), '{"version":1,"include":["/*"],"exclude":[]}\n');
+        fs.appendFileSync(path.join(bad, "_worker.js"), '\nimport "lodash";\n');
+        const mapFile = path.join(bad, "bundle", "all.js.map");
+        const map = JSON.parse(fs.readFileSync(mapFile, "utf8"));
+        map.sources.push("../../src/mcp/allow.ts");
+        fs.writeFileSync(mapFile, JSON.stringify(map));
+        fs.mkdirSync(path.join(bad, "oauth"), { recursive: true });
+        fs.writeFileSync(path.join(bad, "oauth", "help.html"), "<!doctype html><title>x</title>");
+        const r2 = cp.spawnSync(process.execPath, [path.join(__dirname, "check-dist.js"), "--dist=" + bad, "--only=worker"], { encoding: "utf8" });
+        check(r2.status === 1 && /not exactly/.test(r2.stdout) && /"lodash"/.test(r2.stdout) && /bundle\/all\.js is built from src\/mcp\/allow\.ts/.test(r2.stdout) && /oauth\/help\.html is served at \/oauth\/help/.test(r2.stdout), "build-mcp: check-dist worker fails widened routes, a bare import, a client chunk built from src/mcp/ and a file on a routed path — got " + r2.stdout.slice(0, 1200));
+      } finally { fs.rmSync(bad, { recursive: true, force: true }); }
+    }
+  }
+
   console.log((fails ? "FAILED" : "ok") + " checks: " + passes + " checks passed" + (fails ? ", " + fails + " failed" : ""));
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("FAIL serve: " + (e.stack || e)); process.exit(1); });

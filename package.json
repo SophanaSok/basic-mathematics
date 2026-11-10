@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node tools/build-mcp.js",
+    "build:mcp": "node tools/build-mcp.js",
     "build:redirects": "node tools/build-redirects.js",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

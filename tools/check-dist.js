@@ -22,6 +22,7 @@ const vendor = require("./lib/vendor");
 const { parse, normText, hash } = require("./lib/html");
 const links = require("./lib/links");
 const headers = require("./lib/headers");
+const mcp = require("./build-mcp");
 
 const ROOT = site.ROOT;
 const opts = site.parseArgs(process.argv.slice(2));
@@ -300,6 +301,9 @@ function checkPages(ctx, r) {
   /* the two files only Cloudflare Pages reads, which `headers` holds to account */
   known.add(headers.FILE);
   known.add(headers.NOT_FOUND);
+  /* and the two only Cloudflare Pages runs, which `worker` holds to account */
+  known.add(mcp.WORKER);
+  known.add(mcp.ROUTES_FILE);
   const pub = path.join(ROOT, "public");
   site.walk(pub, () => true).forEach(p => known.add(path.relative(pub, p).split(path.sep).join("/")));
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
@@ -933,7 +937,8 @@ function checkHeaders(ctx, r) {
   const opener = (all.find(([n]) => n.toLowerCase() === "cross-origin-opener-policy") || [])[1];
   if (opener !== headers.OPENER) r.fail("Cross-Origin-Opener-Policy for the pages is " + JSON.stringify(opener) + ", not " + headers.OPENER + " (a page of another origin that opened the window would keep its handle on it: lib/headers.js)");
   /* one Cache-Control per path, and the right one */
-  ctx.files.filter(f => f !== headers.FILE).forEach(f => headers.servedPaths(f).forEach(at => {
+  /* the worker and its routes are read by Pages and never served as files */
+  ctx.files.filter(f => f !== headers.FILE && f !== mcp.WORKER && f !== mcp.ROUTES_FILE).forEach(f => headers.servedPaths(f).forEach(at => {
     r.count++;
     const by = headers.rulesSetting(rules, at, "Cache-Control");
     if (by.length !== 1) { r.fail(at + " meets " + by.length + " Cache-Control rules (" + by.join(", ") + "), not one"); return; }
@@ -952,6 +957,91 @@ function checkHeaders(ctx, r) {
   if (hrefs.join() !== "/") r.fail(headers.NOT_FOUND + " links " + JSON.stringify(hrefs) + ", not the root alone");
 }
 
+/* (k) the connector's worker (tools/build-mcp.js, decision 0016): Pages runs dist/_worker.js
+   for the paths dist/_routes.json lists, and for no other. _routes.json is exactly the
+   constant the builder writes (a wider list would run the worker on every page). The worker
+   is one ES module that imports nothing (no bare specifier, no require, nothing of Node, no
+   page global), holds the connector's two markers and the Supabase project of
+   assets/config.js, and no other file of dist holds either marker: no client chunk carries
+   src/mcp/. No page names it or a file of the bundle names it, and the bundle names no
+   chunk of a page. And it runs: loaded in Node, a page request goes to the static files; and
+   /mcp and the OAuth metadata go to the static files while the switch (`connect` in
+   assets/config.js, read from the bundle) is off, and are answered when it is not. */
+/* the paths _routes.json sends to the worker, as tests on a served path */
+const ROUTE_TESTS = JSON.parse(mcp.ROUTES).include.map(p => new RegExp("^" + p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$"));
+async function checkWorker(ctx, r) {
+  const routes = path.join(DIST, mcp.ROUTES_FILE), file = path.join(DIST, mcp.WORKER);
+  r.count++;
+  if (!fs.existsSync(routes)) r.fail(mcp.ROUTES_FILE + " is not in dist; `npm run build` writes it (tools/build-mcp.js)");
+  else if (fs.readFileSync(routes, "utf8") !== mcp.ROUTES + "\n") r.fail(mcp.ROUTES_FILE + " is not exactly " + mcp.ROUTES + " (a wider list runs the worker on pages)");
+  r.count++;
+  if (!fs.existsSync(file)) { r.fail(mcp.WORKER + " is not in dist; `npm run build` writes it (tools/build-mcp.js)"); return; }
+  const text = fs.readFileSync(file, "utf8");
+  const cfg = mcp.readConfig(fs.readFileSync(path.join(ROOT, "assets", "config.js"), "utf8"));
+  /* what the text must read as: build-mcp.js lint(), which checks.test.js mutates a real bundle against */
+  const lint = mcp.lint(text, cfg);
+  r.count += 6;
+  lint.fails.forEach(f => r.fail(f));
+  const connect = lint.connect;
+  if (!connect) return;
+  r.note("worker " + (text.length / 1024).toFixed(0) + " KB, connect " + JSON.stringify(connect));
+  /* no file of the site is served on a path the routes send to the worker: with the switch on it
+     would shadow the file */
+  ctx.files.filter(f => f !== headers.FILE && f !== mcp.WORKER && f !== mcp.ROUTES_FILE).forEach(f => headers.servedPaths(f).forEach(at => {
+    r.count++;
+    if (ROUTE_TESTS.some(t => t.test(at))) r.fail(f + " is served at " + at + ", a path " + mcp.ROUTES_FILE + " sends to the worker");
+  }));
+  /* no client chunk is built from src/mcp/ (its source map says what it was built from), and none
+     carries the worker's marker; and the worker names no chunk of the pages */
+  ctx.files.filter(f => f !== mcp.WORKER).forEach(f => {
+    r.count++;
+    if (/\.js$/.test(f)) {
+      const from = ctx.graph.sourcesOf(f).filter(s => /^src\/mcp\//.test(s));
+      if (from.length) r.fail(f + " is built from " + from.join(", ") + "; src/mcp/ is the worker's alone");
+    }
+    const t = fs.readFileSync(path.join(DIST, f), "latin1");
+    if (t.includes("resource_metadata")) r.fail(f + " contains \"resource_metadata\", which only " + mcp.WORKER + " may");
+    if (/^bundle\//.test(f) && text.includes(f)) r.fail(mcp.WORKER + " names " + f + ", a file of the pages' bundle");
+  });
+  ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
+    r.count++;
+    const t = links.targetOf(page, ref.v);
+    if (t === mcp.WORKER || t === mcp.ROUTES_FILE) r.fail(page + " names " + t);
+  }));
+  /* run it */
+  const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "bm-worker-"));
+  try {
+    fs.writeFileSync(path.join(tmp, "worker.mjs"), text);
+    const worker = (await import(require("url").pathToFileURL(path.join(tmp, "worker.mjs")).href)).default;
+    const calls = [];
+    const env = { ASSETS: { fetch: async (req) => { calls.push(new URL(req.url).pathname); return new Response("asset", { status: 200 }); } } };
+    const ask = async (method, url, init) => { calls.length = 0; const res = await worker.fetch(new Request(url, Object.assign({ method }, init || {})), env); return { res, calls: calls.slice() }; };
+    r.count++;
+    let a = await ask("GET", "https://x.test/ch01/foo.html");
+    if (a.calls.length !== 1 || a.res.status !== 200) r.fail("a page request does not go to the static files once (calls " + JSON.stringify(a.calls) + ", status " + a.res.status + ")");
+    r.count++;
+    a = await ask("GET", "https://x.test/.well-known/oauth-authorization-server");
+    if (connect === "off") {
+      if (a.calls.length !== 1) r.fail("with connect off the OAuth metadata path does not go to the static files");
+    } else {
+      const doc = await a.res.json().catch(() => null);
+      if (a.calls.length || a.res.status !== 200 || !doc || doc.issuer !== "https://x.test") r.fail("the OAuth metadata is not a 200 document with issuer https://x.test (status " + a.res.status + ")");
+    }
+    r.count++;
+    a = await ask("POST", "https://x.test/mcp", { body: "{}", headers: { "Content-Type": "application/json" } });
+    if (connect === "off") {
+      if (a.calls.length !== 1) r.fail("with connect off /mcp does not go to the static files");
+    } else {
+      const www = a.res.headers.get("WWW-Authenticate") || "";
+      if (a.calls.length || a.res.status !== 401 || !www.includes('resource_metadata="https://x.test/.well-known/oauth-protected-resource"')) r.fail("/mcp with no Authorization is not a 401 naming resource_metadata (status " + a.res.status + ", WWW-Authenticate " + JSON.stringify(www) + ")");
+    }
+  } catch (e) {
+    r.fail("the worker did not run in Node: " + (e && e.message ? e.message : e));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 /* ------------------------------------------------------------- runner ---- */
 
 const CHECKS = [
@@ -965,10 +1055,11 @@ const CHECKS = [
   { name: "secrets", run: checkSecrets, what: "no server-side key in any built file, as text or inside a JWT" },
   { name: "stylesheets", run: checkStylesheets, what: "chapter pages share their stylesheets; vendor CSS inlined before the site's, source CSS unchanged, cascade in source order, each file named for the kinds that link it" },
   { name: "headers", run: checkHeaders, what: "_headers is what lib/headers.js writes from dist: every inline script hashed in the CSP, nothing else inline, Supabase in connect-src, one Cache-Control per served path; 404.html stands alone" },
+  { name: "worker", run: checkWorker, what: "_routes.json lists only /mcp and the OAuth paths; _worker.js is one ES module with no import, require, Node or page global, holds the connector and the Supabase project, no other file of dist does, no page names it, and it runs in Node: pages go to the static files, /mcp and OAuth only when connect is not off" },
   { name: "licences", run: checkLicences, what: "bundle/LICENSES.txt is the notice written from the installed packages, and every font file and node_modules source in dist is one of theirs" }
 ];
 
-function main() {
+async function main() {
   const t0 = Date.now();
   if (!fs.existsSync(path.join(DIST, "index.html"))) { console.error("FAIL  setup: no build in " + DIST + " — run `npm run build` first"); process.exit(1); }
   let ctx;
@@ -978,9 +1069,9 @@ function main() {
   const list = CHECKS.filter(c => !only || only.includes(c.name));
   if (!list.length) { console.error("no such check; available: " + CHECKS.map(c => c.name).join(", ")); process.exit(2); }
   let anyFail = false, anyWarn = false;
-  list.forEach(c => {
+  for (const c of list) {
     const r = result();
-    try { c.run(ctx, r); } catch (e) { r.fail("check crashed: " + (e.stack || e.message)); }
+    try { await c.run(ctx, r); } catch (e) { r.fail("check crashed: " + (e.stack || e.message)); }
     const status = r.fails.length ? "FAIL" : r.warns.length ? "WARN" : "PASS";
     if (status === "FAIL") anyFail = true;
     if (r.warns.length) anyWarn = true;
@@ -988,7 +1079,7 @@ function main() {
     r.notes.forEach(n => console.log("        · " + n));
     r.fails.forEach(m => console.log("        ✗ " + m));
     r.warns.forEach(m => console.log("        ! " + m));
-  });
+  }
   const where = site.rel(DIST);
   console.log((anyFail ? "FAILED" : anyWarn ? "passed with warnings" : "all passed") + " in " + ((Date.now() - t0) / 1000).toFixed(1) + "s (" + (where && !where.startsWith("..") ? where : DIST) + "/, " + ctx.files.length + " files)");
   process.exit(anyFail ? 1 : 0);
