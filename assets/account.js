@@ -85,6 +85,7 @@
     var m = /^http:\/\/(localhost|127\.0\.0\.1):([1-9][0-9]{0,4})\/callback$/.exec(uri);
     return m && Number(m[2]) <= 65535 ? "local" : null;
   }
+  var CNX_NAMES = { claude: "Claude", chatgpt: "ChatGPT", local: "An app on this computer" };
   var CONNECT_ID = /^[A-Za-z0-9_-]{8,64}$/, CONNECT_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
   function connectClear() { try { window.sessionStorage.removeItem(CONNECT_KEY); } catch (e) { /* nothing was kept */ } }
   /* the captured request while it is live (10 minutes), else null; a damaged or old one is removed.
@@ -129,6 +130,8 @@
     function get(k) { var all = q.getAll(k); if (all.length > 1) dup = true; return all.length ? all[0] : null; }
     function fits(v, re) { return typeof v === "string" && re.test(v); }
     var uri = get("redirect_uri"), uriDup = dup;
+    /* any repeated parameter is refused, read here or not (scope=a&scope=b) */
+    Array.from(q.keys()).forEach(function (k) { if (q.getAll(k).length > 1) dup = true; });
     var app = uriDup ? null : connectApp(uri);
     if (!app) {
       connectNote = "This sign-in request came from an address this site does not know, so it was not followed.";
@@ -1337,6 +1340,8 @@
   var DELETE_ACTION = "Delete my account";
   /* the consent view: an approve in flight (a second press sends nothing) and the message under its buttons */
   var connectBusy = false, connectMsg = null;
+  /* the Connect your AI panel's list: null until read; once per sign-in */
+  var connections = null, connectionsFor = null, connectionsErr = "", connectionsLoading = false, cnxBusy = null, cnxMsg = null;
 
   /* a reply that arrives after a different account is signed in belongs to nobody on this page */
   function uidNow() { return user ? user.id : null; }
@@ -1389,6 +1394,35 @@
     addUnder = false; addConsent = false; renaming = null; armed = null; needSignIn = false; focusAfter = null;
     stepAction = null; stepNote = ""; addBusy = false; renameBusy = null; ownBusy = false; marking = null; u13Ticked = false; u13Busy = false;
     deleteArmed = false; deleteBusy = false;
+    resetConnections();
+  }
+  function resetConnections() {
+    connections = null; connectionsFor = null; connectionsErr = ""; connectionsLoading = false; cnxBusy = null; cnxMsg = null;
+  }
+  var CNX_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function rowOk(r) { return !!r && typeof r === "object" && typeof r.id === "string" && CNX_ID.test(r.id) && typeof r.app === "string"; }
+  function ownView() { return !Account.learner() && !keptView(); }
+  /* read (or re-read) the connections; `focus` is the id to focus once it is drawn */
+  function loadConnections(focus) {
+    var id = user ? user.id : null;
+    if (!id || !connectOn) return;
+    connectionsLoading = true;
+    Account.rpc("connect_list").then(function (rows) {
+      if (!user || user.id !== id) return;
+      connectionsLoading = false;
+      connections = Array.isArray(rows) ? rows.filter(rowOk) : [];
+      connectionsErr = "";
+      if (focus) focusAfter = focus;
+      draw();
+    }, function (e) {
+      if (!user || user.id !== id) return;
+      connectionsLoading = false;
+      connectionsErr = e && e.message ? String(e.message) : "Something went wrong. Try again in a moment.";
+      draw();
+    });
+  }
+  function ensureConnections() {
+    if (user && connectOn && ownView() && connections === null && !connectionsErr && !connectionsLoading) loadConnections();
   }
   function learnerById(id) {
     var found = null;
@@ -1741,10 +1775,18 @@
       '<button class="btn ghost" id="acct-connect-no" type="button"' + (connectBusy ? " disabled" : "") + ">Don't allow</button></p>" +
       '<div data-note-c role="status" aria-live="polite">' + (connectMsg ? '<p class="form-note' + (connectMsg.bad ? " bad" : "") + '">' + esc(connectMsg.text) + "</p>" : "") + "</div></section>";
   }
+  /* the request ran out (or went) while its panel was on the page: say so, send nothing */
+  function connectExpired() {
+    connectNote = "This request has expired. Start the connection again from the app.";
+    connectMsg = null;
+    draw();
+  }
   /* Allow: one call at a time, made by a click only (never on load or on draw) */
   function connectApprove() {
+    if (connectBusy || !user) return;
     var req = connectReq();
-    if (connectBusy || !user || !req || Account.learner() || keptView()) return;
+    if (!req) return connectExpired();
+    if (Account.learner() || keptView()) return;
     var uid = uidNow(), A = CONNECT_APPS[req.app], btn = document.getElementById("acct-connect-ok"), no = document.getElementById("acct-connect-no");
     connectBusy = true;
     if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
@@ -1779,18 +1821,94 @@
         return stop("", false);
       }
       if (/too many approvals/.test(m)) return stop("This account has approved as many connections as it can today. Try again tomorrow.", true);
-      if (/too many connections/.test(m)) return stop("This account already has five connections. Remove one first.", true);
+      if (/too many connections/.test(m)) return stop("This account already has five connections. Remove one under Connect your AI below, then press Allow again.", true);
       stop(m || "Something went wrong. Try again in a moment.", true);
     });
   }
   function connectDeny() {
+    if (connectBusy) return;
     var req = connectReq();
-    if (connectBusy || !req) return;
+    if (!req) return connectExpired();
     connectClear();
     connectBack(req.redirect_uri, { error: "access_denied" }, req.state);
   }
 
+  /* ---------------------------------------------- the Connect your AI panel -- */
+
+  function cnxDay(v) {
+    if (typeof v !== "string") return "";
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+  }
+  function cnxSay(text, bad) {
+    cnxMsg = text ? { text: text, bad: !!bad } : null;
+    var slot = host.querySelector("[data-note-x]");
+    if (slot) slot.innerHTML = cnxMsg ? '<p class="form-note' + (bad ? " bad" : "") + '">' + esc(text) + "</p>" : "";
+  }
+  function cnxName(r) { return Object.prototype.hasOwnProperty.call(CNX_NAMES, r.app) ? CNX_NAMES[r.app] : "An app"; }
+  function connectionsPanel() {
+    var h = '<section class="panel connect" data-connections aria-labelledby="cnx-h"><h2 id="cnx-h" tabindex="-1">Connect your AI</h2>';
+    if (cfg.connect === "on") {
+      var address = window.location.origin + "/mcp";
+      h += "<p>Mochi can tutor inside your own Claude or ChatGPT plan. The app can read which sections and exercises you have worked on, " +
+        "how strong each section is, what is due for review and where you left off, and nothing else. It cannot change anything here; " +
+        "an answer checked there does not count until you enter it on the page. This is for the account holder's own AI plan.</p>" +
+        "<p>Connector address: <code data-connect-url>" + esc(address) + "</code></p>" +
+        '<ol class="cnx-steps">' +
+        "<li><b>Claude</b> (claude.ai or the desktop app): Settings, Connectors, Add custom connector; paste the address, then sign in here when it asks.</li>" +
+        "<li><b>Claude Code</b>: run <code>claude mcp add --transport http groundup " + esc(address) + "</code>, then <code>/mcp</code> to sign in.</li>" +
+        "<li><b>ChatGPT</b>: Settings, Connectors, Create; paste the address, then sign in here when it asks.</li></ol>";
+    }
+    h += '<h3 class="cnx-list-h">Connected apps</h3>';
+    if (connections === null) {
+      h += connectionsErr
+        ? '<p class="form-note bad">' + esc(connectionsErr) + '</p><p class="actions"><button class="btn ghost small" id="cnx-retry" type="button">Try again</button></p>'
+        : '<p class="fine" role="status">Loading connections…</p>';
+    } else if (!connections.length) {
+      h += '<p class="fine" data-cnx-none>No apps are connected.</p>';
+    } else {
+      h += '<ul class="cnx-list">';
+      connections.forEach(function (r) {
+        var nm = cnxName(r), c = cnxDay(r.created_at), u = cnxDay(r.last_used);
+        var when = (c ? "Connected " + c + (u ? " \u00b7 last used " + u : " \u00b7 not used yet") : (u ? "Last used " + u : "Not used yet"));
+        h += '<li class="cnx-row" data-cnx="' + esc(r.id) + '"><p class="cnx-name">' + esc(nm) + '</p><p class="fine">' + esc(when) + "</p>" +
+          '<p class="actions"><button class="btn ghost small danger" id="cnx-rm-' + esc(r.id) + '" type="button" aria-label="Remove ' + esc(nm) + '"' +
+          (cnxBusy === r.id ? ' disabled aria-busy="true"' : "") + ">Remove</button></p></li>";
+      });
+      h += "</ul>";
+    }
+    return h + '<div data-note-x role="status" aria-live="polite">' + (cnxMsg ? '<p class="form-note' + (cnxMsg.bad ? " bad" : "") + '">' + esc(cnxMsg.text) + "</p>" : "") + "</div></section>";
+  }
+  function cnxShown() {
+    return configured && connectOn && ownView() && (cfg.connect === "on" || (connections !== null && connections.length > 0));
+  }
+  function cnxRemove(id) {
+    var row = null;
+    (connections || []).forEach(function (r) { if (r.id === id) row = r; });
+    if (cnxBusy || !user || !connectOn || !row) return;
+    var uid = uidNow(), nm = cnxName(row);
+    cnxBusy = id;
+    draw();
+    function reread() { connections = null; connectionsErr = ""; loadConnections("cnx-h"); }
+    Account.rpc("connect_revoke", { p_id: id }).then(function () {
+      if (!user || user.id !== uid) return;
+      cnxBusy = null;
+      cnxSay("Removed. " + nm + " can no longer read your progress.");
+      reread();
+      draw();
+    }, function (e) {
+      if (!user || user.id !== uid) return;
+      cnxBusy = null;
+      var m = e && e.message ? String(e.message) : "";
+      if (/not your connection/.test(m)) { cnxSay("That connection was already removed."); reread(); }
+      else if (/not signed in/.test(m)) cnxSay("You are not signed in. Sign in again.", true);
+      else { cnxSay(m || "Something went wrong. Try again in a moment.", true); focusAfter = "cnx-rm-" + id; }
+      draw();
+    });
+  }
+
   function draw() {
+    ensureConnections();
     var html = "";
     var creq = connectOn ? connectReq() : null;
     if (!configured) {
@@ -1845,6 +1963,7 @@
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
         '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
         "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
+        (cnxShown() ? connectionsPanel() : "") +
         (learnersOn ? learnersPanel() + (needSignIn && !cstep ? stepUpPanel() : "") : "") +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
@@ -1982,6 +2101,8 @@
         draw();
       });
     });
+    on("cnx-retry", function () { connectionsErr = ""; loadConnections("cnx-h"); draw(); });
+    (connections || []).forEach(function (r) { on("cnx-rm-" + r.id, function () { cnxRemove(r.id); }); });
     on("acct-connect-ok", connectApprove);
     on("acct-connect-no", connectDeny);
     on("acct-out", function () { notice = ""; needSignIn = false; connectClear(); connectMsg = null; Account.signOut().catch(problem); });
@@ -2054,6 +2175,7 @@
 
   /* board: whether the reader joined the Daily board, null until the profile is read;
      boardBusy while a change to it is in flight, boardWant what that change asks for */
+  var hadUser = false, sawOut = false;
   var name = null, nameFor = null, drawnFor = null, carry = null, board = null, boardBusy = false, boardWant = false;
   Account.onChange(function () {
     if (user && nameFor !== user.id) {
@@ -2068,9 +2190,14 @@
     else {
       if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; }
       ensureLearners();
+      ensureConnections();
     }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
+    /* the note about an address the site does not know ends with the sign-in; a session that ends later takes the request with it */
+    if (user && !hadUser && sawOut) connectNote = "";
+    if (user) hadUser = true;
+    else { sawOut = true; if (hadUser) { hadUser = false; connectClear(); connectNote = ""; } }
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
     var who = user ? user.id : null, active = document.activeElement;
     var typing = active && host.contains(active) && active.tagName === "INPUT";

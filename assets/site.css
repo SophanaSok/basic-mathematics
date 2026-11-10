@@ -1230,3 +1230,9 @@ table.owner th[aria-sort="none"] .link::after { content: none; }
 .diag-plan-hand > summary { cursor: pointer; }
 .diag-plan-hand > summary + h4 { margin-top: .8rem; }
 .diag-plan h4 + .diag-plan-hand { margin-top: 0; }
+.cnx-list { list-style: none; padding: 0; margin: 0; }
+.cnx-row { padding: .6rem 0; border-top: 1px solid var(--border-strong); }
+.cnx-row p { margin: 0 0 .3rem; }
+.cnx-row .cnx-name { font-family: var(--sans); font-weight: 700; overflow-wrap: anywhere; }
+.cnx-steps li { margin-bottom: .4rem; }
+code[data-connect-url] { user-select: all; overflow-wrap: anywhere; }

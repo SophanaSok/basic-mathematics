@@ -71,7 +71,19 @@
        navigation, and only bad request clears the request
    43. a loopback callback: "an app on this computer", its warning, and the raw string kept (port 80)
    44. a resource that is this site's /mcp is accepted and never echoed
-   45. the panel fits 360px and both buttons are reached by Tab */
+   45. the panel fits 360px and both buttons are reached by Tab
+   46. connect "on": the Connect your AI panel with the address, three steps and the listed
+       connections, named and escaped; a bad row is dropped; connect_list is read once
+   47. "preview" draws the panel only for an account with a connection (no address, no steps);
+       absent draws none and asks for none; playing as a learner draws none
+   48. Remove sends one connect_revoke, holds the button, re-reads the list, says so, focuses the heading
+   49. "not your connection", another error and a list error: their notes, the retry
+   50. a reply that arrives after a sign-out draws nothing
+   51. the too-many-connections sentence points at the panel and the request is kept
+   52. a repeated parameter of any name is answered invalid_request; an expired request under a
+       drawn panel says so for Allow and Don't allow, with no call
+   53. a session that ends takes the request; sign-in takes the bad-address note; Allow re-checks
+       the own progress at click time; a future-dated or mismatched record is dropped */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -124,6 +136,21 @@ window.supabase = { createClient: function () {
         return Promise.resolve(answer((window.__opts && window.__opts.approveCode) || "ab".repeat(32)));
       }
       if (name === "learner_add" && opts.addDelay) return new Promise(function (ok) { setTimeout(function () { rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" }); ok(answer("L-new")); }, opts.addDelay); });
+      if (name === "connect_list") {
+        if (opts.listError) return Promise.resolve({ data: null, error: { message: opts.listError, code: "XX000" } });
+        if (opts.listDelay) return new Promise(function (ok) { setTimeout(function () { ok(answer((opts.connections || []).slice())); }, opts.listDelay); });
+        return Promise.resolve(answer((opts.connections || []).slice()));
+      }
+      if (name === "connect_revoke") {
+        function gone() { opts.connections = (opts.connections || []).filter(function (c) { return c.id !== args.p_id; }); }
+        function reply() {
+          if (opts.revokeError) { if (/not your connection/.test(opts.revokeError)) gone(); return { data: null, error: { message: opts.revokeError, code: "P0001" } }; }
+          gone();
+          return answer(null);
+        }
+        if (opts.revokeDelay) return new Promise(function (ok) { setTimeout(function () { ok(reply()); }, opts.revokeDelay); });
+        return Promise.resolve(reply());
+      }
       if (name === "learner_list") return Promise.resolve(answer(rows().slice()));
       if (name === "learner_add") {
         rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" });
@@ -147,7 +174,7 @@ window.supabase = { createClient: function () {
       return Promise.resolve(answer(null));
     },
     auth: {
-      onAuthStateChange: function (cb) { subs.push(cb); return { data: { subscription: { unsubscribe: function () {} } } }; },
+      onAuthStateChange: function (cb) { subs.push(cb); window.__emit = function (ev, sess) { subs.forEach(function (f) { f(ev, sess); }); }; return { data: { subscription: { unsubscribe: function () {} } } }; },
       getSession: function () { return Promise.resolve(answer({ session: window.__session || null })); },
       signInWithOAuth: function (a) {
         window.__oauth.push(a);
@@ -1499,7 +1526,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
     {
       const rows = [
         ["too many approvals", "This account has approved as many connections as it can today. Try again tomorrow.", "[data-note-c]", true],
-        ["too many connections", "This account already has five connections. Remove one first.", "[data-note-c]", true],
+        ["too many connections", "This account already has five connections. Remove one under Connect your AI below, then press Allow again.", "[data-note-c]", true],
         ["not signed in", "Sign in, then press Allow again.", "[data-note-c]", true],
         ["Server broke", "Server broke", "[data-note-c]", true],
         ["bad request", "This request is not valid any more. Start the connection again from Claude.", "[data-connect-note]", false]
@@ -1571,6 +1598,192 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       await s.page.waitForSelector("#acct-stepin");
       check(await s.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, "45 … nor with the step-up form open");
       await s.context.close();
+    }
+
+    /* 46-53. the Connect your AI panel (CN-10) */
+    const ON = { providers: ["google"], connect: "on" };
+    const U1 = "3b6d7b3e-1b36-4c8e-9a2a-1c2d3e4f5a6b", U2 = "4c7e8c4f-2c47-4d9f-8b3b-2d3e4f5a6b7c", U3 = "5d8f9d50-3d58-4eaf-9c4c-3e4f5a6b7c8d";
+    const row = (id, app, last) => ({ id, app, created_at: "2026-11-01T10:00:00Z", last_used: last === undefined ? "2026-11-05T10:00:00Z" : last });
+    const withRows = (rows, extra) => withState(Object.assign({ stub: Object.assign({ learners: roster(), connections: rows }, (extra && extra.stub) || {}) }, extra && extra.top));
+    const listCalls = (log) => log.filter((c) => c.name === "connect_list");
+    const revokeCalls = (log) => log.filter((c) => c.name === "connect_revoke");
+    const waitRows = (page) => page.waitForSelector("[data-connections] .cnx-list, [data-connections] [data-cnx-none]");
+    const rec = (over) => JSON.stringify(Object.assign({ v: 1, client_id: "c_12345678", redirect_uri: CLAUDE, code_challenge: CH, state: "zq9state", resource: null, app: "claude", at: Date.now() }, over || {}));
+
+    /* 46. on: the address, the steps, the rows */
+    {
+      const r = await open(ON, withRows([row(U1, "claude"), row(U2, "local", null), row(U3, "<b>x</b>"), { id: "bad", app: "claude", created_at: "2026-11-01T10:00:00Z", last_used: null }]));
+      await waitRows(r.page);
+      const seen = await r.page.evaluate(() => {
+        const p = document.querySelector("[data-connections]");
+        return {
+          h: p.querySelector("h2").textContent, url: (p.querySelector("[data-connect-url]") || {}).textContent, origin: location.origin,
+          steps: Array.from(p.querySelectorAll(".cnx-steps li")).map((l) => l.textContent), code: (p.querySelectorAll(".cnx-steps code")[0] || {}).textContent,
+          names: Array.from(p.querySelectorAll(".cnx-row .cnx-name")).map((e) => e.textContent),
+          whens: Array.from(p.querySelectorAll(".cnx-row .fine")).map((e) => e.textContent),
+          ids: Array.from(p.querySelectorAll(".cnx-row")).map((e) => e.getAttribute("data-cnx")),
+          html: p.innerHTML, after: !!(document.querySelector(".panel h2").compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING),
+          beforeLearners: !!(p.compareDocumentPosition(document.querySelector(".learners")) & Node.DOCUMENT_POSITION_FOLLOWING)
+        };
+      });
+      check(seen.h === "Connect your AI" && seen.url === seen.origin + "/mcp" && seen.after && seen.beforeLearners, "46 the panel is headed, has the address, and sits before Learners", seen);
+      check(seen.steps.length === 3 && /^Claude \(claude\.ai/.test(seen.steps[0]) && /^Claude Code: run claude mcp add --transport http groundup /.test(seen.steps[1]) && /^ChatGPT: /.test(seen.steps[2]) && seen.code === "claude mcp add --transport http groundup " + seen.origin + "/mcp", "46 three steps: Claude, Claude Code, ChatGPT", seen.steps);
+      check(JSON.stringify(seen.names) === JSON.stringify(["Claude", "An app on this computer", "An app"]), "46 the rows are named from the table; an unknown app is An app", seen.names);
+      check(/^Connected .+ · last used .+/.test(seen.whens[0]) && /^Connected .+ · not used yet$/.test(seen.whens[1]), "46 the dates read, an unused one says not used yet", seen.whens);
+      check(!seen.html.includes("<b>x</b>") && seen.ids.join() === [U1, U2, U3].join(), "46 a server string is escaped and a row with a bad id is not drawn", seen.ids);
+      await r.page.click("#acct-save");
+      await r.page.click("#acct-sync");
+      await r.page.waitForTimeout(300);
+      await r.page.click("#acct-save");
+      check(listCalls(r.rpcLog).length === 1, "46 connect_list is read once across several draws", listCalls(r.rpcLog).length);
+      await r.context.close();
+    }
+
+    /* 47. preview, absent, learner */
+    {
+      const e = await open(PREVIEW, withRows([]));
+      await settle(e.page);
+      await e.page.waitForTimeout(200);
+      check(await e.page.evaluate(() => !document.querySelector("[data-connections]")) && listCalls(e.rpcLog).length === 1, "47 preview with no connection draws no panel (one read)", listCalls(e.rpcLog).length);
+      await e.context.close();
+      const p = await open(PREVIEW, withRows([row(U1, "chatgpt")]));
+      await waitRows(p.page);
+      check(await p.page.evaluate(() => !!document.querySelector("[data-connections] .cnx-list") && !document.querySelector("[data-connect-url], .cnx-steps")) && listCalls(p.rpcLog).length === 1 && await text(p.page, ".cnx-name") === "ChatGPT", "47 preview with a connection lists it, with no address or steps", listCalls(p.rpcLog).length);
+      await p.context.close();
+      const a = await open({ providers: ["google"] }, withRows([row(U1, "claude")]));
+      await settle(a.page);
+      await a.page.waitForTimeout(200);
+      check(await a.page.evaluate(() => !document.querySelector("[data-connections]")) && listCalls(a.rpcLog).length === 0, "47 connect absent: no panel and no connect_list", listCalls(a.rpcLog).length);
+      await a.context.close();
+      const l = await open(ON, withRows([row(U1, "claude")], { top: { local: { "bm.sync.v1": { learner: "L1", acct: "u1" } } } }));
+      await l.page.waitForSelector("#lrn-sw-self");
+      await settle(l.page);
+      check(await l.page.evaluate(() => !document.querySelector("[data-connections]")), "47 playing as a learner: no panel");
+      await l.context.close();
+    }
+
+    /* 48. Remove */
+    {
+      const r = await open(ON, withRows([row(U1, "claude"), row(U2, "chatgpt")], { stub: { revokeDelay: 400 } }));
+      await waitRows(r.page);
+      await r.page.click("#cnx-rm-" + U1);
+      const held = await r.page.evaluate((id) => { const b = document.getElementById("cnx-rm-" + id); const out = { dis: b.disabled, busy: b.getAttribute("aria-busy") }; b.disabled = false; b.click(); return out; }, U1);
+      check(held.dis && held.busy === "true", "48 while the call is held the button is disabled and busy", held);
+      await r.page.waitForFunction(() => /Removed\./.test((document.querySelector("[data-note-x]") || {}).textContent || ""));
+      await r.page.waitForFunction((id) => !document.getElementById("cnx-rm-" + id) && document.querySelector(".cnx-row"), U1);
+      check(revokeCalls(r.rpcLog).length === 1 && JSON.stringify(revokeCalls(r.rpcLog)[0].args) === JSON.stringify({ p_id: U1 }), "48 one connect_revoke with the id, even after two presses", revokeCalls(r.rpcLog));
+      check(listCalls(r.rpcLog).length === 2 && await text(r.page, "[data-note-x]") === "Removed. Claude can no longer read your progress." && await r.page.evaluate(() => document.activeElement.id) === "cnx-h", "48 the list is re-read, the note says so and the heading has focus", { n: listCalls(r.rpcLog).length, note: await text(r.page, "[data-note-x]") });
+      check(await r.page.evaluate((id) => document.querySelectorAll(".cnx-row").length === 1 && !!document.getElementById("cnx-rm-" + id), U2), "48 the other row stays");
+      await r.context.close();
+    }
+
+    /* 49. refusals and a list error */
+    {
+      const a = await open(ON, withRows([row(U1, "claude")], { stub: { revokeError: "not your connection" } }));
+      await waitRows(a.page);
+      await a.page.click("#cnx-rm-" + U1);
+      await a.page.waitForFunction(() => /already removed/.test((document.querySelector("[data-note-x]") || {}).textContent || ""));
+      await a.page.waitForSelector("[data-cnx-none]");
+      check(await text(a.page, "[data-note-x]") === "That connection was already removed." && listCalls(a.rpcLog).length === 2, "49 not your connection: said so and the list is re-read", await text(a.page, "[data-note-x]"));
+      await a.context.close();
+      const b = await open(ON, withRows([row(U1, "claude")], { stub: { revokeError: "boom" } }));
+      await waitRows(b.page);
+      await b.page.click("#cnx-rm-" + U1);
+      await b.page.waitForFunction(() => /boom/.test((document.querySelector("[data-note-x]") || {}).textContent || ""));
+      const seen = await b.page.evaluate((id) => ({ bad: !!document.querySelector("[data-note-x] .form-note.bad"), row: !!document.getElementById("cnx-rm-" + id), dis: document.getElementById("cnx-rm-" + id).disabled, focus: document.activeElement.id }), U1);
+      check(seen.bad && seen.row && !seen.dis && seen.focus === "cnx-rm-" + U1 && await text(b.page, "[data-note-x]") === "boom" && listCalls(b.rpcLog).length === 1, "49 another error: a bad note, the row stays, the button is back and focused", seen);
+      await b.context.close();
+      const l = await open(ON, withRows([row(U1, "claude")], { stub: { listError: "list broke" } }));
+      await l.page.waitForSelector("#cnx-retry");
+      check(await l.page.evaluate(() => !!document.querySelector("[data-connections] .form-note.bad")) && /list broke/.test(await text(l.page, "[data-connections] .form-note.bad")), "49 a list error shows a bad note and Try again");
+      await l.page.evaluate(() => { window.__opts.listError = null; });
+      await l.page.click("#cnx-retry");
+      await waitRows(l.page);
+      check(listCalls(l.rpcLog).length === 2 && await l.page.evaluate((id) => !!document.getElementById("cnx-rm-" + id), U1), "49 Try again reads once more and then the rows show", listCalls(l.rpcLog).length);
+      await l.context.close();
+    }
+
+    /* 50. a late reply */
+    {
+      const r = await open(ON, withRows([row(U1, "claude")], { stub: { revokeDelay: 400 } }));
+      await waitRows(r.page);
+      const before = errors.length;
+      await r.page.click("#cnx-rm-" + U1);
+      await r.page.click("#acct-out");
+      await r.page.waitForSelector("#acct-in");
+      await r.page.waitForTimeout(700);
+      check(errors.length === before && await r.page.evaluate(() => !document.querySelector("[data-connections], [data-note-x]")), "50 a reply after sign-out throws nothing and draws nothing", errors.slice(before));
+      await r.context.close();
+    }
+
+    /* 51. too many connections */
+    {
+      const r = await open(PREVIEW, withState({ tail: REQ, stub: { learners: roster(), approveError: "too many connections" } }));
+      await waitPanel(r.page);
+      await r.page.click("#acct-connect-ok");
+      await r.page.waitForFunction(() => /five connections/.test((document.querySelector("[data-note-c]") || {}).textContent || ""));
+      const note = await text(r.page, "[data-note-c]");
+      check(/Connect your AI below/.test(note) && /press Allow again\.$/.test(note) && await stored(r.page) !== null && r.navs.length === 0, "51 the sentence points at the panel and the request is kept", note);
+      await r.context.close();
+    }
+
+    /* 52. a repeated parameter; an expired request under a drawn panel */
+    {
+      const r = await open(PREVIEW, { tail: query({ scope: ["a", "b"] }), callbacks: true, nowait: true });
+      await until(() => r.navs.length > 0, "52 a repeated scope is answered");
+      const u = r.navs[0] ? new URL(r.navs[0]) : null;
+      check(u && r.navs[0].startsWith(CLAUDE + "?") && u.searchParams.get("error") === "invalid_request" && u.searchParams.get("iss") === ORIGIN, "52 scope=a&scope=b is answered invalid_request at the callback", r.navs);
+      check(await comeBack(r.page) === null, "52 … and nothing is stored");
+      await r.context.close();
+      for (const [btn, what] of [["acct-connect-ok", "Allow"], ["acct-connect-no", "Don't allow"]]) {
+        const e = await open(PREVIEW, withState({ tail: REQ }));
+        await waitPanel(e.page);
+        await e.page.evaluate(() => { const k = JSON.parse(sessionStorage.getItem("bm.connect.v1")); k.at = Date.now() - 11 * 60000; sessionStorage.setItem("bm.connect.v1", JSON.stringify(k)); });
+        await e.page.click("#" + btn);
+        await e.page.waitForSelector("[data-connect-note]");
+        await e.page.waitForTimeout(200);
+        check(approveCalls(e.rpcLog).length === 0 && e.navs.length === 0 && await stored(e.page) === null && /expired/.test(await text(e.page, "[data-connect-note]")) && await e.page.evaluate(() => !document.querySelector("[data-connect]")), "52 " + what + " on an expired request says so and sends nothing", await text(e.page, "[data-connect-note]"));
+        await e.context.close();
+      }
+    }
+
+    /* 53. session end, sign-in, click-time own check, planted records */
+    {
+      const r = await open(PREVIEW, withState({ tail: REQ }));
+      await waitPanel(r.page);
+      await settle(r.page);
+      await r.page.evaluate(() => { window.__session = null; window.__emit("SIGNED_OUT", null); });
+      await r.page.waitForSelector("#acct-in");
+      check(await stored(r.page) === null && await r.page.evaluate(() => !document.querySelector("[data-connect-pending]")), "53 a session that ends elsewhere takes the request", await stored(r.page));
+      await r.context.close();
+
+      const n = await open(PREVIEW, { tail: query({ redirect_uri: "https://evil.example/cb" }), callbacks: true, stub: { learners: roster(), signInOk: true } });
+      check(/does not know/.test(await text(n.page, "[data-connect-note]")), "53 the bad-address note shows signed out");
+      await n.page.fill("#acct-email", "parent@example.com");
+      await n.page.fill("#acct-pass", "right-password");
+      await n.page.click("#acct-in");
+      await n.page.waitForFunction(() => /Signed in/.test(document.querySelector("[data-account]").textContent));
+      check(await n.page.evaluate(() => !document.querySelector("[data-connect-note]")), "53 signing in takes the bad-address note");
+      await n.context.close();
+
+      const t = await open(PREVIEW, withState({ tail: REQ }));
+      await waitPanel(t.page);
+      await settle(t.page);
+      /* the learner switch lands between the draw and the click: the old button is kept, its listener still live */
+      await t.page.waitForSelector("#lrn-sw-L1");
+      await t.page.evaluate(() => { window.__oldOk = document.getElementById("acct-connect-ok"); document.getElementById("lrn-sw-L1").click(); });
+      await t.page.waitForFunction(() => window.BMAccount.learner() === "L1");
+      await t.page.evaluate(() => window.__oldOk.click());
+      await t.page.waitForTimeout(300);
+      check(approveCalls(t.rpcLog).length === 0 && t.navs.length === 0, "53 Allow checks the own progress at click time", approveCalls(t.rpcLog));
+      await t.context.close();
+
+      for (const [what, over] of [["dated 2 minutes ahead", { at: Date.now() + 120000 }], ["whose app does not match its redirect_uri", { app: "chatgpt" }]]) {
+        const j = await open(PREVIEW, withState({ sess: { "bm.connect.v1": rec(over) } }));
+        await settle(j.page);
+        check(await j.page.evaluate(() => !document.querySelector("[data-connect], [data-connect-refused]")) && await stored(j.page) === null, "53 a record " + what + " is dropped and no panel draws");
+        await j.context.close();
+      }
     }
   }
 
