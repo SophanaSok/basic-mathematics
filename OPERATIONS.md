@@ -865,14 +865,18 @@ after a quiet week; [What to watch](#what-to-watch)).
    preview the account page shows the Connect your AI panel only to an account that already
    has a connection, so nobody is invited yet.
 2. Probe the preview, `P=https://pr-<number>.groundupmath.pages.dev`:
-   - `curl -si $P/mcp | head -5` → `401` with a `WWW-Authenticate` header naming
-     `resource_metadata`.
+   - `curl -si -X POST $P/mcp -H 'Content-Type: application/json' -d '{}' | head -5` → `401`
+     with a `WWW-Authenticate` header naming `resource_metadata` (a plain `curl` sends GET, and
+     the worker answers `405` before it looks for a key).
    - `curl -s $P/.well-known/oauth-authorization-server` and
      `curl -s $P/.well-known/oauth-protected-resource/mcp` → `200`, JSON, with `issuer` equal to
      `P` in both (the second confirms Pages' mid-segment `*` route).
-   - `curl -sI $P/parts/1-algebra/01-numbers.html | grep -i content-security-policy` → the
-     static page keeps its CSP (a page never invokes the worker: `_routes.json` excludes it).
-3. End to end, from a signed-in account of your own with the preview's address:
+   - `curl -sI $P/parts/1-algebra/01-numbers | grep -i content-security-policy` → the static
+     page keeps its CSP (the extensionless address: Pages redirects `.html`, and `-I` does not
+     follow; a page never invokes the worker, `_routes.json` excludes it).
+3. End to end, from a signed-in account of your own with the preview's address. Previews are on
+   Supabase's redirect list by wildcard, but Google refuses them
+   ([8.4](#84-sign-in-supabase-google-and-github)): sign in with email and password or GitHub.
    - Claude Code: `claude mcp add --transport http groundup $P/mcp`, then `/mcp` in a session,
      sign in on the preview's account page, press Allow, and ask Mochi for help on an exercise
      (`ch01`, exercise 3, say). Note which loopback form arrived (`localhost` or `127.0.0.1`).
@@ -887,12 +891,13 @@ after a quiet week; [What to watch](#what-to-watch)).
      one bounded pattern for it, with the threat model's T3 amended first; do not guess the
      id's alphabet before seeing one.
    - On the account page press Remove on one connection and confirm the app's next request
-     fails (Claude Code says the server needs authentication again).
+     fails (Claude Code asks to authenticate again).
    - Confirm the site still syncs (the sync line) and that nothing the app did wrote an event:
      `select count(*), max(seq) from public.events where user_id = '<your id>';` before and
-     after the tool calls gives the same numbers, and
-     `select * from public.connect_grants where user_id = '<your id>';` shows `last_used`
-     moving and nothing else written.
+     after the tool calls gives the same numbers, while
+     `select day, calls, refreshes from public.connect_meter where user_id = '<your id>';`
+     shows `calls` rising with each tool call. (`connect_grants.last_used` moves at most once an
+     hour, so it is no use as a liveness check straight after approval.)
 4. Worker CPU (the free plan's 10 ms is marginal, decision 0016): while asking for progress on
    an account with a long log, read the Pages project's Functions metrics in the Cloudflare
    dashboard (CPU time per invocation; `wrangler pages deployment tail --project-name
@@ -911,15 +916,20 @@ the calendar ([Recurring duties](#5-recurring-duties)).
 **Stop.** The site's side is `connect` back to absent (a pull request and a deploy; open tabs
 keep the old page until reloaded). The server's side, at once and for every app that already
 holds keys, is the `revoke execute … from anon` line in [Kill switches](#6-kill-switches);
-nothing is deleted, and `grant` puts it back. To end every connection for good,
+nothing is deleted, the apps see `503` until it is lifted, and `grant` puts the same connections
+back if it is lifted within 90 days of their last use (a grant idle for 90 days is no longer
+live, and the account's next approval deletes it). To end every connection for good,
 `update public.connect_grants set revoked_at = now() where revoked_at is null;`.
 
 **What can go wrong.** `/mcp` answering a page or `404` on production means the deployed
 `dist` has no worker or no routes (the build step `node tools/build-mcp.js` did not run, or
 `_routes.json` was lost): redeploy from `main`. `503` from the worker is PostgREST not answering
-(the project paused, or a statement timeout): wake the project. `429` is an account at its daily
-cap. An app that reports "invalid_grant" after working is a replayed refresh key: the grant ended
-itself by design (threat model T7); the reader reconnects from the app.
+`200`: the project paused, a statement timeout, or **the stop above in force** (a revoked grant
+of execute answers 401 to the worker, which says 503 to the app); check the stop before waking
+the project. `429` is an account at its daily cap. An app that reports `invalid_grant` is a
+refresh the database refused: the connection was removed on the account page, idle for 90
+days, or its refresh key was replayed and the grant ended itself (threat model T7); in every
+case the reader reconnects from the app.
 
 ### The Pages source: GitHub Actions
 
@@ -1092,28 +1102,34 @@ The plan's go-live checklist moves the project to a paid plan before the tutor i
   then monthly:
 
   ```sql
-  -- live connections by app, and the newest approval and use
-  select app, count(*) filter (where revoked_at is null) as live, count(*) as ever,
+  -- connections by app: live (not revoked, used within 90 days, private.connect_live's test) and held
+  select app, count(*) filter (where private.connect_live(revoked_at, last_used)) as live, count(*) as held,
          max(created_at) as newest, max(last_used) as last_used
     from public.connect_grants group by app order by app;
+
+  -- an account over the cap of five live connections (none expected: the cap is checked at approval)
+  select user_id, count(*) as live from public.connect_grants
+   where private.connect_live(revoked_at, last_used) group by user_id having count(*) > 5;
 
   -- the meter: one row per account, its latest UTC day (the caps are 300 tool calls, 200 key rotations)
   select day, count(*) as accounts, max(calls) as max_calls, max(refreshes) as max_refreshes,
          count(*) filter (where calls >= 250 or refreshes >= 150) as near_cap
     from public.connect_meter where day >= current_date - 7 group by day order by day desc;
 
-  -- approvals a day (the cap is 20 an account), and how many were never redeemed
+  -- recent approvals (the cap is 20 an account in a rolling 24 hours) and how many were never redeemed
   select created_at::date as day, count(*) as approvals, count(distinct user_id) as accounts,
          count(*) filter (where used_at is null and expires_at < now()) as unredeemed
     from public.connect_codes where created_at >= now() - interval '7 days' group by 1 order by 1 desc;
   ```
 
-  Worrying looks like one account at `max_calls` 300 day after day (an app in a loop, or a key
-  shared; the account page's Remove ends it), `near_cap` more than a handful, more than five
-  `live` for one account (impossible by the cap; if seen, the cap is broken), or many
-  `unredeemed` codes (approvals that never reached an app, which a scripted consent view or a
-  phishing attempt looks like). No row holds a key: the columns are hashes and dates, and
-  nothing in these tables names a person.
+  These are counts of what is held now, not history: an account's next approval deletes its codes
+  older than 24 hours and its grants revoked more than 24 hours ago or idle for 90 days, so `held`
+  and the approval counts under-report for accounts that keep approving. Worrying looks like one
+  account at `max_calls` 300 day after day (an app in a loop, or a key shared; the account page's
+  Remove ends it), `near_cap` more than a handful, any row from the second query (the cap is
+  broken), or many `unredeemed` codes (approvals that never reached an app, which a scripted
+  consent view or a phishing attempt looks like). No row holds a key or a name: the columns are
+  hashes, dates and counts, and `user_id` is the account's id.
 
 ## 4. Secrets
 
@@ -1205,7 +1221,7 @@ without removing its code.
 | `learn.events: "off"` | The site sends no events and pulls none; the browser's own log is still kept and read. This is the site's side only; a tab from before the deploy, or anything else holding a session, can still call `events_put()`. For a full stop run `revoke execute on function public.events_put(jsonb, integer, uuid) from authenticated;` in the SQL editor, and `grant execute on function public.events_put(jsonb, integer, uuid) to authenticated;` to switch it on |
 | `pet: "off"` | No pool: the button on Mochi (chapter pages, the Arena) and the inline panel on the progress page are gone, and the pool's chunk is not fetched. The record is kept and still syncs, so switching it on again shows the pool as it was; earns keep accruing while the pool is off |
 | `shop: "off"` | No shop tab in the pool, no buys, and the Play act no longer needs a toy (none can be bought). What is owned stays owned, and earns keep accruing (decision 0011) |
-| `connect` absent (or anything but `"preview"` / `"on"`) | No Mochi in your AI (decision 0016): the account page ignores an authorization request and shows no Connect your AI panel, and the worker in `dist/_worker.js` passes `/mcp`, `/oauth/*` and the two `/.well-known/oauth-*` documents to the static files (404). The value is baked into the worker at build, so the config change and the deploy go together. This is the site's side only: an app that already holds keys can still call the three worker-facing functions through PostgREST. For a full stop run `revoke execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from anon;` in the SQL editor: every connected app fails on its next request, no key is accepted anywhere, and nothing is deleted (the grants and their keys stay; `grant execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;` switches it back on and the same connections work again). To end every connection for good instead, `update public.connect_grants set revoked_at = now() where revoked_at is null;` (readers then reconnect from the app). [The connector](#the-connector-preview-go-live-and-stop) has the whole procedure |
+| `connect` absent (or anything but `"preview"` / `"on"`) | No Mochi in your AI (decision 0016): the account page ignores an authorization request and shows no Connect your AI panel, and the worker in `dist/_worker.js` passes `/mcp`, `/oauth/*` and the two `/.well-known/oauth-*` documents to the static files (404). The value is baked into the worker at build, so the config change and the deploy go together. This is the site's side only: an app that already holds keys can still call the three worker-facing functions through PostgREST. For a full stop run `revoke execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from anon;` in the SQL editor: every connected app gets `503` from its next request on, no key is accepted anywhere, and nothing is deleted (the grants and their keys stay; `grant execute on function public.mcp_context(text, boolean, bigint), public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) to anon;` switches it back on, and a connection used within the last 90 days works again). To end every connection for good instead, `update public.connect_grants set revoked_at = now() where revoked_at is null;` (readers then reconnect from the app). [The connector](#the-connector-preview-go-live-and-stop) has the whole procedure |
 
 **Planned [not yet]:**
 
