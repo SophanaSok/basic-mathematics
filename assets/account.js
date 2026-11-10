@@ -70,6 +70,95 @@
   /* The Learners panel's kill switch (BM_CONFIG.learners "off"): the panel is not drawn and the
      list is never read. Without the settings reader the panel stays on, as before. */
   var learnersOn = !(configured && window.BMCore && window.BMCore.config && window.BMCore.config.readConfig(cfg).learners === "off");
+  /* The connector's switch (BM_CONFIG.connect, "off" | "preview" | "on", read by src/core/config.ts; the worker in
+     dist is built from the same value, CN-8): with it off the page ignores an authorization request. */
+  var connectOn = cfg.connect === "preview" || cfg.connect === "on";
+  var CONNECT_KEY = "bm.connect.v1", CONNECT_MS = 10 * 60 * 1000;
+  var CONNECT_APPS = { claude: "Claude", chatgpt: "ChatGPT", local: "an app on this computer" };
+  /* the apps an authorization code may go to: private.connect_app in supabase/schema.sql is the
+     authority; this is the page's copy, so the view can name the app and refuse before asking.
+     String compares only: new URL() would rewrite what the SQL compares byte for byte. */
+  function connectApp(uri) {
+    if (typeof uri !== "string" || uri.length > 200) return null;
+    if (uri === "https://claude.ai/api/mcp/auth_callback" || uri === "https://claude.com/api/mcp/auth_callback") return "claude";
+    if (uri === "https://chatgpt.com/connector_platform_oauth_redirect") return "chatgpt";
+    var m = /^http:\/\/(localhost|127\.0\.0\.1):([1-9][0-9]{0,4})\/callback$/.exec(uri);
+    return m && Number(m[2]) <= 65535 ? "local" : null;
+  }
+  var CONNECT_ID = /^[A-Za-z0-9_-]{8,64}$/, CONNECT_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+  function connectClear() { try { window.sessionStorage.removeItem(CONNECT_KEY); } catch (e) { /* nothing was kept */ } }
+  /* the captured request while it is live (10 minutes), else null; a damaged or old one is removed.
+     What is returned has been through the same checks as on capture. */
+  function connectReq() {
+    var raw, r;
+    try { raw = window.sessionStorage.getItem(CONNECT_KEY); } catch (e) { return null; }
+    if (!raw) return null;
+    try { r = JSON.parse(raw); } catch (e) { r = null; }
+    var now = Date.now();
+    if (!r || typeof r !== "object" || r.v !== 1 || typeof r.at !== "number" || now - r.at > CONNECT_MS || r.at > now + 60000 ||
+        typeof r.client_id !== "string" || !CONNECT_ID.test(r.client_id) ||
+        typeof r.code_challenge !== "string" || !CONNECT_CHALLENGE.test(r.code_challenge) ||
+        typeof r.redirect_uri !== "string" || !r.app || connectApp(r.redirect_uri) !== r.app ||
+        !(r.state === null || (typeof r.state === "string" && r.state.length <= 512))) {
+      connectClear();
+      return null;
+    }
+    return r;
+  }
+  /* back to the app: the raw redirect_uri string is the base (never new URL(r).href, which the SQL would not match),
+     with iss on every answer (RFC 9207) and state only when the app gave one */
+  function connectBack(uri, fields, state) {
+    var q = new URLSearchParams();
+    Object.keys(fields).forEach(function (k) { q.append(k, fields[k]); });
+    q.append("iss", window.location.origin);
+    if (typeof state === "string") q.append("state", state);
+    window.location.replace(uri + (uri.indexOf("?") < 0 ? "?" : "&") + q.toString());
+  }
+  /* what the page says about a request it did not keep or follow */
+  var connectNote = "";
+  var CONNECT_PARAMS = ["response_type", "client_id", "redirect_uri", "code_challenge", "code_challenge_method", "state", "resource", "scope"];
+  /* An authorization request in the address (the sign-in flow of docs/decisions/0016): checked, kept in
+     sessionStorage, and taken out of the address before the SDK reads it. A redirect_uri off the list gets
+     nothing: no storage, no answer, no navigation. One on the list with something else wrong is answered at
+     that address with an error. */
+  function connectCapture() {
+    var q;
+    try { q = new URLSearchParams(window.location.search); } catch (e) { return; }
+    if (!q.has("response_type")) return;
+    var dup = false;
+    function get(k) { var all = q.getAll(k); if (all.length > 1) dup = true; return all.length ? all[0] : null; }
+    function fits(v, re) { return typeof v === "string" && re.test(v); }
+    var uri = get("redirect_uri"), uriDup = dup;
+    var app = uriDup ? null : connectApp(uri);
+    if (!app) {
+      connectNote = "This sign-in request came from an address this site does not know, so it was not followed.";
+      return;
+    }
+    var rt = get("response_type"), cid = get("client_id"), ch = get("code_challenge"), cm = get("code_challenge_method");
+    var st = get("state"), res = get("resource"), fail = null, why = "";
+    if (dup) { fail = "invalid_request"; why = "A parameter was given more than once."; }
+    else if (rt !== "code") { fail = "unsupported_response_type"; why = "Only the code response type is supported."; }
+    else if (!fits(cid, CONNECT_ID)) { fail = "invalid_request"; why = "The client_id is not valid."; }
+    else if (!fits(ch, CONNECT_CHALLENGE)) { fail = "invalid_request"; why = "The code_challenge is not valid."; }
+    else if (cm !== "S256") { fail = "invalid_request"; why = "Only the S256 code_challenge_method is supported."; }
+    else if (st !== null && st.length > 512) { fail = "invalid_request"; why = "The state is too long."; }
+    else if (res !== null && res !== window.location.origin + "/mcp") { fail = "invalid_target"; why = "The resource is not this site's connector."; }
+    if (fail) {
+      connectBack(uri, { error: fail, error_description: why }, st !== null && st.length <= 512 && q.getAll("state").length === 1 ? st : null);
+      return;
+    }
+    var kept = false;
+    try {
+      window.sessionStorage.setItem(CONNECT_KEY, JSON.stringify({ v: 1, client_id: cid, redirect_uri: uri, code_challenge: ch, state: st, resource: res, app: app, at: Date.now() }));
+      kept = true;
+    } catch (e) { /* no storage: the request is lost, and the page says so */ }
+    if (!kept) connectNote = "This browser would not keep the sign-in request, so it could not be followed. Start the connection again from the app.";
+    try {
+      var clean = new URL(window.location.href);
+      CONNECT_PARAMS.forEach(function (k) { clean.searchParams["delete"](k); });
+      window.history.replaceState(null, "", clean.pathname + clean.search + clean.hash);
+    } catch (e) { /* the request is kept; the address just keeps its extras */ }
+  }
   /* this browser's note of the day's board (arena.js keeps it in bm.run.v1.board): `all`
      forgets it whatever it holds, otherwise only a refusal noted before the reader joined */
   function forgetBoard(all) {
@@ -967,6 +1056,7 @@
         if (!saved) setAside(u);
         setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; m.ev = {}; });
         runsAs = null;
+        connectClear();
         clearLocal();
         return { saved: saved, error: why };
       });
@@ -1007,6 +1097,7 @@
         return c.rpc("delete_my_account").then(unwrap).then(function () {
           setMeta(function (m) { delete m.user; delete m.resetAt; delete m.learner; delete m.keep; delete m.learnerName; delete m.acct; m.ev = {}; });
           runsAs = null;
+          connectClear();
           events("clear", true);
           /* the account's place on the Daily board went with it */
           forgetBoard(true);
@@ -1078,6 +1169,8 @@
   }
 
   drawButton();
+  /* an authorization request is taken out of the address before the SDK, which reads it, is made */
+  if (connectOn && document.querySelector("[data-account]")) connectCapture();
   /* A sign-in that failed at the other service lands back on the account page with the
      reason in the address. It is taken out here, before the SDK reads the address, and
      shown by the account page below. */
@@ -1242,6 +1335,8 @@
   /* "Delete my account": armed by its first press (kept across a redraw and a step-up), and in flight */
   var deleteArmed = false, deleteBusy = false;
   var DELETE_ACTION = "Delete my account";
+  /* the consent view: an approve in flight (a second press sends nothing) and the message under its buttons */
+  var connectBusy = false, connectMsg = null;
 
   /* a reply that arrives after a different account is signed in belongs to nobody on this page */
   function uidNow() { return user ? user.id : null; }
@@ -1419,7 +1514,7 @@
       var a = stepAction;
       needSignIn = false; stepNote = ""; stepAction = null;
       var msg = "Signed in again. Now press " + (a ? a.action : "the button") + " again.";
-      if (a && a.acct) say(msg); else lsay(msg);
+      if (a && a.connect) connectSay(msg); else if (a && a.acct) say(msg); else lsay(msg);
       focusAfter = a ? a.focus : "lrn-h";
       draw();
     }, function (e) {
@@ -1613,8 +1708,91 @@
     });
   }
 
+  /* ----------------------------------------------------- the connect view -- */
+
+  /* what the page says about a request it could not keep or follow, above whichever view is drawn */
+  function connectTop() {
+    return connectOn && connectNote ? '<p class="form-note bad" role="status" data-connect-note>' + esc(connectNote) + "</p>" : "";
+  }
+  /* the message under the Allow button, set in place when it is on the page */
+  function connectSay(text, bad) {
+    connectMsg = text ? { text: text, bad: !!bad } : null;
+    var slot = host.querySelector("[data-note-c]");
+    if (slot) slot.innerHTML = connectMsg ? '<p class="form-note' + (bad ? " bad" : "") + '">' + esc(text) + "</p>" : "";
+  }
+  /* Nothing from the request is drawn but the app's name from our own table. */
+  function connectPanel(req, own) {
+    var A = esc(CONNECT_APPS[req.app]);
+    var h = '<section class="panel" ' + (own ? "data-connect" : "data-connect-refused") + ' aria-labelledby="acct-connect-h"><h2 id="acct-connect-h">Connect ' + A + "</h2>";
+    if (!own) {
+      var who = esc(Account.learnerName() || "this learner");
+      return h + "<p>This browser is playing as <b>" + who + "</b>. Connecting " + A + " would share this account's own progress, not " + who + "'s.</p>" +
+        "<p>Switch to your own progress first, then this page asks again. " +
+        (learnersOn ? "Use the Learners section below (press I'm the parent there if this device is kept on a learner)." : "The button is in Your account, below.") +
+        "</p></section>";
+    }
+    h += "<p>" + A + " would be able to read which sections and exercises you have worked on, how strong each section is, what is due for " +
+      "review and where you left off. It gets no name, no email address and nothing about other learners on this account. It cannot " +
+      "change anything here; an answer checked there does not count until you enter it on the page.</p>";
+    h += req.app === "local"
+      ? "<p><b>An app on this computer asked for this.</b> Approve it only if you just started connecting from an app you trust on this machine; any program here could ask.</p>"
+      : "<p><b>Approve only a connection you started yourself, just now, from " + A + ".</b> If you did not, press Don't allow.</p>";
+    return h + '<p class="actions"><button class="btn" id="acct-connect-ok" type="button"' + (connectBusy ? ' disabled aria-busy="true"' : "") + ">Allow</button>" +
+      '<button class="btn ghost" id="acct-connect-no" type="button"' + (connectBusy ? " disabled" : "") + ">Don't allow</button></p>" +
+      '<div data-note-c role="status" aria-live="polite">' + (connectMsg ? '<p class="form-note' + (connectMsg.bad ? " bad" : "") + '">' + esc(connectMsg.text) + "</p>" : "") + "</div></section>";
+  }
+  /* Allow: one call at a time, made by a click only (never on load or on draw) */
+  function connectApprove() {
+    var req = connectReq();
+    if (connectBusy || !user || !req || Account.learner() || keptView()) return;
+    var uid = uidNow(), A = CONNECT_APPS[req.app], btn = document.getElementById("acct-connect-ok"), no = document.getElementById("acct-connect-no");
+    connectBusy = true;
+    if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+    if (no) no.disabled = true;
+    function stop(text, bad) {
+      connectBusy = false;
+      if (uidNow() !== uid) return;
+      connectSay(text, bad);
+      focusAfter = "acct-connect-ok";
+      draw();
+    }
+    Account.rpc("connect_approve", { p_client_id: req.client_id, p_redirect_uri: req.redirect_uri, p_challenge: req.code_challenge }).then(function (code) {
+      if (typeof code !== "string" || !/^[0-9a-f]{64}$/.test(code)) return stop("Something went wrong. Try again in a moment.", true);
+      connectBusy = false;
+      if (uidNow() !== uid) return;
+      connectClear();
+      connectBack(req.redirect_uri, { code: code }, req.state);
+    }, function (e) {
+      var m = e && e.message ? String(e.message) : "";
+      if (STALE_RE.test(m)) {
+        connectBusy = false;
+        if (uidNow() !== uid) return;
+        needSignIn = true; stepNote = "";
+        stepAction = { action: "Allow", focus: "acct-connect-ok", acct: true, connect: true };
+        return stop("To confirm it is you, sign in again, then press Allow again.", true);
+      }
+      if (/not signed in/.test(m)) return stop("Sign in, then press Allow again.", true);
+      if (/bad request/.test(m)) {
+        /* no redirect: the request may have been tampered with */
+        connectClear();
+        connectNote = "This request is not valid any more. Start the connection again from " + A + ".";
+        return stop("", false);
+      }
+      if (/too many approvals/.test(m)) return stop("This account has approved as many connections as it can today. Try again tomorrow.", true);
+      if (/too many connections/.test(m)) return stop("This account already has five connections. Remove one first.", true);
+      stop(m || "Something went wrong. Try again in a moment.", true);
+    });
+  }
+  function connectDeny() {
+    var req = connectReq();
+    if (connectBusy || !req) return;
+    connectClear();
+    connectBack(req.redirect_uri, { error: "access_denied" }, req.state);
+  }
+
   function draw() {
     var html = "";
+    var creq = connectOn ? connectReq() : null;
     if (!configured) {
       html = '<div class="panel"><h2>Accounts are not switched on</h2>' +
         "<p>This copy of the site has no account service set up, so progress is kept in this browser only. " +
@@ -1624,7 +1802,9 @@
         field("acct-new", "New password", "password", 'autocomplete="new-password" minlength="8"') +
         '<p class="actions"><button class="btn" id="acct-setpw" type="submit">Save password</button></p>' + NOTE + "</form>";
     } else if (!user) {
-      html = '<form class="panel auth" novalidate>' + returnedNote() + setAsideNote() +
+      html = '<form class="panel auth" novalidate>' + connectTop() +
+        (creq ? '<p class="fine" data-connect-pending>Sign in, then you can connect ' + esc(CONNECT_APPS[creq.app]) + " to your progress.</p>" : "") +
+        returnedNote() + setAsideNote() +
         "<h2>Sign in or create an account</h2>" +
         "<p>An account keeps your progress, streak and attempt history in one place, so they follow you to " +
         "another browser or device. The course itself never needs one.</p>" +
@@ -1643,7 +1823,10 @@
         : status.at ? "Synced at " + status.at.toLocaleTimeString() : "Signed in";
       if (evFull) st += " Your answer log is full; it will catch up.";
       var who = label(user), ways = methodNames(user);
-      html = '<div class="panel"><h2>Your account</h2>' +
+      var own = !Account.learner() && !keptView();
+      var cstep = !!(creq && own && needSignIn && stepAction && stepAction.connect);
+      html = connectTop() + (creq ? connectPanel(creq, own) + (cstep ? stepUpPanel() : "") : "") +
+        '<div class="panel"><h2>Your account</h2>' +
         "<p>Signed in" + (who ? " as <b>" + esc(who) + "</b>" : "") + ".</p>" +
         (!learnersOn && Account.learner() ? '<p class="fine" data-playing-as>Playing as <b>' + esc(Account.learnerName() || "a learner") +
           "</b>. Adding and switching learners is switched off on this site, but you can go back to your own progress.</p>" : "") +
@@ -1662,7 +1845,7 @@
         '<button class="btn ghost" id="acct-out" type="button">Sign out</button></p>' + NOTE +
         '<p class="fine">Signing out saves your progress to your account, then clears this browser\'s copy. ' +
         "If it cannot be saved, it is set aside in this browser and saved the next time you sign in here.</p></div>" +
-        (learnersOn ? learnersPanel() + (needSignIn ? stepUpPanel() : "") : "") +
+        (learnersOn ? learnersPanel() + (needSignIn && !cstep ? stepUpPanel() : "") : "") +
         '<div class="panel"><h2>Your data</h2>' +
         "<p>What is stored: the exercises you have solved, how many tries each took, whether a hint or the " +
         "solution was used, missions, XP per day, where you are in each chapter, and your game record " +
@@ -1677,7 +1860,7 @@
         "apps in that service's settings.</p>" +
         '<p class="actions"><button class="btn ghost" id="acct-export" type="button">Download my data</button>' +
         '<button class="btn ghost danger" id="acct-delete" type="button"' + (deleteArmed ? ' data-armed="true">Press again to delete everything' : ">Delete my account") + "</button></p></div>" +
-        (!learnersOn && needSignIn ? stepUpPanel() : "");
+        (!learnersOn && needSignIn && !cstep ? stepUpPanel() : "");
     }
     /* a redraw keeps whatever is in the fields that survive it */
     var kept = {}, held = document.activeElement && document.activeElement.id === "acct-returned";
@@ -1799,7 +1982,9 @@
         draw();
       });
     });
-    on("acct-out", function () { notice = ""; needSignIn = false; Account.signOut().catch(problem); });
+    on("acct-connect-ok", connectApprove);
+    on("acct-connect-no", connectDeny);
+    on("acct-out", function () { notice = ""; needSignIn = false; connectClear(); connectMsg = null; Account.signOut().catch(problem); });
     on("acct-export", function () {
       download(Account.exportData(), "basic-mathematics-progress.json");
     });
@@ -1879,7 +2064,7 @@
         draw();
       }, function () { name = ""; });
     }
-    if (!user) { name = null; nameFor = null; board = null; resetLearners(); }
+    if (!user) { name = null; nameFor = null; board = null; resetLearners(); connectMsg = null; connectBusy = false; }
     else {
       if (learnersFor !== user.id) { resetLearners(); learnersFor = user.id; }
       ensureLearners();
