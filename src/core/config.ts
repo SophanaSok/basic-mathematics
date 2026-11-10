@@ -27,6 +27,11 @@ export interface Config {
   pet: "on" | "off";
   /** "off" hides the shop tab and refuses buys (decision 0011); any other value means "on" */
   shop: "on" | "off";
+  /** the Mochi-in-your-AI connector (docs/decisions/0016-mochi-in-your-ai.md). "off" = the connector is
+      not offered: the account page ignores an authorization request and the worker in dist is inert
+      (CN-8); "preview" = the consent view and the worker work, the account panel stays hidden (CN-10);
+      "on" = everything. Only the exact strings "preview" and "on" count; anything else is "off" */
+  connect: "off" | "preview" | "on";
 }
 
 function obj(x: unknown): Record<string, unknown> { return x && typeof x === "object" && !Array.isArray(x) ? x as Record<string, unknown> : {}; }
@@ -49,6 +54,7 @@ export function readConfig(raw: unknown): Config {
     learners: c.learners === "off" ? "off" : "on",
     companion: c.companion === "off" ? "off" : "on",
     pet: c.pet === "off" ? "off" : "on",
-    shop: c.shop === "off" ? "off" : "on"
+    shop: c.shop === "off" ? "off" : "on",
+    connect: c.connect === "preview" || c.connect === "on" ? c.connect : "off"
   };
 }

@@ -48,7 +48,30 @@
    25. learners "off" draws no Learners panel and asks for no learner_list
    26. a stale refusal of Delete my account shows its note and the step-up form, the button stays
        armed, a right password says to press again, and the next press deletes once
-   27. a sign-out, another account and a server error disarm Delete my account; a held call takes one press */
+   27. a sign-out, another account and a server error disarm Delete my account; a held call takes one press
+   (28-32 below are older cases the list never named: learners off with a managed learner, keep this
+   device, mark under 13, the stale consent. The connector's cases (CN-9) carry on from 33; the brief
+   called them 28-40, so its n is 33 + (n - 28) here.)
+   33. connect off (absent): an authorization request in the address is ignored, nothing is stored
+       or stripped, and the page is the plain sign-in form
+   34. connect "preview", signed out: the parameters are out of the address before the SDK is made, the
+       request is in sessionStorage, and the page says it will offer to connect Claude after sign-in
+   35. signed in: the consent panel names Claude and draws nothing of the request; connect_approve
+       is not called until Allow; Allow sends the raw strings once and goes to the callback with
+       code, iss and state; nothing of the request is left; the ids and state never reach the HTML
+   36. Don't allow: no rpc, error=access_denied with iss and state, nothing left
+   37. a redirect_uri off the list (every near miss): nothing stored, nobody told, the address kept
+   38. a listed redirect_uri with something else wrong is answered at it with an error, iss and state
+   39. a stale sign-in shows the step-up under the panel; signing in again keeps the request, and
+       Allow calls once more and goes on
+   40. playing as a managed learner, or kept on one: the panel names the learner and has no Allow;
+       switching to the own progress shows it
+   41. a request older than 10 minutes is dropped; a sign-out removes a live one
+   42. too many approvals / too many connections / bad request / not signed in: their sentences, no
+       navigation, and only bad request clears the request
+   43. a loopback callback: "an app on this computer", its warning, and the raw string kept (port 80)
+   44. a resource that is this site's /mcp is accepted and never echoed
+   45. the panel fits 360px and both buttons are reached by Tab */
 "use strict";
 const site = require("../lib/site");
 const target = require("../lib/target");
@@ -66,6 +89,7 @@ const SDK = `
 window.__oauth = [];
 window.__rpc = [];
 window.supabase = { createClient: function () {
+  window.__hrefAtCreate = location.href;
   var opts = window.__opts || {}, subs = [];
   function answer(data) { return { data: data, error: null }; }
   function self() { var s = window.__session; return { id: s && s.user ? s.user.id : "u1", self: true, name: null, under13: false, consent_v: null, created_at: "2026-10-01T00:00:00Z" }; }
@@ -94,6 +118,11 @@ window.supabase = { createClient: function () {
     rpc: function (name, args) {
       var meta = {}; try { meta = JSON.parse(localStorage.getItem("bm.sync.v1") || "{}"); } catch (e) { meta = {}; }
       window.__rpc.push({ name: name, args: args, learner: meta.learner || null });
+      if (window.__recRpc) window.__recRpc(name, JSON.stringify(args || {}));
+      if (name === "connect_approve") {
+        if (window.__opts && window.__opts.approveError) return Promise.resolve({ data: null, error: { message: window.__opts.approveError, code: "P0001" } });
+        return Promise.resolve(answer((window.__opts && window.__opts.approveCode) || "ab".repeat(32)));
+      }
       if (name === "learner_add" && opts.addDelay) return new Promise(function (ok) { setTimeout(function () { rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" }); ok(answer("L-new")); }, opts.addDelay); });
       if (name === "learner_list") return Promise.resolve(answer(rows().slice()));
       if (name === "learner_add") {
@@ -155,20 +184,28 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
 
   /* the chunk only account.js's import() fetches (tools/check-dist.js ON_DEMAND) */
   const SUPABASE_CHUNK = /\/bundle\/supabase\.js$/;
+  /* where the connector sends a person back to: the allow-listed callbacks (a loopback port the harness does not serve on; Chromium drops :80 from the address it asks for) */
+  const CALLBACKS = /^(https:\/\/(claude\.ai|claude\.com|chatgpt\.com)\/|http:\/\/(localhost|127\.0\.0\.1)(:8080)?\/)/;
 
   /* a fresh browser profile on account.html, with this config and (optionally) a session;
      `requests` is every URL the page asked for, `outside` those not on the local server */
   async function open(config, opts) {
     opts = opts || {};
     const context = await browser.newContext({ viewport: { width: opts.width || 1280, height: 800 } });
-    const outside = [], requests = [];
+    const outside = [], requests = [], navs = [], rpcLog = [];
     await context.route(/^(https?|wss?):/, (r) => {
       const u = r.request().url();
       requests.push(u);
       if (server.owns(u)) return r.continue();
       outside.push(u);
+      /* the connector's callbacks: a page navigation to one is recorded and answered with an empty page */
+      if (opts.callbacks && r.request().isNavigationRequest() && CALLBACKS.test(u)) {
+        navs.push(u);
+        return r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>app</title>" });
+      }
       return r.abort();
     });
+    if (opts.callbacks) await context.exposeFunction("__recRpc", (name, json) => { rpcLog.push({ name, args: JSON.parse(json) }); });
     if (!opts.realSdk) await context.addInitScript(SDK);
     await context.addInitScript((seed) => {
       const pinned = Object.assign({ supabaseUrl: "https://testref.supabase.co", supabaseAnonKey: "sb_publishable_test" }, seed.config);
@@ -177,19 +214,25 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       window.__opts = seed.stub;
       if (seed.pending) localStorage.setItem("bm.sync.pending.v1", JSON.stringify(seed.pending));
       if (seed.local) Object.keys(seed.local).forEach((k) => localStorage.setItem(k, JSON.stringify(seed.local[k])));
+      if (seed.sess) Object.keys(seed.sess).forEach((k) => sessionStorage.setItem(k, seed.sess[k]));
       /* was the returned-error message ever on the page as an alert? */
       new MutationObserver(() => {
         if (document.querySelector('#acct-returned[role="alert"]')) window.__alerted = true;
       }).observe(document, { childList: true, subtree: true });
-    }, { config, session: opts.session || null, pending: opts.pending || null, local: opts.local || null, stub: opts.stub || {} });
+    }, { config, session: opts.session || null, pending: opts.pending || null, local: opts.local || null, sess: opts.sess || null, stub: opts.stub || {} });
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(String(e)));
+    /* nowait: the page is expected to leave at once (an answer to an app), so nothing is waited for on it */
+    if (opts.nowait) {
+      await page.goto(server.url + (opts.page || "account.html") + (opts.tail || "")).catch(() => {});
+      return { page, context, outside, requests, navs, rpcLog };
+    }
     await page.goto(server.url + (opts.page || "account.html") + (opts.tail || ""));
-    if (opts.page) { await page.waitForFunction(() => window.BMAccount); return { page, context, outside, requests }; }
+    if (opts.page) { await page.waitForFunction(() => window.BMAccount); return { page, context, outside, requests, navs, rpcLog }; }
     await page.waitForFunction(() => window.BMAccount && document.querySelector("[data-account] .panel"));
     if (opts.session) await page.waitForFunction(() => /Signed in/.test(document.querySelector("[data-account]").textContent));
     else if (!opts.realSdk) await page.waitForFunction(() => window.supabase);
-    return { page, context, outside, requests };
+    return { page, context, outside, requests, navs, rpcLog };
   }
   const chunkAsked = (requests) => requests.filter((u) => SUPABASE_CHUNK.test(u));
   const text = (page, sel) => page.evaluate((s) => { const el = document.querySelector(s); return el ? el.textContent.replace(/\s+/g, " ").trim() : null; }, sel);
@@ -1153,6 +1196,381 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       await page.waitForTimeout(200);
       check(await page.evaluate(() => window.__sw) === 0 && /Confirm the consent statement for Old first\./.test(await text(page, ".learners .form-note")), "32d Enter shows the refusal note and calls no switchLearner", await text(page, ".learners .form-note"));
       await context.close();
+    }
+  }
+
+
+  /* 33-45. the connector's consent view (CN-9) */
+  {
+    const ORIGIN = new URL(server.url).origin;
+    check(!/^(8080|80)$/.test(new URL(server.url).port), "33 the test server is not on a port the loopback cases stand in for", server.url);
+    const CLAUDE = "https://claude.ai/api/mcp/auth_callback", CH = "AbCd1234-_".repeat(4) + "xyz";
+    check(CH.length === 43, "33 the test challenge is 43 characters");
+    /* a request's query: `over` changes a parameter (null removes it, an array repeats it) */
+    const query = (over) => {
+      const base = { response_type: "code", client_id: "c_12345678", redirect_uri: CLAUDE, code_challenge: CH, code_challenge_method: "S256", state: "zq9state" };
+      const o = Object.assign({}, base, over || {});
+      const p = new URLSearchParams();
+      Object.keys(o).forEach((k) => { if (o[k] === null) return; [].concat(o[k]).forEach((v) => p.append(k, v)); });
+      return "?" + p.toString();
+    };
+    const REQ = query();
+    const PREVIEW = { providers: ["google"], connect: "preview" };
+    const until = async (fn, what, ms) => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < (ms || 8000)) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 50)); }
+      check(false, what + " (timed out)");
+      return false;
+    };
+    const stored = (page) => page.evaluate(() => sessionStorage.getItem("bm.connect.v1"));
+    /* the page left for an app: come back to the account page, whose sessionStorage is the same tab's, and read it */
+    const comeBack = async (page) => { await page.goto(server.url + "account.html"); await page.waitForFunction(() => window.BMAccount); return stored(page); };
+    const hex64 = "ab".repeat(32);
+    const withState = (extra) => Object.assign({ session: LS, stub: { learners: roster() }, callbacks: true }, extra || {});
+    const waitPanel = (page) => page.waitForSelector("[data-connect]");
+    const settle = (page) => page.waitForFunction(() => /Synced at/.test(document.querySelector("[data-account]").textContent));
+    const approveCalls = (log) => log.filter((c) => c.name === "connect_approve");
+    const callbackTo = (base, fields) => base + "?" + new URLSearchParams(fields).toString();
+
+    /* 33. off: the page is what it was */
+    {
+      for (const signed of [false, true]) {
+        const r = await open({ providers: ["google"] }, withState(signed ? { tail: REQ } : { tail: REQ, session: null }));
+        await r.page.waitForTimeout(300);
+        const seen = await r.page.evaluate(() => ({ search: location.search, kept: sessionStorage.getItem("bm.connect.v1"), text: document.querySelector("[data-account]").textContent, pending: !!document.querySelector("[data-connect-pending], [data-connect], [data-connect-note], [data-connect-refused]"), form: !!document.getElementById("acct-in"), hrefAtCreate: window.__hrefAtCreate }));
+        check(seen.kept === null && seen.search === REQ && !seen.pending && !/onnect (Claude|ChatGPT)|Allow|Don.t allow/.test(seen.text), "33 off: nothing stored, nothing stripped, no connect text" + (signed ? " (signed in)" : ""), { kept: seen.kept, search: seen.search, pending: seen.pending });
+        if (!signed) check(seen.form, "33 off: the sign-in form is what case 1 draws");
+        check(r.navs.length === 0 && r.outside.length === 0 && approveCalls(r.rpcLog).length === 0, "33 off: nothing is sent anywhere", { navs: r.navs, outside: r.outside });
+        await r.context.close();
+      }
+      /* an unrecognised switch value is off as well */
+      const odd = await open({ providers: ["google"], connect: "ON" }, { tail: REQ, callbacks: true });
+      check(await stored(odd.page) === null, "33 connect \"ON\" is off");
+      await odd.context.close();
+    }
+
+    /* 34. preview, signed out */
+    {
+      const r = await open(PREVIEW, { tail: REQ + "&keep=1#frag", callbacks: true });
+      await r.page.waitForFunction(() => window.__hrefAtCreate);
+      const seen = await r.page.evaluate(() => ({ at: window.__hrefAtCreate, search: location.search, hash: location.hash, kept: JSON.parse(sessionStorage.getItem("bm.connect.v1") || "null"), pending: (document.querySelector("[data-connect-pending]") || {}).textContent, pendingAbove: !!document.querySelector("[data-connect-pending]") && !!(document.querySelector("[data-connect-pending]").compareDocumentPosition(document.getElementById("acct-email")) & Node.DOCUMENT_POSITION_FOLLOWING) }));
+      check(!/response_type|client_id|redirect_uri|code_challenge|state=|resource|scope/.test(new URL(seen.at).search) && new URL(seen.at).search === "?keep=1" && new URL(seen.at).hash === "#frag", "34 the parameters are out of the address before the SDK is made, the rest is kept", seen.at);
+      check(seen.search === "?keep=1" && seen.hash === "#frag", "34 … and after", seen);
+      check(seen.kept && seen.kept.v === 1 && seen.kept.client_id === "c_12345678" && seen.kept.redirect_uri === CLAUDE && seen.kept.code_challenge === CH && seen.kept.state === "zq9state" && seen.kept.app === "claude" && typeof seen.kept.at === "number" && Date.now() - seen.kept.at < 60000, "34 the request is in sessionStorage", seen.kept);
+      check(seen.pending === "Sign in, then you can connect Claude to your progress." && seen.pendingAbove, "34 the page says Claude, above the form", seen.pending);
+      check(approveCalls(r.rpcLog).length === 0 && r.navs.length === 0 && r.outside.length === 0, "34 nothing is called or sent");
+      await r.context.close();
+      for (const [uri, app] of [["https://claude.com/api/mcp/auth_callback", "Claude"], ["https://chatgpt.com/connector_platform_oauth_redirect", "ChatGPT"]]) {
+        const o = await open(PREVIEW, { tail: query({ redirect_uri: uri }), callbacks: true });
+        check(/connect (Claude|ChatGPT) to/.test(await text(o.page, "[data-connect-pending]")) && (await text(o.page, "[data-connect-pending]")).indexOf(app) > 0, "34 " + uri + " is named " + app, await text(o.page, "[data-connect-pending]"));
+        await o.context.close();
+      }
+    }
+
+    /* 35. signed in: the panel, then Allow */
+    {
+      /* the marker case first: values in the request never reach the HTML */
+      const m = await open(PREVIEW, withState({ tail: query({ state: "<b>zq9marker</b>" }) }));
+      await waitPanel(m.page);
+      await settle(m.page);
+      const html = await m.page.evaluate(() => document.querySelector("[data-account]").innerHTML);
+      check(!/zq9|marker|c_12345678|claude\.ai|AbCd1234/.test(html), "35 nothing of the request is in the HTML", html.match(/zq9|marker|c_12345678|claude\.ai|AbCd1234/));
+      await m.context.close();
+
+      const r = await open(PREVIEW, withState({ tail: REQ }));
+      await waitPanel(r.page);
+      await settle(r.page);
+      await r.page.waitForTimeout(300);
+      const view = await r.page.evaluate(() => {
+        const p = document.querySelector("[data-connect]"), ok = document.getElementById("acct-connect-ok"), no = document.getElementById("acct-connect-no");
+        return { h: p.querySelector("h2").textContent, text: Array.from(p.querySelectorAll("h2, p")).map((e) => e.textContent.replace(/\s+/g, " ").trim()).join(" "), ok: ok && ok.textContent, no: no && no.textContent, okClass: ok && ok.className, noClass: no && no.className, first: !!document.querySelector("[data-account] > *") && document.querySelector("[data-account] > *") === p };
+      });
+      check(view.h === "Connect Claude" && view.ok === "Allow" && view.no === "Don't allow" && view.okClass === "btn" && view.noClass === "btn ghost", "35 the panel is headed Connect Claude, with Allow and Don't allow", view);
+      check(/^Connect Claude Claude would be able to read which sections and exercises you have worked on, how strong each section is, what is due for review and where you left off\. It gets no name, no email address and nothing about other learners on this account\. It cannot change anything here; an answer checked there does not count until you enter it on the page\. Approve only a connection you started yourself, just now, from Claude\. If you did not, press Don't allow\./.test(view.text), "35 the panel says what is shared, then the warning", view.text);
+      check(approveCalls(r.rpcLog).length === 0, "35 connect_approve is not called on load or on draw", approveCalls(r.rpcLog));
+      await r.page.click("#acct-connect-ok");
+      await until(() => r.navs.length > 0, "35 Allow goes to the callback");
+      const calls_ = approveCalls(r.rpcLog);
+      check(calls_.length === 1 && JSON.stringify(calls_[0].args) === JSON.stringify({ p_client_id: "c_12345678", p_redirect_uri: CLAUDE, p_challenge: CH }), "35 Allow sends one connect_approve with the raw strings", calls_);
+      check(r.navs.length === 1 && r.navs[0] === callbackTo(CLAUDE, { code: hex64, iss: ORIGIN, state: "zq9state" }), "35 the navigation is the callback with code, iss and state", r.navs);
+      check(r.navs[0].startsWith(CLAUDE + "?"), "35 … on the raw redirect_uri");
+      check(await comeBack(r.page) === null, "35 nothing of the request is left in sessionStorage");
+      check(await r.page.evaluate(() => !document.querySelector("[data-connect]")), "35 … and no panel is drawn after");
+      await r.context.close();
+
+      /* a held call takes one press */
+      const h = await open(PREVIEW, withState({ tail: REQ }));
+      await waitPanel(h.page);
+      await h.page.evaluate(() => { const b = document.getElementById("acct-connect-ok"); window.__opts.approveCode = "cd".repeat(32); b.click(); b.disabled = false; b.click(); });
+      await until(() => h.navs.length > 0, "35 a double press goes on");
+      check(approveCalls(h.rpcLog).length === 1, "35 two quick presses send one connect_approve", approveCalls(h.rpcLog).length);
+      check(h.navs[0] === callbackTo(CLAUDE, { code: "cd".repeat(32), iss: ORIGIN, state: "zq9state" }), "35 … and the code is the one answered", h.navs);
+      await h.context.close();
+
+      /* a reply that is not 64 hex digits is an error, not a redirect */
+      const b = await open(PREVIEW, withState({ tail: REQ, stub: { learners: roster(), approveCode: "not-a-code" } }));
+      await waitPanel(b.page);
+      await b.page.click("#acct-connect-ok");
+      await b.page.waitForFunction(() => /Something went wrong/.test((document.querySelector("[data-note-c]") || {}).textContent || ""));
+      await b.page.waitForTimeout(200);
+      check(b.navs.length === 0 && await stored(b.page) !== null && await b.page.evaluate(() => !document.getElementById("acct-connect-ok").disabled), "35 a reply that is not a code goes nowhere, keeps the request and frees the button");
+      await b.context.close();
+    }
+
+    /* 36. Don't allow */
+    {
+      const r = await open(PREVIEW, withState({ tail: REQ }));
+      await waitPanel(r.page);
+      await r.page.click("#acct-connect-no");
+      await until(() => r.navs.length > 0, "36 Don't allow goes to the callback");
+      check(r.rpcLog.filter((c) => c.name === "connect_approve").length === 0, "36 no connect_approve");
+      check(r.navs.length === 1 && r.navs[0] === callbackTo(CLAUDE, { error: "access_denied", iss: ORIGIN, state: "zq9state" }), "36 the answer is access_denied with iss and state", r.navs);
+      check(await comeBack(r.page) === null, "36 nothing of the request is left");
+      await r.context.close();
+      /* no state given: none sent */
+      const n = await open(PREVIEW, withState({ tail: query({ state: null }) }));
+      await waitPanel(n.page);
+      await n.page.click("#acct-connect-no");
+      await until(() => n.navs.length > 0, "36 … also without a state");
+      check(n.navs[0] === callbackTo(CLAUDE, { error: "access_denied", iss: ORIGIN }), "36 without a state there is none in the answer", n.navs);
+      await n.context.close();
+    }
+
+    /* 37. a redirect_uri off the list: nothing stored, nobody told, the address left alone */
+    {
+      const NEAR = [
+        "https://claude.ai.evil.example/api/mcp/auth_callback", "https://claude.ai@evil.example/api/mcp/auth_callback",
+        "https://claude.ai/api/mcp/other", "http://claude.ai/api/mcp/auth_callback", CLAUDE + "#frag", CLAUDE + "/", CLAUDE + "?x=1",
+        "https://CLAUDE.ai/api/mcp/auth_callback", "http://localhost:0/callback", "http://localhost:65536/callback", "http://localhost:08080/callback",
+        "http://localhost/callback", "http://[::1]:8080/callback", "http://localhost:8080/callback?x=1", "https://chatgpt.com/connector/oauth/x", ""
+      ];
+      const tails = NEAR.map((u) => query({ redirect_uri: u })).concat([query({ redirect_uri: null }), query({ redirect_uri: [CLAUDE, "https://evil.example/x"] }), query({ redirect_uri: "https://evil.example/cb", client_name: "Claude" })]);
+      const bad = [];
+      for (const tail of tails) {
+        const r = await open(PREVIEW, { tail, callbacks: true });
+        await r.page.waitForFunction(() => window.__hrefAtCreate);
+        const seen = await r.page.evaluate(() => ({ search: location.search, kept: sessionStorage.getItem("bm.connect.v1"), note: (document.querySelector("[data-connect-note]") || {}).textContent, pending: !!document.querySelector("[data-connect-pending]") }));
+        if (seen.kept !== null || seen.search !== tail || seen.note !== "This sign-in request came from an address this site does not know, so it was not followed." || seen.pending || r.navs.length || r.outside.length || approveCalls(r.rpcLog).length) bad.push({ tail, seen, navs: r.navs, outside: r.outside });
+        await r.context.close();
+      }
+      check(bad.length === 0, "37 each off-list redirect_uri stores nothing, sends nothing, leaves the address, and says why (" + tails.length + " of them)", bad);
+      /* signed in, the same note, and no panel */
+      const s = await open(PREVIEW, withState({ tail: query({ redirect_uri: "https://claude.ai.evil.example/api/mcp/auth_callback" }) }));
+      await settle(s.page);
+      check(await s.page.evaluate(() => !!document.querySelector("[data-connect-note]") && !document.querySelector("[data-connect], [data-connect-refused]")) && s.navs.length === 0, "37 signed in, the note shows and no panel is drawn");
+      await s.context.close();
+    }
+
+    /* 38. a listed redirect_uri with something else wrong: answered at it */
+    {
+      const L = "A".repeat(42);
+      const cases = [
+        ["a 42-character challenge", { code_challenge: L }, "invalid_request", "zq9state"],
+        ["a challenge with a bad character", { code_challenge: "A".repeat(42) + "+" }, "invalid_request", "zq9state"],
+        ["no challenge method", { code_challenge_method: null }, "invalid_request", "zq9state"],
+        ["the plain method", { code_challenge_method: "plain" }, "invalid_request", "zq9state"],
+        ["no challenge", { code_challenge: null }, "invalid_request", "zq9state"],
+        ["response_type token", { response_type: "token" }, "unsupported_response_type", "zq9state"],
+        ["another resource", { resource: "https://other.example/mcp" }, "invalid_target", "zq9state"],
+        ["the resource with a path after it", { resource: ORIGIN + "/mcp/" }, "invalid_target", "zq9state"],
+        ["a duplicate client_id", { client_id: ["c_12345678", "c_87654321"] }, "invalid_request", "zq9state"],
+        ["a short client_id", { client_id: "c_123" }, "invalid_request", "zq9state"],
+        ["no client_id", { client_id: null }, "invalid_request", "zq9state"],
+        ["a duplicate response_type", { response_type: ["code", "code"] }, "invalid_request", "zq9state"],
+        ["a state of 513 characters", { state: "s".repeat(513) }, "invalid_request", null],
+        ["a duplicate state", { state: ["a", "b"] }, "invalid_request", null]
+      ];
+      for (const [what, over, err, state] of cases) {
+        const r = await open(PREVIEW, { tail: query(over), callbacks: true, nowait: true });
+        await until(() => r.navs.length > 0, "38 " + what + " is answered");
+        const u = r.navs[0] ? new URL(r.navs[0]) : null;
+        const fields = u ? Object.fromEntries(u.searchParams) : {};
+        const want = { error: err, iss: ORIGIN };
+        if (state) want.state = state;
+        check(u && r.navs[0].startsWith(CLAUDE + "?") && fields.error === err && fields.iss === ORIGIN && (state ? fields.state === state : !("state" in fields)) && !!fields.error_description && fields.error_description.length < 80 && Object.keys(fields).length === Object.keys(want).length + 1,
+          "38 " + what + " is answered at the callback with " + err + ", iss" + (state ? " and state" : ""), r.navs);
+        check(r.navs.length === 1 && approveCalls(r.rpcLog).length === 0, "38 … once, with no rpc (" + what + ")");
+        check(await comeBack(r.page) === null, "38 … and nothing is stored (" + what + ")");
+        await r.context.close();
+      }
+    }
+
+    /* 39. a stale sign-in */
+    {
+      const r = await open(PREVIEW, withState({ tail: REQ, stub: { learners: roster(), approveError: "stale sign-in" } }));
+      await waitPanel(r.page);
+      await settle(r.page);
+      await r.page.click("#acct-connect-ok");
+      await r.page.waitForSelector("#acct-stepin");
+      const seen = await r.page.evaluate(() => ({
+        note: document.querySelector("[data-note-c]").textContent, forms: document.querySelectorAll("#acct-stepin").length, passes: document.querySelectorAll("#acct-pass").length,
+        under: !!(document.querySelector("[data-connect]").compareDocumentPosition(document.getElementById("acct-stepin")) & Node.DOCUMENT_POSITION_FOLLOWING),
+        prev: document.getElementById("acct-stepin").closest("form").previousElementSibling === document.querySelector("[data-connect]"), email: document.getElementById("acct-email").value
+      }));
+      check(seen.note === "To confirm it is you, sign in again, then press Allow again." && seen.forms === 1 && seen.passes === 1 && seen.under && seen.prev && seen.email === "parent@example.com", "39 the step-up is one form, right under the panel, and the note names Allow", seen);
+      check(approveCalls(r.rpcLog).length === 1 && r.navs.length === 0 && await stored(r.page) !== null, "39 one call so far, no navigation, the request is kept");
+      await r.page.evaluate(() => { window.__opts.signInOk = true; window.__opts.approveError = null; });
+      await r.page.fill("#acct-pass", "right-password");
+      await r.page.keyboard.press("Enter");
+      await r.page.waitForFunction(() => !document.getElementById("acct-stepin"));
+      check(await text(r.page, "[data-note-c]") === "Signed in again. Now press Allow again." && await r.page.evaluate(() => document.activeElement.id) === "acct-connect-ok", "39 a right password says to press Allow again, with the focus on it", await text(r.page, "[data-note-c]"));
+      check(await stored(r.page) !== null && approveCalls(r.rpcLog).length === 1, "39 the request is still stored and nothing was called by signing in");
+      await r.page.keyboard.press("Enter");
+      await until(() => r.navs.length > 0, "39 Allow goes on after signing in again");
+      check(approveCalls(r.rpcLog).length === 2 && r.navs[0] === callbackTo(CLAUDE, { code: hex64, iss: ORIGIN, state: "zq9state" }), "39 Allow calls once more and navigates", { n: approveCalls(r.rpcLog).length, navs: r.navs });
+      await r.context.close();
+      /* with the Learners panel off the same single form */
+      const o = await open(Object.assign({ learners: "off" }, PREVIEW), withState({ tail: REQ, stub: { learners: roster(), approveError: "stale sign-in" } }));
+      await waitPanel(o.page);
+      await o.page.click("#acct-connect-ok");
+      await o.page.waitForSelector("#acct-stepin");
+      check(await o.page.evaluate(() => document.querySelectorAll("#acct-stepin").length) === 1, "39 learners off: still one step-up form");
+      await o.context.close();
+    }
+
+    /* 40. a managed learner, or a kept device: no Allow */
+    {
+      const meta = { learner: "L1", acct: "u1", learnerName: "Kim <i>" };
+      const r = await open(PREVIEW, withState({ tail: REQ, local: { "bm.sync.v1": meta } }));
+      await r.page.waitForSelector("[data-connect-refused]");
+      await r.page.waitForSelector("#lrn-sw-self");
+      const seen = await r.page.evaluate(() => ({ text: document.querySelector("[data-connect-refused]").textContent.replace(/\s+/g, " "), ok: !!document.getElementById("acct-connect-ok"), no: !!document.getElementById("acct-connect-no"), i: document.querySelectorAll("[data-connect-refused] i").length, panel: !!document.querySelector("[data-connect]") }));
+      check(/Connect Claude/.test(seen.text) && /would share this account's own progress, not Kim <i>'s/.test(seen.text) && /Switch to your own progress first/.test(seen.text) && !seen.ok && !seen.no && !seen.i && !seen.panel, "40 playing as a learner: the panel names them (escaped), asks to switch, has no Allow", seen);
+      await settle(r.page);
+      await r.page.click("#lrn-sw-self");
+      await waitPanel(r.page);
+      check(await r.page.evaluate(() => !!document.getElementById("acct-connect-ok") && !document.querySelector("[data-connect-refused]")) && approveCalls(r.rpcLog).length === 0, "40 switching to the own progress shows Allow, and nothing was called");
+      await r.page.click("#acct-connect-ok");
+      await until(() => r.navs.length > 0, "40 Allow works after the switch");
+      check(approveCalls(r.rpcLog).length === 1 && r.rpcLog.filter((c) => c.name === "connect_approve")[0].args.p_client_id === "c_12345678", "40 … with one call");
+      await r.context.close();
+
+      const k = await open(PREVIEW, withState({ tail: REQ, local: { "bm.sync.v1": Object.assign({ keep: "L1" }, meta) } }));
+      await k.page.waitForSelector("[data-connect-refused]");
+      await k.page.waitForSelector("#lrn-parent");
+      check(await k.page.evaluate(() => !document.getElementById("acct-connect-ok") && !!document.querySelector("[data-kept]")) && /not Kim <i>'s/.test(await text(k.page, "[data-connect-refused]")), "40 a kept device: the same refusal, no Allow");
+      await k.page.click("#lrn-parent");
+      await k.page.waitForSelector("#lrn-sw-self");
+      check(await k.page.evaluate(() => !document.getElementById("acct-connect-ok") && !!document.querySelector("[data-connect-refused]")), "40 \"I'm the parent\" alone does not bring Allow back");
+      await settle(k.page);
+      await k.page.click("#lrn-sw-self");
+      await waitPanel(k.page);
+      check(await k.page.evaluate(() => !!document.getElementById("acct-connect-ok")), "40 switching shows Allow");
+      await k.context.close();
+
+      const o = await open(Object.assign({ learners: "off" }, PREVIEW), withState({ tail: REQ, local: { "bm.sync.v1": meta } }));
+      await o.page.waitForSelector("[data-connect-refused]");
+      await settle(o.page);
+      check(/The button is in Your account/.test(await text(o.page, "[data-connect-refused]")) && await o.page.evaluate(() => !document.getElementById("acct-connect-ok")), "40 learners off: the refusal points at the Switch button");
+      await o.page.click("#acct-own");
+      await waitPanel(o.page);
+      check(await o.page.evaluate(() => !!document.getElementById("acct-connect-ok")), "40 learners off: Switch to your own progress brings Allow");
+      await o.context.close();
+    }
+
+    /* 41. age and sign-out */
+    {
+      const rec = (age) => JSON.stringify({ v: 1, client_id: "c_12345678", redirect_uri: CLAUDE, code_challenge: CH, state: "zq9state", resource: null, app: "claude", at: Date.now() - age });
+      const old = await open(PREVIEW, withState({ sess: { "bm.connect.v1": rec(11 * 60000) } }));
+      await settle(old.page);
+      check(await old.page.evaluate(() => !document.querySelector("[data-connect]") && !document.querySelector("[data-connect-refused]")) && await stored(old.page) === null, "41 a request 11 minutes old is removed and no panel shows");
+      await old.context.close();
+      const oldOut = await open(PREVIEW, { sess: { "bm.connect.v1": rec(11 * 60000) }, callbacks: true });
+      check(await oldOut.page.evaluate(() => !document.querySelector("[data-connect-pending]")) && await stored(oldOut.page) === null, "41 signed out, an old request is removed and not mentioned");
+      await oldOut.context.close();
+      const fresh = await open(PREVIEW, withState({ sess: { "bm.connect.v1": rec(9 * 60000) } }));
+      await waitPanel(fresh.page);
+      check(await stored(fresh.page) !== null, "41 a request 9 minutes old still shows");
+      await fresh.page.click("#acct-out");
+      await fresh.page.waitForSelector("#acct-in");
+      await fresh.page.waitForTimeout(200);
+      check(await stored(fresh.page) === null && await fresh.page.evaluate(() => !document.querySelector("[data-connect-pending]")), "41 sign-out removes a live request", await stored(fresh.page));
+      await fresh.context.close();
+      /* planted junk is dropped */
+      for (const junk of ["not json", JSON.stringify({ v: 1, client_id: "x", redirect_uri: "https://evil.example/cb", code_challenge: CH, state: null, app: "claude", at: Date.now() }), JSON.stringify({ v: 1, client_id: "c_12345678", redirect_uri: "https://evil.example/cb", code_challenge: CH, state: null, app: "claude", at: Date.now() })]) {
+        const j = await open(PREVIEW, withState({ sess: { "bm.connect.v1": junk } }));
+        await settle(j.page);
+        check(await j.page.evaluate(() => !document.querySelector("[data-connect]")) && await stored(j.page) === null, "41 a damaged or planted request is dropped", junk);
+        await j.context.close();
+      }
+    }
+
+    /* 42. the server's refusals */
+    {
+      const rows = [
+        ["too many approvals", "This account has approved as many connections as it can today. Try again tomorrow.", "[data-note-c]", true],
+        ["too many connections", "This account already has five connections. Remove one first.", "[data-note-c]", true],
+        ["not signed in", "Sign in, then press Allow again.", "[data-note-c]", true],
+        ["Server broke", "Server broke", "[data-note-c]", true],
+        ["bad request", "This request is not valid any more. Start the connection again from Claude.", "[data-connect-note]", false]
+      ];
+      for (const [err, say, slot, keeps] of rows) {
+        const r = await open(PREVIEW, withState({ tail: REQ, stub: { learners: roster(), approveError: err } }));
+        await waitPanel(r.page);
+        await r.page.click("#acct-connect-ok");
+        await r.page.waitForFunction(([s, t]) => ((document.querySelector(s) || {}).textContent || "") === t, [slot, say]);
+        await r.page.waitForTimeout(200);
+        const left = await stored(r.page);
+        check((left !== null) === keeps && r.navs.length === 0 && approveCalls(r.rpcLog).length === 1, "42 " + err + ": its sentence, " + (keeps ? "the request kept" : "the request cleared") + ", no navigation", { say: await text(r.page, slot), left, navs: r.navs });
+        if (keeps) check(await r.page.evaluate(() => { const b = document.getElementById("acct-connect-ok"); return !!b && !b.disabled && !b.hasAttribute("aria-busy") && document.activeElement === b; }), "42 " + err + ": Allow is free again and has the focus");
+        else check(await r.page.evaluate(() => !document.querySelector("[data-connect]")), "42 " + err + ": the panel is gone");
+        await r.context.close();
+      }
+    }
+
+    /* 43. a loopback callback */
+    {
+      for (const cb of ["http://localhost:8080/callback", "http://127.0.0.1:80/callback"]) {
+        const pre = await open(PREVIEW, { tail: query({ redirect_uri: cb }), callbacks: true });
+        check(await text(pre.page, "[data-connect-pending]") === "Sign in, then you can connect an app on this computer to your progress.", "43 " + cb + " is named in the pending line", await text(pre.page, "[data-connect-pending]"));
+        await pre.context.close();
+        const r = await open(PREVIEW, withState({ tail: query({ redirect_uri: cb }) }));
+        await waitPanel(r.page);
+        const seen = await r.page.evaluate(() => ({ h: document.querySelector("[data-connect] h2").textContent, text: document.querySelector("[data-connect]").textContent.replace(/\s+/g, " "), html: document.querySelector("[data-account]").innerHTML }));
+        check(seen.h === "Connect an app on this computer" && /An app on this computer asked for this\. Approve it only if you just started connecting from an app you trust on this machine; any program here could ask\./.test(seen.text) && !/Approve only a connection you started yourself/.test(seen.text) && !/localhost|127\.0\.0\.1/.test(seen.html), "43 the loopback view names no host and carries its own warning", seen.text);
+        await r.page.click("#acct-connect-ok");
+        await until(() => r.navs.length > 0, "43 Allow goes to " + cb);
+        /* the browser asks for http://127.0.0.1:80/... as http://127.0.0.1/...; the call is where the raw string shows */
+        check(r.navs[0] === callbackTo(cb.replace(":80/", "/"), { code: hex64, iss: ORIGIN, state: "zq9state" }) && approveCalls(r.rpcLog)[0].args.p_redirect_uri === cb, "43 the raw string is kept, in the call and in the navigation", { navs: r.navs, call: approveCalls(r.rpcLog) });
+        await r.context.close();
+      }
+    }
+
+    /* 44. a resource that is this site's connector */
+    {
+      const r = await open(PREVIEW, withState({ tail: query({ resource: ORIGIN + "/mcp" }) }));
+      await waitPanel(r.page);
+      const seen = await r.page.evaluate(() => ({ search: location.search, html: document.querySelector("[data-account]").innerHTML }));
+      check(seen.search === "" && !/mcp|resource/.test(seen.html), "44 the resource is accepted, taken out of the address and not drawn", seen.search);
+      await r.page.click("#acct-connect-ok");
+      await until(() => r.navs.length > 0, "44 Allow goes on");
+      check(!/resource|%2Fmcp/.test(r.navs[0]) && r.navs[0] === callbackTo(CLAUDE, { code: hex64, iss: ORIGIN, state: "zq9state" }) && !/resource|%2Fmcp|\/mcp"/.test(JSON.stringify(approveCalls(r.rpcLog))), "44 the resource is not echoed in the call or the answer", r.navs);
+      await r.context.close();
+    }
+
+    /* 45. 360px */
+    {
+      const r = await open(PREVIEW, withState({ tail: REQ, width: 360 }));
+      await waitPanel(r.page);
+      const over = await r.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(over <= 0, "45 the account page with the panel does not overflow 360px", over);
+      await r.page.evaluate(() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); });
+      const reached = [];
+      for (let i = 0; i < 12; i++) {
+        await r.page.keyboard.press("Tab");
+        const id = await r.page.evaluate(() => document.activeElement.id);
+        if (id) reached.push(id);
+      }
+      check(reached.includes("acct-connect-ok") && reached.includes("acct-connect-no") && reached.indexOf("acct-connect-ok") < reached.indexOf("acct-connect-no"), "45 Allow and Don't allow are reached by Tab, in that order", reached);
+      check(await r.page.evaluate(() => { const a = document.getElementById("acct-connect-ok").getBoundingClientRect(), b = document.getElementById("acct-connect-no").getBoundingClientRect(); return a.right <= 360 && b.right <= 360 && a.width >= 44 && b.width >= 44; }), "45 both buttons are inside the screen and wide enough to press");
+      /* the step-up under the panel fits as well */
+      await r.context.close();
+      const s = await open(PREVIEW, withState({ tail: REQ, width: 360, stub: { learners: roster(), approveError: "stale sign-in" } }));
+      await waitPanel(s.page);
+      await s.page.click("#acct-connect-ok");
+      await s.page.waitForSelector("#acct-stepin");
+      check(await s.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, "45 … nor with the step-up form open");
+      await s.context.close();
     }
   }
 
