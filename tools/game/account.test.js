@@ -78,7 +78,7 @@
        absent draws none and asks for none; playing as a learner draws none
    48. Remove sends one connect_revoke, holds the button, re-reads the list, says so, focuses the heading
    49. "not your connection", another error and a list error: their notes, the retry
-   50. a reply that arrives after a sign-out draws nothing
+   50. a held reply for account A that lands after a sign-in as B draws nothing for B (list and revoke)
    51. the too-many-connections sentence points at the panel and the request is kept
    52. a repeated parameter of any name is answered invalid_request; an expired request under a
        drawn panel says so for Allow and Don't allow, with no call
@@ -138,8 +138,10 @@ window.supabase = { createClient: function () {
       if (name === "learner_add" && opts.addDelay) return new Promise(function (ok) { setTimeout(function () { rows().push({ id: "L-new", self: false, name: args.name, under13: !!args.under13, consent_v: args.consent_v, created_at: "2026-10-18T00:00:00Z" }); ok(answer("L-new")); }, opts.addDelay); });
       if (name === "connect_list") {
         if (opts.listError) return Promise.resolve({ data: null, error: { message: opts.listError, code: "XX000" } });
-        if (opts.listDelay) return new Promise(function (ok) { setTimeout(function () { ok(answer((opts.connections || []).slice())); }, opts.listDelay); });
-        return Promise.resolve(answer((opts.connections || []).slice()));
+        /* the rows are what the server held when the call was made, not when the reply lands (a late-reply case swaps them) */
+        var snap = (opts.connections || []).slice();
+        if (opts.listDelay) { var wait = opts.listDelay; return new Promise(function (ok) { setTimeout(function () { ok(answer(snap)); }, wait); }); }
+        return Promise.resolve(answer(snap));
       }
       if (name === "connect_revoke") {
         function gone() { opts.connections = (opts.connections || []).filter(function (c) { return c.id !== args.p_id; }); }
@@ -1658,7 +1660,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       const l = await open(ON, withRows([row(U1, "claude")], { top: { local: { "bm.sync.v1": { learner: "L1", acct: "u1" } } } }));
       await l.page.waitForSelector("#lrn-sw-self");
       await settle(l.page);
-      check(await l.page.evaluate(() => !document.querySelector("[data-connections]")), "47 playing as a learner: no panel");
+      check(await l.page.evaluate(() => !document.querySelector("[data-connections]")) && listCalls(l.rpcLog).length === 0, "47 playing as a learner: no panel and no connect_list", listCalls(l.rpcLog).length);
       await l.context.close();
     }
 
@@ -1675,6 +1677,17 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       check(listCalls(r.rpcLog).length === 2 && await text(r.page, "[data-note-x]") === "Removed. Claude can no longer read your progress." && await r.page.evaluate(() => document.activeElement.id) === "cnx-h", "48 the list is re-read, the note says so and the heading has focus", { n: listCalls(r.rpcLog).length, note: await text(r.page, "[data-note-x]") });
       check(await r.page.evaluate((id) => document.querySelectorAll(".cnx-row").length === 1 && !!document.getElementById("cnx-rm-" + id), U2), "48 the other row stays");
       await r.context.close();
+      /* preview, the last connection: the panel stays through the re-read (the row still drawn, its button busy) and after it,
+         so the note is seen and the heading takes the focus */
+      const p = await open(PREVIEW, withRows([row(U1, "claude")], { stub: { revokeDelay: 200, listDelay: 300 } }));
+      await waitRows(p.page);
+      await p.page.click("#cnx-rm-" + U1);
+      await p.page.waitForFunction(() => /Removed\./.test((document.querySelector("[data-note-x]") || {}).textContent || ""));
+      const mid = await p.page.evaluate((id) => { const b = document.getElementById("cnx-rm-" + id); return { panel: !!document.querySelector("[data-connections]"), row: !!b, busy: !!b && b.disabled }; }, U1);
+      check(mid.panel && mid.row && mid.busy, "48 preview: during the re-read the panel and the row stay, the button busy", mid);
+      await p.page.waitForSelector("[data-cnx-none]");
+      check(await p.page.evaluate(() => !!document.querySelector("[data-connections]") && /Removed\. Claude/.test(document.querySelector("[data-note-x]").textContent) && document.activeElement.id === "cnx-h") && revokeCalls(p.rpcLog).length === 1, "48 preview: after the last removal the panel stays with the note, focus on the heading", revokeCalls(p.rpcLog).length);
+      await p.context.close();
     }
 
     /* 49. refusals and a list error */
@@ -1701,18 +1714,43 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       await waitRows(l.page);
       check(listCalls(l.rpcLog).length === 2 && await l.page.evaluate((id) => !!document.getElementById("cnx-rm-" + id), U1), "49 Try again reads once more and then the rows show", listCalls(l.rpcLog).length);
       await l.context.close();
+      /* preview: a re-read that fails after a removal still shows its error and Try again (the panel does not vanish), and
+         Try again clears the old note */
+      const f = await open(PREVIEW, withRows([row(U1, "claude")]));
+      await waitRows(f.page);
+      await f.page.evaluate(() => { window.__opts.listError = "list broke"; });
+      await f.page.click("#cnx-rm-" + U1);
+      await f.page.waitForSelector("#cnx-retry");
+      check(await f.page.evaluate(() => /list broke/.test(document.querySelector("[data-connections] .form-note.bad").textContent) && /Removed\./.test(document.querySelector("[data-note-x]").textContent)), "49 preview: a failed re-read shows its error in the panel that stays");
+      await f.page.evaluate(() => { window.__opts.listError = null; });
+      await f.page.click("#cnx-retry");
+      await f.page.waitForSelector("[data-cnx-none]");
+      check(await text(f.page, "[data-note-x]") === "", "49 Try again clears the old note");
+      await f.context.close();
     }
 
-    /* 50. a late reply */
+    /* 50. a late reply: account A's held answer lands after a sign-out and a sign-in as B, and draws nothing for B */
     {
-      const r = await open(ON, withRows([row(U1, "claude")], { stub: { revokeDelay: 400 } }));
-      await waitRows(r.page);
+      const asB = (page) => page.evaluate(() => { window.__opts.connections = []; window.__opts.listDelay = 0; window.__session = { user: { id: "u2", email: "u2@example.com", app_metadata: { provider: "email", providers: ["email"] } } }; window.__emit("SIGNED_IN", window.__session); });
+      const a = await open(ON, withRows([row(U1, "claude")], { stub: { listDelay: 600 } }));
+      await a.page.waitForSelector("[data-connections]");
       const before = errors.length;
+      await a.page.click("#acct-out");
+      await a.page.waitForSelector("#acct-in");
+      await asB(a.page);
+      await a.page.waitForSelector("[data-cnx-none]");
+      await a.page.waitForTimeout(900);
+      check(errors.length === before && await a.page.evaluate(() => !!document.querySelector("[data-cnx-none]") && !document.querySelector(".cnx-row")) && listCalls(a.rpcLog).length === 2, "50 A's late connect_list does not draw A's rows for B", { rows: await a.page.evaluate(() => document.querySelectorAll(".cnx-row").length), calls: listCalls(a.rpcLog).length });
+      await a.context.close();
+      const r = await open(ON, withRows([row(U1, "claude")], { stub: { revokeDelay: 600 } }));
+      await waitRows(r.page);
       await r.page.click("#cnx-rm-" + U1);
       await r.page.click("#acct-out");
       await r.page.waitForSelector("#acct-in");
-      await r.page.waitForTimeout(700);
-      check(errors.length === before && await r.page.evaluate(() => !document.querySelector("[data-connections], [data-note-x]")), "50 a reply after sign-out throws nothing and draws nothing", errors.slice(before));
+      await asB(r.page);
+      await r.page.waitForSelector("[data-cnx-none]");
+      await r.page.waitForTimeout(900);
+      check(errors.length === before && await text(r.page, "[data-note-x]") === "" && listCalls(r.rpcLog).length === 2, "50 A's late connect_revoke neither notes nor re-reads for B", { note: await text(r.page, "[data-note-x]"), calls: listCalls(r.rpcLog).length });
       await r.context.close();
     }
 
@@ -1777,6 +1815,15 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
       await t.page.waitForTimeout(300);
       check(approveCalls(t.rpcLog).length === 0 && t.navs.length === 0, "53 Allow checks the own progress at click time", approveCalls(t.rpcLog));
       await t.context.close();
+      const m = await open(ON, withRows([row(U1, "claude")]));
+      await waitRows(m.page);
+      await m.page.waitForSelector("#lrn-sw-L1");
+      await m.page.evaluate((id) => { window.__oldRm = document.getElementById("cnx-rm-" + id); document.getElementById("lrn-sw-L1").click(); }, U1);
+      await m.page.waitForFunction(() => window.BMAccount.learner() === "L1");
+      await m.page.evaluate(() => window.__oldRm.click());
+      await m.page.waitForTimeout(300);
+      check(revokeCalls(m.rpcLog).length === 0, "53 Remove checks the own progress at click time", revokeCalls(m.rpcLog));
+      await m.context.close();
 
       for (const [what, over] of [["dated 2 minutes ahead", { at: Date.now() + 120000 }], ["whose app does not match its redirect_uri", { app: "chatgpt" }]]) {
         const j = await open(PREVIEW, withState({ sess: { "bm.connect.v1": rec(over) } }));

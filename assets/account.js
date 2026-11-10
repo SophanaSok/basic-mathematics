@@ -117,6 +117,7 @@
   }
   /* what the page says about a request it did not keep or follow */
   var connectNote = "";
+  var CONNECT_UNKNOWN = "This sign-in request came from an address this site does not know, so it was not followed.";
   var CONNECT_PARAMS = ["response_type", "client_id", "redirect_uri", "code_challenge", "code_challenge_method", "state", "resource", "scope"];
   /* An authorization request in the address (the sign-in flow of docs/decisions/0016): checked, kept in
      sessionStorage, and taken out of the address before the SDK reads it. A redirect_uri off the list gets
@@ -134,7 +135,7 @@
     Array.from(q.keys()).forEach(function (k) { if (q.getAll(k).length > 1) dup = true; });
     var app = uriDup ? null : connectApp(uri);
     if (!app) {
-      connectNote = "This sign-in request came from an address this site does not know, so it was not followed.";
+      connectNote = CONNECT_UNKNOWN;
       return;
     }
     var rt = get("response_type"), cid = get("client_id"), ch = get("code_challenge"), cm = get("code_challenge_method");
@@ -1340,8 +1341,9 @@
   var DELETE_ACTION = "Delete my account";
   /* the consent view: an approve in flight (a second press sends nothing) and the message under its buttons */
   var connectBusy = false, connectMsg = null;
-  /* the Connect your AI panel's list: null until read; once per sign-in */
-  var connections = null, connectionsFor = null, connectionsErr = "", connectionsLoading = false, cnxBusy = null, cnxMsg = null;
+  /* the Connect your AI panel's list: null until read; once per sign-in. cnxEver: the panel has been drawn this
+     sign-in, so in preview it stays through a re-read and after the last connection is removed */
+  var connections = null, connectionsErr = "", connectionsLoading = false, cnxBusy = null, cnxMsg = null, cnxEver = false;
 
   /* a reply that arrives after a different account is signed in belongs to nobody on this page */
   function uidNow() { return user ? user.id : null; }
@@ -1397,7 +1399,7 @@
     resetConnections();
   }
   function resetConnections() {
-    connections = null; connectionsFor = null; connectionsErr = ""; connectionsLoading = false; cnxBusy = null; cnxMsg = null;
+    connections = null; connectionsErr = ""; connectionsLoading = false; cnxBusy = null; cnxMsg = null; cnxEver = false;
   }
   var CNX_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   function rowOk(r) { return !!r && typeof r === "object" && typeof r.id === "string" && CNX_ID.test(r.id) && typeof r.app === "string"; }
@@ -1409,15 +1411,16 @@
     connectionsLoading = true;
     Account.rpc("connect_list").then(function (rows) {
       if (!user || user.id !== id) return;
-      connectionsLoading = false;
+      connectionsLoading = false; cnxBusy = null;
       connections = Array.isArray(rows) ? rows.filter(rowOk) : [];
       connectionsErr = "";
       if (focus) focusAfter = focus;
       draw();
     }, function (e) {
       if (!user || user.id !== id) return;
-      connectionsLoading = false;
+      connectionsLoading = false; cnxBusy = null;
       connectionsErr = e && e.message ? String(e.message) : "Something went wrong. Try again in a moment.";
+      if (focus) focusAfter = focus;
       draw();
     });
   }
@@ -1860,10 +1863,11 @@
         "<li><b>ChatGPT</b>: Settings, Connectors, Create; paste the address, then sign in here when it asks.</li></ol>";
     }
     h += '<h3 class="cnx-list-h">Connected apps</h3>';
-    if (connections === null) {
-      h += connectionsErr
-        ? '<p class="form-note bad">' + esc(connectionsErr) + '</p><p class="actions"><button class="btn ghost small" id="cnx-retry" type="button">Try again</button></p>'
-        : '<p class="fine" role="status">Loading connections…</p>';
+    /* an error is shown whether or not an older list is held (a re-read that fails after a removal) */
+    if (connectionsErr) {
+      h += '<p class="form-note bad">' + esc(connectionsErr) + '</p><p class="actions"><button class="btn ghost small" id="cnx-retry" type="button">Try again</button></p>';
+    } else if (connections === null) {
+      h += '<p class="fine" role="status">Loading connections…</p>';
     } else if (!connections.length) {
       h += '<p class="fine" data-cnx-none>No apps are connected.</p>';
     } else {
@@ -1879,29 +1883,32 @@
     }
     return h + '<div data-note-x role="status" aria-live="polite">' + (cnxMsg ? '<p class="form-note' + (cnxMsg.bad ? " bad" : "") + '">' + esc(cnxMsg.text) + "</p>" : "") + "</div></section>";
   }
+  /* with the switch on, always for the account holder; in preview once there is (or was, this sign-in) a connection */
   function cnxShown() {
-    return configured && connectOn && ownView() && (cfg.connect === "on" || (connections !== null && connections.length > 0));
+    if (!configured || !connectOn || !ownView()) return false;
+    if (cfg.connect === "on" || cnxEver || (connections !== null && connections.length > 0)) { cnxEver = true; return true; }
+    return false;
   }
+  /* Remove: one at a time, from the account holder's own view only (checked at click time, as Allow is). The old rows stay
+     on the page while the server is read again; the button stays busy until that read lands, so a second press sends nothing */
   function cnxRemove(id) {
     var row = null;
     (connections || []).forEach(function (r) { if (r.id === id) row = r; });
-    if (cnxBusy || !user || !connectOn || !row) return;
+    if (cnxBusy || !user || !connectOn || !ownView() || !row) return;
     var uid = uidNow(), nm = cnxName(row);
-    cnxBusy = id;
+    cnxBusy = id; cnxMsg = null;
     draw();
-    function reread() { connections = null; connectionsErr = ""; loadConnections("cnx-h"); }
+    function reread() { connectionsErr = ""; loadConnections("cnx-h"); }
     Account.rpc("connect_revoke", { p_id: id }).then(function () {
       if (!user || user.id !== uid) return;
-      cnxBusy = null;
       cnxSay("Removed. " + nm + " can no longer read your progress.");
       reread();
-      draw();
     }, function (e) {
       if (!user || user.id !== uid) return;
-      cnxBusy = null;
       var m = e && e.message ? String(e.message) : "";
-      if (/not your connection/.test(m)) { cnxSay("That connection was already removed."); reread(); }
-      else if (/not signed in/.test(m)) cnxSay("You are not signed in. Sign in again.", true);
+      if (/not your connection/.test(m)) { cnxSay("That connection was already removed."); reread(); return; }
+      cnxBusy = null;
+      if (/not signed in/.test(m)) cnxSay("You are not signed in. Sign in again.", true);
       else { cnxSay(m || "Something went wrong. Try again in a moment.", true); focusAfter = "cnx-rm-" + id; }
       draw();
     });
@@ -2101,7 +2108,7 @@
         draw();
       });
     });
-    on("cnx-retry", function () { connectionsErr = ""; loadConnections("cnx-h"); draw(); });
+    on("cnx-retry", function () { connectionsErr = ""; cnxMsg = null; loadConnections("cnx-h"); draw(); });
     (connections || []).forEach(function (r) { on("cnx-rm-" + r.id, function () { cnxRemove(r.id); }); });
     on("acct-connect-ok", connectApprove);
     on("acct-connect-no", connectDeny);
@@ -2175,7 +2182,7 @@
 
   /* board: whether the reader joined the Daily board, null until the profile is read;
      boardBusy while a change to it is in flight, boardWant what that change asks for */
-  var hadUser = false, sawOut = false;
+  var hadUser = null, sawOut = false; /* hadUser: the id of the account signed in on this page, or null */
   var name = null, nameFor = null, drawnFor = null, carry = null, board = null, boardBusy = false, boardWant = false;
   Account.onChange(function () {
     if (user && nameFor !== user.id) {
@@ -2194,9 +2201,11 @@
     }
     /* a message about a sign-in that did not go through is no use to a reader who is signed in */
     if (user) returnedText = "";
-    /* the note about an address the site does not know ends with the sign-in; a session that ends later takes the request with it */
-    if (user && !hadUser && sawOut) connectNote = "";
-    if (user) hadUser = true;
+    /* the note about an address the site does not know ends with the sign-in (the other notes explain a request that is
+       gone, and stay); a session that ends later, or a change of account, takes the request with it */
+    if (user && !hadUser && sawOut && connectNote === CONNECT_UNKNOWN) connectNote = "";
+    if (user && hadUser && hadUser !== user.id) { connectClear(); connectNote = ""; }
+    if (user) hadUser = user.id;
     else { sawOut = true; if (hadUser) { hadUser = false; connectClear(); connectNote = ""; } }
     /* a redraw would wipe what is being typed — unless who is signed in has changed */
     var who = user ? user.id : null, active = document.activeElement;
