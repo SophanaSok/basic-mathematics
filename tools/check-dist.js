@@ -967,11 +967,8 @@ function checkHeaders(ctx, r) {
    chunk of a page. And it runs: loaded in Node, a page request goes to the static files; and
    /mcp and the OAuth metadata go to the static files while the switch (`connect` in
    assets/config.js, read from the bundle) is off, and are answered when it is not. */
-const WORKER_BARE = /(?:\bfrom\s*|\bimport\s*\(?\s*|\bimport\s+)(["'])([^"'.\/][^"']*)\1/g;
-const WORKER_GLOBALS = /\b(?:window|document|localStorage|sessionStorage)\b/;
-/* the bundle's one big string, the course data (exercise text may say "window"), left out
-   of the code words */
-const WORKER_DATA = /^\s*course: \/\* @__PURE__ \*\/ JSON\.parse\(.*$/m;
+/* the paths _routes.json sends to the worker, as tests on a served path */
+const ROUTE_TESTS = JSON.parse(mcp.ROUTES).include.map(p => new RegExp("^" + p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$"));
 async function checkWorker(ctx, r) {
   const routes = path.join(DIST, mcp.ROUTES_FILE), file = path.join(DIST, mcp.WORKER);
   r.count++;
@@ -980,28 +977,30 @@ async function checkWorker(ctx, r) {
   r.count++;
   if (!fs.existsSync(file)) { r.fail(mcp.WORKER + " is not in dist; `npm run build` writes it (tools/build-mcp.js)"); return; }
   const text = fs.readFileSync(file, "utf8");
-  if (text.length < 10240) r.fail(mcp.WORKER + " is " + text.length + " bytes, too little to be the connector");
-  r.count++;
-  if (!/\bexport\s+default\b|\bas\s+default\b[^}]*\}\s*;?\s*$/.test(text)) r.fail(mcp.WORKER + " has no default export, which is what Pages calls");
-  const code = text.replace(WORKER_DATA, "");
-  r.count++;
-  for (const m of code.matchAll(WORKER_BARE)) r.fail(mcp.WORKER + " imports " + JSON.stringify(m[2]) + ", a bare specifier Pages cannot resolve (the bundle is one file)");
-  if (/\brequire\s*\(/.test(code)) r.fail(mcp.WORKER + " calls require()");
-  if (/\bprocess\.env\b/.test(code)) r.fail(mcp.WORKER + " reads process.env");
-  const g = WORKER_GLOBALS.exec(code);
-  if (g) r.fail(mcp.WORKER + " names the page global `" + g[0] + "`; the worker has web-standard globals only");
   const cfg = mcp.readConfig(fs.readFileSync(path.join(ROOT, "assets", "config.js"), "utf8"));
-  r.count++;
-  ["resource_metadata", "rest/v1/rpc/", cfg.supabaseUrl].forEach(m => { if (!text.includes(m)) r.fail(mcp.WORKER + " does not contain " + JSON.stringify(m)); });
-  const connect = (/\n\tconnect: "(off|preview|on)"\n\}\);/.exec(text) || [])[1];
-  if (!connect) { r.fail(mcp.WORKER + " does not carry its `connect` setting where the builder puts it"); return; }
-  if (connect !== cfg.connect) r.fail(mcp.WORKER + " was built with connect " + JSON.stringify(connect) + ", assets/config.js says " + JSON.stringify(cfg.connect) + " (built before a change?)");
+  /* what the text must read as: build-mcp.js lint(), which checks.test.js mutates a real bundle against */
+  const lint = mcp.lint(text, cfg);
+  r.count += 6;
+  lint.fails.forEach(f => r.fail(f));
+  const connect = lint.connect;
+  if (!connect) return;
   r.note("worker " + (text.length / 1024).toFixed(0) + " KB, connect " + JSON.stringify(connect));
-  /* nothing else carries it */
+  /* no file of the site is served on a path the routes send to the worker: with the switch on it
+     would shadow the file */
+  ctx.files.filter(f => f !== headers.FILE && f !== mcp.WORKER && f !== mcp.ROUTES_FILE).forEach(f => headers.servedPaths(f).forEach(at => {
+    r.count++;
+    if (ROUTE_TESTS.some(t => t.test(at))) r.fail(f + " is served at " + at + ", a path " + mcp.ROUTES_FILE + " sends to the worker");
+  }));
+  /* no client chunk is built from src/mcp/ (its source map says what it was built from), and none
+     carries the worker's marker; and the worker names no chunk of the pages */
   ctx.files.filter(f => f !== mcp.WORKER).forEach(f => {
     r.count++;
+    if (/\.js$/.test(f)) {
+      const from = ctx.graph.sourcesOf(f).filter(s => /^src\/mcp\//.test(s));
+      if (from.length) r.fail(f + " is built from " + from.join(", ") + "; src/mcp/ is the worker's alone");
+    }
     const t = fs.readFileSync(path.join(DIST, f), "latin1");
-    ["rest/v1/rpc/mcp_context", "resource_metadata"].forEach(m => { if (t.includes(m)) r.fail(f + " contains " + JSON.stringify(m) + ", which only " + mcp.WORKER + " may (a client chunk carries src/mcp/)"); });
+    if (t.includes("resource_metadata")) r.fail(f + " contains \"resource_metadata\", which only " + mcp.WORKER + " may");
     if (/^bundle\//.test(f) && text.includes(f)) r.fail(mcp.WORKER + " names " + f + ", a file of the pages' bundle");
   });
   ctx.dist.pages.forEach(page => links.refsOf(ctx.dist.docs[page]).forEach(ref => {
