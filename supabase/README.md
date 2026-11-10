@@ -165,7 +165,13 @@ roles, so no API role reads them directly. `connect_approve()`, `connect_list()`
 `mcp_context()` and `connect_refresh()` write `connect_meter`, through two private helpers. An
 access key works only on `mcp_context()` and a refresh key only on `connect_refresh()`; no key is
 accepted anywhere else. `mcp_context()` reads the key holder's own events and where they left off,
-and nothing else of the account.
+and nothing else of the account. The three worker-facing functions are the only ones granted to
+`anon` (the key is the credential; decision 0016 argues the departure), and they are the server's
+stop for the connector: `revoke execute on function public.mcp_context(text, boolean, bigint),
+public.connect_redeem(text, text, text, text), public.connect_refresh(text, text) from anon;` fails
+every connected app on its next request, deletes nothing, and `grant … to anon` puts it back
+(OPERATIONS.md, "Kill switches"). The site's side is the `connect` setting in `assets/config.js`;
+`OPERATIONS.md` "The connector" is the preview, go-live and stop procedure.
 
 `user_id` in `user_state`, `events` and `event_meta` is a learner id. The policies on those
 tables say a row belongs to the learner's guardian (`guardian = auth.uid()`), and `learners`
