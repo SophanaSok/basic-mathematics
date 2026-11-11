@@ -17,7 +17,10 @@ window.BM_CONFIG = {
   /* false while the project cannot send email to the public (Supabase's own mailer only
      reaches the project's team): leaves out "Email me a sign-in link" and "Forgot
      password", which work only through an email. Set to true once custom SMTP is set up. */
-  emailDelivery: false
+  emailDelivery: false,
+  /* O-4 (OPERATIONS.md "The connector: preview, go-live and stop"): the worker and the sign-in flow
+     work; the Connect your AI panel shows only to an account that already has a connection. */
+  connect: "preview"
   /* The Daily board (docs/decisions/0006-keyboard-and-speedruns.md) is on by default, for
      signed-in readers who join it. To switch it off, add  board: "off"  as a setting here
      (with a comma after emailDelivery's value): nothing is sent to or fetched from the
