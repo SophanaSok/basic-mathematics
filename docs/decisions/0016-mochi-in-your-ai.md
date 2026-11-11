@@ -12,7 +12,7 @@ map, an exercise's question and its authored clues, and can check an answer with
 course's own grader. The assistant speaks as Mochi. It runs on the AI plan the person
 already pays for, so a conversation costs the site nothing.
 
-- **Mochi is text in the AI app's chat.** A persona and five read-only tools. There is
+- **Mochi is text in the AI app's chat.** A persona and six read-only tools. There is
   no widget in the chat and no link to the open course page.
 - **The account holder's own progress only.** A connection belongs to the account, and
   an account's own learner cannot be under 13 (0010). No managed learner's data is

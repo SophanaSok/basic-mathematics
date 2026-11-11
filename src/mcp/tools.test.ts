@@ -9,7 +9,9 @@ import { OWNER } from "../core/answer/check.ts";
 import { formMessage, unreadMessage } from "../core/answer/messages.ts";
 import { detect } from "../learn/detectors.ts";
 import { leaks, type LeakExercise, type Matches } from "../learn/leak.ts";
-import { checkAnswer, getClue, getExercise } from "./tools.ts";
+import { buildPlaces, checkAnswer, getClue, getExercise, listExercises } from "./tools.ts";
+import { handle, needs, type Context } from "./protocol.ts";
+import type { Curriculum } from "../core/curriculum.ts";
 import type { ExerciseEntry, ExerciseIndex } from "./types.ts";
 
 const req = createRequire(import.meta.url);
@@ -290,5 +292,104 @@ describe("checkAnswer", () => {
       MINI.forEach((e) => expect(() => checkAnswer(MINI, e.ref, g)).not.toThrow());
     });
     expect(() => checkAnswer(MINI, Symbol("r"), "1")).not.toThrow();
+  });
+});
+
+/* list_exercises and the course map, over the real index and the plain curriculum (tools/build-mcp.js plain()) */
+const CURRICULUM: Curriculum = JSON.parse(JSON.stringify(req("../../tools/lib/site.js").curriculum(), (k, v) => (k === "part" ? undefined : v)));
+const PLACES = buildPlaces(CURRICULUM);
+const CTX: Context = { course: { index: INDEX, curriculum: CURRICULUM }, today: "2026-11-09", progress: null, progressError: null };
+const callTool = (name: string, args?: Record<string, unknown>): any =>
+  (handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, ...(args ? { arguments: args } : {}) } }, CTX) as any).result;
+const bytes = (v: unknown): number => new TextEncoder().encode(JSON.stringify(v)).length;
+
+describe("list_exercises", () => {
+  const map = callTool("get_course_map").structuredContent;
+  const chapterIds: string[] = map.parts.flatMap((p: any) => p.chapters.map((c: any) => c.id));
+  const sectionIds: string[] = map.parts.flatMap((p: any) => p.chapters.flatMap((c: any) => c.sections.map((s: any) => s.id)));
+
+  it("reachability: the chapter ids of the map reach every ref in the index, and every map id is accepted", () => {
+    const seen = new Set<string>();
+    for (const id of chapterIds) {
+      const r = callTool("list_exercises", { place: id });
+      expect(r.isError).toBeUndefined();
+      for (const x of r.structuredContent.exercises) seen.add(x.ref);
+    }
+    expect([...seen].sort()).toEqual(INDEX.map((e) => e.ref).sort());
+    for (const id of sectionIds) {
+      const r = callTool("list_exercises", { place: id });
+      expect(r.isError, id).toBeUndefined();
+      for (const x of r.structuredContent.exercises) expect(getExercise(INDEX, x.ref)).not.toHaveProperty("error");
+    }
+    for (const x of INDEX) expect(getExercise(INDEX, x.ref)).not.toHaveProperty("error");
+  });
+
+  it("the map holds only ids and titles for sections", () => {
+    for (const p of map.parts) for (const c of p.chapters) for (const x of c.sections) expect(Object.keys(x).sort()).toEqual(["id", "title"]);
+  });
+
+  it("size budget: the map, every list and every exercise stay small", () => {
+    expect(bytes(map)).toBeLessThanOrEqual(16384);
+    for (const id of [...chapterIds, ...sectionIds]) expect(bytes(callTool("list_exercises", { place: id }).structuredContent), id).toBeLessThanOrEqual(8192);
+    for (const e of INDEX) expect(bytes(getExercise(INDEX, e.ref)), e.ref).toBeLessThanOrEqual(8192);
+  });
+
+  it("a section lists its own entries and the entries crediting it by full ref, with full section refs", () => {
+    const r = listExercises(INDEX, PLACES, "ch01#addition") as any;
+    expect(r.title).toBe(CURRICULUM.parts[0].chapters[0].sections.find((s: any) => s.id === "addition")!.title);
+    expect(r.exercises.length).toBeGreaterThan(0);
+    for (const x of r.exercises) expect(x.section).toBe("ch01#addition");
+    const credited = INDEX.filter((e) => e.section.includes("#"));
+    expect(credited.length).toBeGreaterThan(0);
+    const c = credited[0];
+    expect((listExercises(INDEX, PLACES, c.section) as any).exercises.map((x: any) => x.ref)).toContain(c.ref);
+    const w = INDEX.find((e) => e.section === "warmup")!;
+    expect((listExercises(INDEX, PLACES, w.chapter) as any).exercises.find((x: any) => x.ref === w.ref).section).toBe("warmup");
+  });
+
+  it("reports onPage as get_exercise does, and never a question, answer or clue text", () => {
+    for (const e of INDEX) {
+      const x = (listExercises(INDEX, PLACES, e.chapter) as any).exercises.find((y: any) => y.ref === e.ref);
+      expect(x.onPage).toBe((getExercise(INDEX, e.ref) as any).onPage);
+      expect(x.clues).toBe(e.clues.length);
+      expect(Object.keys(x).sort()).toEqual(["clues", "kind", "onPage", "ref", "section"]);
+    }
+  });
+
+  it("a section place carries its summary and requires, a chapter place its blurb and sections", () => {
+    const ch = CURRICULUM.parts.flatMap((p: any) => p.chapters).find((c: any) => c.blurb && c.sections.some((x: any) => x.summary && x.requires && x.requires.length))!;
+    const sec = ch.sections.find((x: any) => x.summary && x.requires && x.requires.length)!;
+    const s = callTool("list_exercises", { place: ch.id + "#" + sec.id }).structuredContent;
+    expect(s.summary).toBe(sec.summary);
+    expect(s.requires).toEqual(sec.requires);
+    expect(s).not.toHaveProperty("blurb");
+    const c = callTool("list_exercises", { place: ch.id }).structuredContent;
+    expect(c.blurb).toBe(ch.blurb);
+    expect(c.sections).toEqual(ch.sections.map((x: any) => ({ id: ch.id + "#" + x.id, title: x.title })));
+    expect(c).not.toHaveProperty("summary");
+  });
+
+  it("nothing was lost from the map: every section's summary and requires come back from list_exercises", () => {
+    for (const ch of CURRICULUM.parts.flatMap((p: any) => p.chapters)) {
+      for (const sec of ch.sections || []) {
+        const r = callTool("list_exercises", { place: ch.id + "#" + sec.id }).structuredContent;
+        expect(r.summary, ch.id + "#" + sec.id).toBe(sec.summary || undefined);
+        expect(r.requires, ch.id + "#" + sec.id).toEqual(sec.requires && sec.requires.length ? sec.requires : undefined);
+      }
+    }
+  });
+
+  it("refuses an unknown or non-string place with one fixed sentence that echoes nothing", () => {
+    for (const bad of ["ch99", "CH01", "ch01#", "ch01#nope", "<script>EVIL</script>", "__proto__", "constructor", "", 5, null, ["ch01"], {}, undefined]) {
+      const r = callTool("list_exercises", { place: bad });
+      expect(r.isError).toBe(true);
+      expect(r.content[0].text).not.toContain("EVIL");
+      expect(r.content[0].text).toBe(callTool("list_exercises", { place: "zz" }).content[0].text);
+    }
+    expect(callTool("list_exercises").isError).toBe(true);
+  });
+
+  it("needs a metered call, not the progress log", () => {
+    expect(needs({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list_exercises" } })).toBe(false);
   });
 });
