@@ -174,7 +174,7 @@ function placesOf(course: Course): Places {
 
 /* one fixed sentence for each error code a tool function answers */
 function errorText(error: unknown, answer: Record<string, unknown>): string {
-  if (error === "unknown") return "No exercise has that reference. Look it up on the course map or ask the learner which exercise they mean.";
+  if (error === "unknown") return "No exercise has that reference. Use a reference exactly as list_exercises gives it, or ask the learner which exercise they mean.";
   if (error === "unknown-place") return "No chapter or section has that id. Use a chapter id or a section id exactly as the course map gives it, such as ch01 or ch01#addition.";
   if (error === "bad-answer") return "That answer is not in a form this exercise can check. Send one string, or one string per blank for an exercise with blanks, each a few words at most.";
   if (error === "no-clue") {

@@ -301,7 +301,7 @@ const PLACES = buildPlaces(CURRICULUM);
 const CTX: Context = { course: { index: INDEX, curriculum: CURRICULUM }, today: "2026-11-09", progress: null, progressError: null };
 const callTool = (name: string, args?: Record<string, unknown>): any =>
   (handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, ...(args ? { arguments: args } : {}) } }, CTX) as any).result;
-const bytes = (v: unknown): number => JSON.stringify(v).length;
+const bytes = (v: unknown): number => new TextEncoder().encode(JSON.stringify(v)).length;
 
 describe("list_exercises", () => {
   const map = callTool("get_course_map").structuredContent;
@@ -348,7 +348,7 @@ describe("list_exercises", () => {
   });
 
   it("reports onPage as get_exercise does, and never a question, answer or clue text", () => {
-    for (const e of INDEX.slice(0, 730)) {
+    for (const e of INDEX) {
       const x = (listExercises(INDEX, PLACES, e.chapter) as any).exercises.find((y: any) => y.ref === e.ref);
       expect(x.onPage).toBe((getExercise(INDEX, e.ref) as any).onPage);
       expect(x.clues).toBe(e.clues.length);

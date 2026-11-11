@@ -100,7 +100,7 @@ export function overview(input: OverviewInput, curriculum: Curriculum, today: st
           const sd = seenDay.get(ref);
           const inDeck = band === "weak" || arenaRight.has(ref) || (solved.get(ref)?.size ?? 0) >= 2 || scoredFirst.has(ref) || !!pre.W[ref];
           const due = inDeck && checkDue({ box: sch.box, last: sch.last, seen: sd === undefined ? undefined : dayKeyOf(sd) }, today);
-          secs.push({ id: s.id, title: s.title, band, evidence: m.c, box: sch.box, due });
+          secs.push({ id: ref, title: s.title, band, evidence: m.c, box: sch.box, due });
           out.totals.sections++;
           out.totals[band]++;
           if (due) out.due++;

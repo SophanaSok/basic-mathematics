@@ -62,7 +62,8 @@ describe("overview", () => {
       const B = bandsAll(V), M = masteriesAll(V), S = scheduleAll(V, TODAY);
       let checked = 0;
       o.chapters.forEach((ch) => ch.sections.forEach((s) => {
-        const ref = ch.id + "#" + s.id;
+        const ref = s.id;
+        expect(ref.startsWith(ch.id + "#")).toBe(true); // the full id, as the course map and list_exercises have it
         expect(s.band).toBe(B[ref] ?? "none");
         expect(s.evidence).toBe(M[ref]?.c ?? 0);
         expect(s.box).toBe(S[ref]?.box ?? 0);
@@ -117,7 +118,7 @@ describe("overview", () => {
   it("marks due only what the Arena's deck would hold", () => {
     const sec = "ch03#order", ch = "ch03", d = D0 + 2;   // 17 days before TODAY
     const due = (es: [string, Payload][]) => overview({ events: rowsOf(build(es)), last: null }, curriculum, TODAY).chapters
-      .find((c) => c.id === ch)!.sections.find((s) => s.id === "order")!.due;
+      .find((c) => c.id === ch)!.sections.find((s) => s.id === ch + "#order")!.due;
     expect(due([])).toBe(false);                                                   // never touched
     expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d)])).toBe(false);            // one Your-turn check: still new
     expect(due([pageP(sec, ch + "/t1", "c", 1, 1, 0, d), pageP(sec, ch + "/t2", "c", 1, 2, 0, d)])).toBe(true);   // two exercises solved
