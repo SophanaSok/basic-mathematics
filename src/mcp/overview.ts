@@ -109,7 +109,13 @@ export function overview(input: OverviewInput, curriculum: Curriculum, today: st
       }
     }
     const t = continueTarget(inp.last, cont);
-    if (t && chapterById(curriculum, t.chapterId)) out.continue = { chapterId: t.chapterId, text: t.text, why: t.why };
+    const tch = t ? chapterById(curriculum, t.chapterId) : null;
+    if (t && tch) {
+      // only a curriculum id leaves here, and only when the stored place equals one exactly
+      const stored = inp.last && typeof inp.last === "object" ? (inp.last as { section?: unknown }).section : undefined;
+      const sec = typeof stored === "string" ? (tch.sections || []).find((s) => s.id === stored) : undefined;
+      out.continue = { chapterId: t.chapterId, sectionId: sec ? tch.id + "#" + sec.id : null, text: t.text, why: t.why };
+    }
   } catch (e) {
     return { chapters: [], due: 0, continue: null, totals: { sections: 0, strong: 0, building: 0, weak: 0, none: 0, events: 0, truncated: false } };
   }

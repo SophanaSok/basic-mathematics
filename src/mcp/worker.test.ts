@@ -288,6 +288,13 @@ describe("/mcp: the rules, in order", () => {
     expect((await run(s, post(note))).res.status).toBe(202);
     expect(s.calls).toHaveLength(0);
   });
+  it("8. an initialize sent as a notification (no id) with an unknown version header is 400; only a request is exempt", async () => {
+    const s = setup();
+    const { res, json } = await run(s, post({ jsonrpc: "2.0", method: "initialize", params: { protocolVersion: "2025-06-18" } }, { "MCP-Protocol-Version": "2099-01-01" }));
+    expect(res.status).toBe(400);
+    expect(json.error.code).toBe(-32600);
+    expect(s.calls).toHaveLength(0);
+  });
   it("8. an initialize is never refused on the version header", async () => {
     const s = setup();
     s.queue.push(good());
@@ -663,10 +670,10 @@ describe("/mcp: the methods", () => {
   it("ping is an empty result", async () => {
     expect((await rpcOk("ping")).json.result).toEqual({});
   });
-  it("tools/list has five read-only tools with closed schemas and plain descriptions", async () => {
+  it("tools/list has six read-only tools with closed schemas and plain descriptions", async () => {
     const { json } = await rpcOk("tools/list");
     const tools = json.result.tools;
-    expect(tools.map((t: any) => t.name)).toEqual(["get_progress", "get_course_map", "get_exercise", "get_clue", "check_answer"]);
+    expect(tools.map((t: any) => t.name)).toEqual(["get_progress", "get_course_map", "list_exercises", "get_exercise", "get_clue", "check_answer"]);
     for (const t of tools) {
       expect(t.annotations).toEqual({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
       expect(t.inputSchema.type).toBe("object");
@@ -675,7 +682,8 @@ describe("/mcp: the methods", () => {
       expect(t.description.length).toBeGreaterThan(20);
       expect(t.description).not.toContain("!");
     }
-    expect(tools[3].inputSchema.required).toEqual(["ref", "rung"]);
+    expect(tools[2].inputSchema.required).toEqual(["place"]);
+    expect(tools[4].inputSchema.required).toEqual(["ref", "rung"]);
   });
   it("prompts/list and prompts/get", async () => {
     const list = await rpcOk("prompts/list");
@@ -693,16 +701,18 @@ describe("/mcp: the methods", () => {
     const { json } = await run(s, post(rpcMsg("resources/list", undefined, "r1")));
     expect(json).toEqual({ jsonrpc: "2.0", id: "r1", error: { code: -32601, message: "Method not found" } });
   });
-  it("an unknown tool and bad arguments are -32602", async () => {
+  it("an unknown tool is -32602; bad arguments are a tool error", async () => {
     expect((await rpcOk("tools/call", { name: "write_progress" })).json.error).toEqual({ code: -32602, message: "Unknown tool" });
     expect((await rpcOk("tools/call", {})).json.error.code).toBe(-32602);
     expect((await rpcOk("tools/call", { name: 5 })).json.error.code).toBe(-32602);
     expect((await rpcOk("tools/call")).json.error.code).toBe(-32602);
     for (const args of ["x", 5, null, [1]]) {
-      expect((await rpcOk("tools/call", { name: "get_exercise", arguments: args })).json.error.code).toBe(-32602);
+      const r = await rpcOk("tools/call", { name: "get_exercise", arguments: args });
+      expect(r.json.error).toBeUndefined();
+      expect(r.json.result.isError).toBe(true);
     }
   });
-  it("get_course_map lists the parts, chapters and sections, with skills where the site has them", async () => {
+  it("get_course_map lists the parts, chapters and sections, without the standards data", async () => {
     const { json } = await rpcOk("tools/call", { name: "get_course_map" });
     const map = json.result.structuredContent;
     expect(json.result.content).toEqual([{ type: "text", text: JSON.stringify(map) }]);
@@ -711,12 +721,12 @@ describe("/mcp: the methods", () => {
     expect(ch).toEqual({
       id: "ch01", label: "1", title: "Numbers", blurb: "Counting.",
       sections: [
-        { id: "ch01#integers", title: "Integers", summary: "Whole numbers.", skill: expect.objectContaining({ course: "pre-algebra", ccss: "6.NS.C.6.a" }) },
-        { id: "ch01#no-such-skill", title: "Nowhere", requires: ["ch01#integers"] }
+        { id: "ch01#integers", title: "Integers" },
+        { id: "ch01#no-such-skill", title: "Nowhere" }
       ]
     });
     expect(map.parts[1].chapters[0]).toEqual({ id: "ch02", label: "A", title: "Pack A", sections: [expect.objectContaining({ id: "ch02#one-unknown", title: "One unknown" })] });
-    expect(JSON.stringify(map)).not.toMatch(/numbers\.html|"file"|"dir"|"status"/);
+    expect(JSON.stringify(map)).not.toMatch(/numbers\.html|"file"|"dir"|"status"|"skill"|ccss/);
   });
   it("get_exercise happy path and error path", async () => {
     const ok = await rpcOk("tools/call", { name: "get_exercise", arguments: { ref: "ch01/t" } });
@@ -804,16 +814,14 @@ describe("/mcp: what real clients send (clients.fixture.ts)", () => {
   it("tools/list on 2025-11-25 answers the tools", async () => {
     const { res, json } = await replay("tools/list on 2025-11-25", good());
     expect(res.status).toBe(200);
-    expect(json.result.tools.map((t: any) => t.name)).toEqual(["get_progress", "get_course_map", "get_exercise", "get_clue", "check_answer"]);
+    expect(json.result.tools.map((t: any) => t.name)).toEqual(["get_progress", "get_course_map", "list_exercises", "get_exercise", "get_clue", "check_answer"]);
   });
   it("the modern probe is 401 without a key", async () => {
     expect((await replay("modern probe, no key")).res.status).toBe(401);
   });
-  it("the modern probe with a key is a 400 that is no modern error code and no 404", async () => {
+  it("the modern probe with a key is a 400 with the plain invalid-request code", async () => {
     const { res, json, s } = await replay("modern probe, with key");
     expect(res.status).toBe(400);
-    expect(res.status).not.toBe(404);
-    expect([-32020, -32021, -32022]).not.toContain(json.error.code);
     expect(json.error.code).toBe(-32600);
     expect(s.calls).toHaveLength(0);
   });

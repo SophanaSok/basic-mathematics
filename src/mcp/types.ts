@@ -26,7 +26,7 @@ export interface ExerciseEntry {
 
 export type ExerciseIndex = readonly ExerciseEntry[];
 
-export interface ToolError { error: "unknown" | "bad-answer" }
+export interface ToolError { error: "unknown" | "bad-answer" | "unknown-place" }
 
 /** get_exercise: never the key, never the items of an order exercise */
 export interface ExerciseView {
@@ -43,6 +43,12 @@ export interface ExerciseView {
 }
 
 export type GetExerciseResult = ExerciseView | ToolError;
+
+/** list_exercises: references and counts only; never a question, an answer or a clue's text */
+export type ListResult =
+  | { place: string; title: string; summary?: string; requires?: string[]; blurb?: string; sections?: { id: string; title: string }[];
+      exercises: { ref: string; section: string; kind: ExerciseKind; onPage: boolean; clues: number }[] }
+  | { error: "unknown-place" };
 
 export type ClueResult =
   | { ref: string; rung: number; clues: number; clue: string }
@@ -77,7 +83,7 @@ export interface Overview {
   /** the chapters with at least one Arena-scheduled section; `continue.chapterId` may name another */
   chapters: OverviewChapter[];
   due: number;
-  continue: { chapterId: string; text: string; why: string } | null;
+  continue: { chapterId: string; /** "ch01#addition" when the stored place is one of that chapter's sections, else null */ sectionId: string | null; text: string; why: string } | null;
   totals: { sections: number; strong: number; building: number; weak: number; none: number; events: number; truncated: boolean };
 }
 

@@ -15,7 +15,8 @@ import { formMessage, unreadMessage } from "../core/answer/messages.ts";
 import type { Verdict } from "../core/answer/types.ts";
 import { detect } from "../learn/detectors.ts";
 import { stripTags } from "../learn/leak.ts";
-import type { CheckResult, ClueResult, ExerciseEntry, ExerciseIndex, GetExerciseResult } from "./types.ts";
+import type { Curriculum } from "../core/curriculum.ts";
+import type { CheckResult, ClueResult, ExerciseEntry, ExerciseIndex, GetExerciseResult, ListResult } from "./types.ts";
 
 export const MAX_GIVEN = 200;
 export const MAX_BLANKS = 8;
@@ -27,12 +28,14 @@ function find(index: ExerciseIndex, ref: unknown): ExerciseEntry | null {
 }
 
 const onPageOnly = (e: ExerciseEntry): boolean => e.kind === "order" || e.kind === "figure";
+/** whether an exercise can only be done on its page: what get_exercise and list_exercises both report */
+export const isOnPage = (e: ExerciseEntry): boolean => onPageOnly(e) || e.visual;
 
 export function getExercise(index: ExerciseIndex, ref: unknown): GetExerciseResult {
   const e = find(index, ref);
   if (!e) return { error: "unknown" };
   const base = { ref: e.ref, chapter: e.chapter, section: e.section, kind: e.kind, question: e.question };
-  if (onPageOnly(e) || e.visual) return { ...base, visual: true, onPage: true, clues: e.clues.length };
+  if (isOnPage(e)) return { ...base, visual: true, onPage: true, clues: e.clues.length };
   const out: GetExerciseResult = { ...base, clues: e.clues.length, visual: false, onPage: false };
   if (e.kind === "choice" || e.kind === "multi") out.choices = e.choices.slice();
   if (e.kind === "blank") out.blanks = e.blanks.length;
@@ -125,4 +128,53 @@ export function checkAnswer(index: ExerciseIndex, ref: unknown, given: unknown):
   } catch {
     return { error: "bad-answer" };
   }
+}
+
+/* list_exercises: a chapter id or a section id exactly as the course map gives it. */
+export interface Place {
+  title: string; chapter: string;
+  /** the section's own id, or null for a chapter */
+  section: string | null;
+  summary?: string; requires?: string[]; blurb?: string; sections?: { id: string; title: string }[];
+}
+export type Places = ReadonlyMap<string, Place>;
+
+/** Every place list_exercises accepts, built once per course from the curriculum alone. */
+export function buildPlaces(curriculum: Curriculum): Places {
+  const out = new Map<string, Place>();
+  const parts = curriculum && Array.isArray(curriculum.parts) ? curriculum.parts : [];
+  for (const part of parts) {
+    for (const ch of part.chapters || []) {
+      const c: Place = { title: ch.title, chapter: ch.id, section: null };
+      if (ch.blurb) c.blurb = ch.blurb;
+      c.sections = (ch.sections || []).map(s => ({ id: ch.id + "#" + s.id, title: s.title }));
+      out.set(ch.id, c);
+      for (const s of ch.sections || []) {
+        const e: Place = { title: s.title, chapter: ch.id, section: s.id };
+        if (s.summary) e.summary = s.summary;
+        if (s.requires && s.requires.length) e.requires = s.requires.slice();
+        out.set(ch.id + "#" + s.id, e);
+      }
+    }
+  }
+  return out;
+}
+
+export function listExercises(index: ExerciseIndex, places: Places, place: unknown): ListResult {
+  const p = typeof place === "string" ? places.get(place) : undefined;
+  if (!p || typeof place !== "string") return { error: "unknown-place" };
+  const exercises: { ref: string; section: string; kind: ExerciseEntry["kind"]; onPage: boolean; clues: number }[] = [];
+  for (const e of index) {
+    const full = e.chapter + "#" + e.section;
+    // a section place takes its chapter's own entries and any entry crediting it by full ref
+    if (p.section !== null && !(e.section === place || (e.chapter === p.chapter && e.section === p.section))) continue;
+    if (p.section === null && e.chapter !== p.chapter) continue;
+    exercises.push({ ref: e.ref, section: e.section.includes("#") ? e.section : places.has(full) ? full : e.section, kind: e.kind, onPage: isOnPage(e), clues: e.clues.length });
+  }
+  const out: Exclude<ListResult, { error: string }> = { place, title: p.title, exercises };
+  if (p.summary) out.summary = p.summary;
+  if (p.requires) out.requires = p.requires.slice();
+  if (p.blurb) out.blurb = p.blurb;
+  if (p.sections) out.sections = p.sections.map(s => ({ ...s }));
+  return out;
 }

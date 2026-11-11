@@ -139,6 +139,16 @@ describe("overview", () => {
     expect(o.due).toBe(all.filter((s) => s.due).length);
     expect(o.continue?.chapterId).toBe("ch02");
     expect(o.continue).not.toHaveProperty("href");
+    expect(o.continue?.sectionId).toBe("ch02#one-unknown");
+  });
+
+  it("gives sectionId only when the stored place is exactly one of the chapter's section ids", () => {
+    const at = (section: unknown) => overview({ events: [], last: { id: "ch02", section } }, curriculum, TODAY).continue;
+    expect(at("one-unknown")?.sectionId).toBe("ch02#one-unknown");
+    for (const bad of ["practice", "warmup", "<b>EVIL</b>", "ONE-UNKNOWN", "ch02#one-unknown", "", 5, null, ["one-unknown"]]) {
+      expect(at(bad)?.sectionId).toBeNull();
+      expect(JSON.stringify(at(bad))).not.toContain("EVIL");
+    }
   });
 });
 
