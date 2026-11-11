@@ -875,8 +875,9 @@ after a quiet week; [What to watch](#what-to-watch)).
      page keeps its CSP (the extensionless address: Pages redirects `.html`, and `-I` does not
      follow; a page never invokes the worker, `_routes.json` excludes it).
 3. End to end, from a signed-in account of your own with the preview's address. Previews are on
-   Supabase's redirect list by wildcard, and Google, GitHub and email sign-in all work on them
-   ([8.4](#84-sign-in-supabase-google-and-github)).
+   Supabase's redirect list by wildcard. Email and password and GitHub work on them, and Google
+   sign-in worked on one preview (observed 2026-11-10; not promised for every preview,
+   [8.4](#84-sign-in-supabase-google-and-github)).
    - Claude Code: `claude mcp add --transport http groundup $P/mcp`, then `/mcp` in a session,
      sign in on the preview's account page, press Allow, and ask Mochi for help on an exercise
      (`ch01`, exercise 3, say). Note which loopback form arrived (`localhost` or `127.0.0.1`).
@@ -906,11 +907,12 @@ after a quiet week; [What to watch](#what-to-watch)).
      shows `calls` rising with each tool call. (`connect_grants.last_used` moves at most once an
      hour, so it is no use as a liveness check straight after approval.)
    - **See what a client sends.** The worker logs nothing itself. Cloudflare dashboard →
-     Workers & Pages → `groundupmath` → the production deployment's Details → Functions →
+     Workers & Pages → `groundupmath` → Details of the deployment under test (the preview here,
+     production after a merge) → Functions →
      Real-time Logs → Begin log stream; each request row expands to its headers and the
      response status. The CLI form is `wrangler pages deployment tail --project-name
-     groundupmath --environment production --format json` (wrangler is not installed on the
-     owner's machine). Use it when a client fails before or after the consent.
+     groundupmath --environment preview --format json` (`production` after a merge). Use it when
+     a client fails before or after the consent.
 4. Worker CPU (the free plan's 10 ms is marginal, decision 0016): while asking for progress on
    an account with a long log, read the Pages project's Functions metrics in the Cloudflare
    dashboard (CPU time per invocation; `wrangler pages deployment tail --project-name
@@ -990,7 +992,11 @@ A push to `main` runs `build`, `pages-source` and the deploys (`cloudflare`, `de
 minutes. A pull request runs **nothing** until it is given the label `ci`
 (`gh pr edit <n> --add-label ci`); that starts everything, with a Cloudflare preview. To run
 again, remove the label and add it again: a push to the pull request starts no run, and adding
-another label cancels nothing. Opening a pull request with the label `ci` already attached starts two runs (opened and labeled) and cancels one at once, and the merge guard then refuses on the cancelled `browser` check: add the label after opening, or re-run the cancelled run (`gh run rerun <id>`) and wait for it. **Run workflow** on `main` runs everything too. All of it
+another label cancels nothing.
+Opening a pull request with the label `ci` already attached starts two runs (opened and
+labeled) and cancels one at once. The merge guard then refuses on the cancelled `browser` check.
+Add the label after opening, or re-run the cancelled run (`gh run rerun <id>`) and wait for it.
+**Run workflow** on `main` runs everything too. All of it
 **except a change that only touches Markdown and `docs/`** (`paths-ignore: ["**/*.md",
 "docs/**"]` on both events, the `labeled` event included). Such a change costs no Actions minutes
 (a full run is about 45 billed, a push to main about 4), gets no Cloudflare preview, and deploys nothing, which is right:
@@ -1557,8 +1563,9 @@ serves no page that signs anyone in, so it has no entry in any of them.
    *Authorized JavaScript origins*: `https://learn.groundupmath.org` (and
    `https://groundupmath.pages.dev`, if it was added to test there). *Authorized redirect URIs*
    is the Supabase callback, `https://jfidvrzonyzfstnykzly.supabase.co/auth/v1/callback`. Google
-   takes no wildcards, so previews are not listed there, yet Google sign-in worked on a `pr-<n>`
-   preview deployment (observed 2026-11-10, in the connector's consent flow). Google says a change can take from five minutes to a few hours.
+   takes no wildcards, so previews are not listed there, yet Google sign-in worked on one `pr-<n>`
+   preview deployment (observed 2026-11-10, in the connector's consent flow; treat it as not
+   promised). Google says a change can take from five minutes to a few hours.
 3. **GitHub** → Settings → Developer settings → OAuth Apps → the app: its callback is Supabase's,
    so nothing there depends on the address; the *Homepage URL* is
    `https://learn.groundupmath.org`.

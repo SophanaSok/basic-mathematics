@@ -1858,7 +1858,7 @@
         "an answer checked there does not count until you enter it on the page. This is for the account holder's own AI plan.</p>" +
         "<p>Connector address: <code data-connect-url>" + esc(address) + "</code></p>" +
         '<ol class="cnx-steps">' +
-        "<li><b>Claude</b> (claude.ai, or the desktop or mobile app): add this address as a custom connector in the app's connector settings, then sign in here when it asks.</li>" +
+        "<li><b>Claude</b>: on claude.ai, add this address as a custom connector in the connector settings, then sign in here when it asks.</li>" +
         "<li><b>Claude Code</b>: run <code>claude mcp add --transport http groundup " + esc(address) + "</code>, then <code>/mcp</code> to sign in.</li></ol>";
     }
     h += '<h3 class="cnx-list-h">Connected apps</h3>';

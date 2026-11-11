@@ -1629,7 +1629,7 @@ const ALL = ["google", "github", "discord", "facebook", "azure"];
         };
       });
       check(seen.h === "Connect your AI" && seen.url === seen.origin + "/mcp" && seen.after && seen.beforeLearners, "46 the panel is headed, has the address, and sits before Learners", seen);
-      check(seen.steps.length === 2 && seen.steps[0] === "Claude (claude.ai, or the desktop or mobile app): add this address as a custom connector in the app's connector settings, then sign in here when it asks." && /^Claude Code: run claude mcp add --transport http groundup /.test(seen.steps[1]) && seen.code === "claude mcp add --transport http groundup " + seen.origin + "/mcp", "46 two steps: Claude, Claude Code", seen.steps);
+      check(seen.steps.length === 2 && seen.steps[0] === "Claude: on claude.ai, add this address as a custom connector in the connector settings, then sign in here when it asks." && /^Claude Code: run claude mcp add --transport http groundup /.test(seen.steps[1]) && seen.code === "claude mcp add --transport http groundup " + seen.origin + "/mcp", "46 two steps: Claude, Claude Code", seen.steps);
       check(seen.html.indexOf("ChatGPT") < 0 && !/Settings, Connectors/.test(seen.html), "46 the offer does not name ChatGPT or an app menu path", seen.html);
       check(JSON.stringify(seen.names) === JSON.stringify(["Claude", "An app on this computer", "An app"]), "46 the rows are named from the table; an unknown app is An app", seen.names);
       check(/^Connected .+ · last used .+/.test(seen.whens[0]) && /^Connected .+ · not used yet$/.test(seen.whens[1]), "46 the dates read, an unused one says not used yet", seen.whens);
