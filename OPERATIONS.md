@@ -875,16 +875,24 @@ after a quiet week; [What to watch](#what-to-watch)).
      page keeps its CSP (the extensionless address: Pages redirects `.html`, and `-I` does not
      follow; a page never invokes the worker, `_routes.json` excludes it).
 3. End to end, from a signed-in account of your own with the preview's address. Previews are on
-   Supabase's redirect list by wildcard, but Google refuses them
-   ([8.4](#84-sign-in-supabase-google-and-github)): sign in with email and password or GitHub.
+   Supabase's redirect list by wildcard. Email and password and GitHub work on them, and Google
+   sign-in worked on one preview (observed 2026-11-10; not promised for every preview,
+   [8.4](#84-sign-in-supabase-google-and-github)).
    - Claude Code: `claude mcp add --transport http groundup $P/mcp`, then `/mcp` in a session,
      sign in on the preview's account page, press Allow, and ask Mochi for help on an exercise
      (`ch01`, exercise 3, say). Note which loopback form arrived (`localhost` or `127.0.0.1`).
-   - claude.ai: Settings → Connectors → Add custom connector, the same address; the same
-     flow. This is the COOP check (threat model, probe 3): the consent page must send the
+   - claude.ai (as of 2026-11-10; the app's menus move): Customize → Connectors → Add → Add
+     custom connector, the same address. Its pre-check is one server-side POST to `/mcp` with
+     `MCP-Protocol-Version: 2025-11-25` and no key; it passes when that gets `401` (a `400`
+     there is the failure seen before CN-12a). After Connect the account page shows the consent,
+     and Allow may ask for a fresh sign-in first ("To confirm it is you, sign in again, then
+     press Allow again."); the return to claude.ai then completes and it lists the tools. This
+     is the COOP check (threat model, probe 3): the consent page must send the
      browser back to Claude and the connection must complete. If it does not, the follow-up in
      the plan is a consent page with a relaxed opener policy.
-   - ChatGPT: Settings → Connectors → Create, the same address. **Read which callback arrived**
+   - ChatGPT: **not verified and not offered** (no subscription; the launch names Claude only,
+     decision 0016). When a subscription exists this is its own preview test, before any
+     wording offers it: Settings → Connectors → Create, the same address. **Read which callback arrived**
      (the `redirect_uri` the consent panel was refused or approved with: a refused one shows the
      "address this site does not know" note). If it is `https://chatgpt.com/connector/oauth/…`
      and not `https://chatgpt.com/connector_platform_oauth_redirect`, stop: a new migration adds
@@ -898,6 +906,13 @@ after a quiet week; [What to watch](#what-to-watch)).
      `select day, calls, refreshes from public.connect_meter where user_id = '<your id>';`
      shows `calls` rising with each tool call. (`connect_grants.last_used` moves at most once an
      hour, so it is no use as a liveness check straight after approval.)
+   - **See what a client sends.** The worker logs nothing itself. Cloudflare dashboard →
+     Workers & Pages → `groundupmath` → Details of the deployment under test (the preview here,
+     production after a merge) → Functions →
+     Real-time Logs → Begin log stream; each request row expands to its headers and the
+     response status. The CLI form is `wrangler pages deployment tail --project-name
+     groundupmath --environment preview --format json` (`production` after a merge). Use it when
+     a client fails before or after the consent.
 4. Worker CPU (the free plan's 10 ms is marginal, decision 0016): while asking for progress on
    an account with a long log, read the Pages project's Functions metrics in the Cloudflare
    dashboard (CPU time per invocation; `wrangler pages deployment tail --project-name
@@ -909,9 +924,23 @@ after a quiet week; [What to watch](#what-to-watch)).
 
 **Go live (O-5).** A normal pull request that sets `connect: "on"`; the account page then
 shows the panel, the address and the steps to every signed-in account holder. Before merging:
-step 3 above has passed on production for all three apps; the about page's paragraph
-`#mochi-in-your-ai` and the panel's wording have been read by the owner; the weekly duty is on
-the calendar ([Recurring duties](#5-recurring-duties)).
+the exit criteria below are all met; the weekly duty is on the calendar
+([Recurring duties](#5-recurring-duties)). The connector has six read-only tools
+(`get_progress`, `get_course_map`, `list_exercises`, `get_exercise`, `get_clue`,
+`check_answer`) and speaks MCP revisions 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05.
+
+Exit criteria, with what is observed so far:
+
+1. [x] claude.ai adds the connector, the consent return completes, a tool call works:
+   observed 2026-11-10.
+2. [ ] Claude Code passes again after CN-12a/b: open.
+3. [ ] One real tutoring exchange from "what should I work on?" to a checked answer, transcript
+   kept: open.
+4. [ ] Worker CPU time read from the Pages metrics during `get_progress` (free plan limit
+   10 ms): open.
+5. [ ] The owner has read the panel and the about page's `#mochi-in-your-ai` wording: open.
+6. [x] Remove ends the claude.ai connection on its next request (it said "sign in again" and
+   showed a Reconnect card): observed 2026-11-10.
 
 **Stop.** The site's side is `connect` back to absent (a pull request and a deploy; open tabs
 keep the old page until reloaded). The server's side, at once and for every app that already
@@ -963,7 +992,11 @@ A push to `main` runs `build`, `pages-source` and the deploys (`cloudflare`, `de
 minutes. A pull request runs **nothing** until it is given the label `ci`
 (`gh pr edit <n> --add-label ci`); that starts everything, with a Cloudflare preview. To run
 again, remove the label and add it again: a push to the pull request starts no run, and adding
-another label cancels nothing. **Run workflow** on `main` runs everything too. All of it
+another label cancels nothing.
+Opening a pull request with the label `ci` already attached starts two runs (opened and
+labeled) and cancels one at once. The merge guard then refuses on the cancelled `browser` check.
+Add the label after opening, or re-run the cancelled run (`gh run rerun <id>`) and wait for it.
+**Run workflow** on `main` runs everything too. All of it
 **except a change that only touches Markdown and `docs/`** (`paths-ignore: ["**/*.md",
 "docs/**"]` on both events, the `labeled` event included). Such a change costs no Actions minutes
 (a full run is about 45 billed, a push to main about 4), gets no Cloudflare preview, and deploys nothing, which is right:
@@ -1196,7 +1229,6 @@ check it when the first function exists.
 | Watch GitHub Actions minutes | once the repository is private | a week after, then monthly | GitHub → Settings → Billing → Usage. A private repository's runs use the account's included minutes; a push to main is about 4 billed minutes (build and the deploys), a full run (a pull request labeled `ci`, or Run workflow) about 45, and a change to only Markdown and `docs/` starts none ([When CI runs](#when-ci-runs)). Without a payment method GitHub blocks runs past the quota rather than billing them. On 2026-10-12 the public repository was blocked anyway: the account's Actions budget was $0 with "Stop usage" on, so the included-minutes bar filling stopped every run (public usage is free, but the stop still fires). The fix is GitHub → Settings → Billing → Budgets and alerts → the Actions budget: raise it above $0 or set "Stop usage" to No. |
 | Renew expiring provider secrets | now, if Microsoft is enabled | before the expiry date | [Section 4](#rotation-in-outline) |
 | Watch the connections | once `connect` is `"preview"` or `"on"` | weekly at first, then monthly | The three queries under [What to watch](#what-to-watch): live connections by app, accounts near the daily caps, approvals never redeemed. The stop is in [Kill switches](#6-kill-switches) |
-| Re-check the AI apps' steps | once `connect` is `"on"` | each time Claude or ChatGPT changes its connector settings, and at least every few months | The Connect your AI panel (`connectionsPanel()` in `assets/account.js`) tells a reader where in Claude, Claude Code and ChatGPT to paste the address; those menus are theirs to rename. Also confirm ChatGPT still sends the fixed callback (the allow-list in `supabase/schema.sql`, `private.connect_app`) |
 | The hint review queue | **[deferred past R2]** | each content wave | Generated hints wait in a review queue; nothing ships unapproved. Approving or rejecting them is the owner's job |
 | League abuse handling | **[not yet: R4]** | weekly, and on a report | Offensive or impersonating behaviour, and scores that look farmed. The tools for removing someone from a cohort come with R4 |
 | Deploy Edge Functions in step with content | **[not yet: R5]** | every merge that changes exercises, solutions or hints | The tutor function bundles its own index of questions, solutions and rungs, and requests carry a content hash. If the site changes and the function is not redeployed, the hashes differ and the tutor falls back to the authored rungs for those exercises |
@@ -1531,8 +1563,9 @@ serves no page that signs anyone in, so it has no entry in any of them.
    *Authorized JavaScript origins*: `https://learn.groundupmath.org` (and
    `https://groundupmath.pages.dev`, if it was added to test there). *Authorized redirect URIs*
    is the Supabase callback, `https://jfidvrzonyzfstnykzly.supabase.co/auth/v1/callback`. Google
-   takes no wildcards, so previews are not listed: Google sign-in on a preview fails at Google,
-   which is expected. Google says a change can take from five minutes to a few hours.
+   takes no wildcards, so previews are not listed there, yet Google sign-in worked on one `pr-<n>`
+   preview deployment (observed 2026-11-10, in the connector's consent flow; treat it as not
+   promised). Google says a change can take from five minutes to a few hours.
 3. **GitHub** → Settings → Developer settings → OAuth Apps → the app: its callback is Supabase's,
    so nothing there depends on the address; the *Homepage URL* is
    `https://learn.groundupmath.org`.

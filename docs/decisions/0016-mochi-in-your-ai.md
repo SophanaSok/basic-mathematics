@@ -113,3 +113,5 @@ two migrations applied live before the pull requests that need them merge. Two t
 measured at the owner's end-to-end test and may add a card each: whether the account
 page's opener policy lets an AI app finish the flow, and the worker's CPU time on the
 free plan for a learner with a long history.
+
+2026-11-10: the launch names Claude only (owner). ChatGPT's callback stays allowed and unadvertised until it has its own preview test.
