@@ -5,6 +5,7 @@ import type { Curriculum } from "../core/curriculum.ts";
 import { INSTRUCTIONS, PROMPT } from "./persona.ts";
 import type { OverviewInput, ExerciseEntry, ExerciseIndex } from "./types.ts";
 import { PROTOCOL_VERSIONS, type Course } from "./protocol.ts";
+import { CLIENT_SHAPES } from "./clients.fixture.ts";
 
 /* the overview is spied on, so a test can see what the worker handed it */
 const seen: OverviewInput[] = [];
@@ -245,10 +246,14 @@ describe("/mcp: the rules, in order", () => {
     const req = new Request(ORIGIN + "/mcp", { method: "POST", headers: { Origin: "https://evil.example" }, body: "{}" });
     expect((await run(s, req)).res.status).toBe(403);
   });
-  it("4 before 5: an unsupported version is refused before the key is looked at", async () => {
+  it("4 before 8: an unsupported version without a key is 401, never 400", async () => {
     const s = setup();
     const r = await run(s, new Request(ORIGIN + "/mcp", { method: "POST", headers: { "MCP-Protocol-Version": "2020-01-01" }, body: "{}" }));
-    expect(r.res.status).toBe(400);
+    expect(r.res.status).toBe(401);
+    expect(r.res.headers.get("www-authenticate")).toContain("resource_metadata=");
+    const bad = await run(s, post(rpcMsg("ping"), { Authorization: "Bearer nope", "MCP-Protocol-Version": "2020-01-01" }));
+    expect(bad.res.status).toBe(401);
+    expect(s.calls).toHaveLength(0);
   });
   it("5 before 6: no key with an oversize body is 401, not 413", async () => {
     const s = setup();
@@ -263,16 +268,32 @@ describe("/mcp: the rules, in order", () => {
     expect(r.res.status).toBe(413);
     expect(s.calls).toHaveLength(0);
   });
-  it("4. an unsupported protocol version is 400 -32600; the three supported pass", async () => {
+  it("8. an unsupported protocol version is 400 -32600 with a key; the four supported pass", async () => {
     const s = setup();
     const bad = await run(s, post(rpcMsg("ping"), { "MCP-Protocol-Version": "2020-01-01" }));
     expect(bad.res.status).toBe(400);
     expect(bad.json).toEqual({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Unsupported protocol version" } });
     expect(s.calls).toHaveLength(0);
+    expect(PROTOCOL_VERSIONS).toHaveLength(4);
     for (const v of PROTOCOL_VERSIONS) {
       s.queue.push(good());
       expect((await run(s, post(rpcMsg("ping"), { "MCP-Protocol-Version": v }))).res.status).toBe(200);
     }
+  });
+  it("8. an unsupported version on a notification is 400 too, before the 202 and with no database call", async () => {
+    const s = setup();
+    const note = { jsonrpc: "2.0", method: "notifications/initialized" };
+    const bad = await run(s, post(note, { "MCP-Protocol-Version": "2020-01-01" }));
+    expect(bad.res.status).toBe(400);
+    expect((await run(s, post(note))).res.status).toBe(202);
+    expect(s.calls).toHaveLength(0);
+  });
+  it("8. an initialize is never refused on the version header", async () => {
+    const s = setup();
+    s.queue.push(good());
+    const { res, json } = await run(s, post(rpcMsg("initialize", { protocolVersion: "2025-06-18" }), { "MCP-Protocol-Version": "2099-01-01" }));
+    expect(res.status).toBe(200);
+    expect(json.result.protocolVersion).toBe("2025-06-18");
   });
   it("5. no key is 401 naming the request's own origin, and no fetch is made", async () => {
     const s = setup();
@@ -751,5 +772,54 @@ describe("/mcp: the methods", () => {
     expect(json.result.structuredContent).toBeDefined();
     expect(seenToday).toEqual(["2026-03-04"]);
     expect(s.calls[0].signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("/mcp: what real clients send (clients.fixture.ts)", () => {
+  const shape = (name: string) => CLIENT_SHAPES.find((c) => c.name === name)!;
+  async function replay(name: string, ...queued: Reply[]) {
+    const c = shape(name);
+    const s = setup();
+    s.queue.push(...queued);
+    const headers: Record<string, string> = { ...c.headers };
+    if (c.auth) headers.authorization = "Bearer " + KEY;
+    const req = new Request(ORIGIN + MCP_PATH, { method: c.method, headers, body: JSON.stringify(c.body) });
+    return { s, ...(await run(s, req)) };
+  }
+  it("keeps one observed row, the first, and lower-case header names", () => {
+    expect(CLIENT_SHAPES.filter((c) => c.source === "observed").map((c) => c.name)).toEqual(["claude.ai pre-check"]);
+    for (const c of CLIENT_SHAPES) for (const h of Object.keys(c.headers)) expect(h).toBe(h.toLowerCase());
+  });
+  it("claude.ai pre-check without a key is 401 with resource_metadata, never 400", async () => {
+    const { res, s } = await replay("claude.ai pre-check");
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toContain("resource_metadata=");
+    expect(s.calls).toHaveLength(0);
+  });
+  it("claude.ai pre-check with a key negotiates 2025-11-25", async () => {
+    const { res, json } = await replay("claude.ai pre-check after OAuth", good());
+    expect(res.status).toBe(200);
+    expect(json.result.protocolVersion).toBe("2025-11-25");
+  });
+  it("tools/list on 2025-11-25 answers the tools", async () => {
+    const { res, json } = await replay("tools/list on 2025-11-25", good());
+    expect(res.status).toBe(200);
+    expect(json.result.tools.map((t: any) => t.name)).toEqual(["get_progress", "get_course_map", "get_exercise", "get_clue", "check_answer"]);
+  });
+  it("the modern probe is 401 without a key", async () => {
+    expect((await replay("modern probe, no key")).res.status).toBe(401);
+  });
+  it("the modern probe with a key is a 400 that is no modern error code and no 404", async () => {
+    const { res, json, s } = await replay("modern probe, with key");
+    expect(res.status).toBe(400);
+    expect(res.status).not.toBe(404);
+    expect([-32020, -32021, -32022]).not.toContain(json.error.code);
+    expect(json.error.code).toBe(-32600);
+    expect(s.calls).toHaveLength(0);
+  });
+  it("an initialize with an unknown future header negotiates the newest version", async () => {
+    const { res, json } = await replay("initialize with an unknown future header", good());
+    expect(res.status).toBe(200);
+    expect(json.result.protocolVersion).toBe(PROTOCOL_VERSIONS[0]);
   });
 });

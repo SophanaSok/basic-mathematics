@@ -1,4 +1,4 @@
-/* The connector's JSON-RPC and MCP messages (decision 0016), spec revision 2025-06-18 with the two
+/* The connector's JSON-RPC and MCP messages (decision 0016), spec revision 2025-11-25 with the three
    older revisions a client may still speak. A message goes in, a response comes out; the worker
    owns HTTP, the key check and the database. This module sees only what `Context` hands it.
 
@@ -18,7 +18,7 @@ import { checkAnswer, getClue, getExercise } from "./tools.ts";
 import type { ExerciseIndex, OverviewInput } from "./types.ts";
 
 /** newest first */
-export const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"] as const;
+export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"] as const;
 
 export interface Course { index: ExerciseIndex; curriculum: Curriculum }
 
