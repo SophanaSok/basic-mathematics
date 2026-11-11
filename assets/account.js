@@ -1853,14 +1853,13 @@
     var h = '<section class="panel connect" data-connections aria-labelledby="cnx-h"><h2 id="cnx-h" tabindex="-1">Connect your AI</h2>';
     if (cfg.connect === "on") {
       var address = window.location.origin + "/mcp";
-      h += "<p>Mochi can tutor inside your own Claude or ChatGPT plan. The app can read which sections and exercises you have worked on, " +
+      h += "<p>Mochi can tutor inside your own Claude plan. The app can read which sections and exercises you have worked on, " +
         "how strong each section is, what is due for review and where you left off, and nothing else. It cannot change anything here; " +
         "an answer checked there does not count until you enter it on the page. This is for the account holder's own AI plan.</p>" +
         "<p>Connector address: <code data-connect-url>" + esc(address) + "</code></p>" +
         '<ol class="cnx-steps">' +
-        "<li><b>Claude</b> (claude.ai or the desktop app): Settings, Connectors, Add custom connector; paste the address, then sign in here when it asks.</li>" +
-        "<li><b>Claude Code</b>: run <code>claude mcp add --transport http groundup " + esc(address) + "</code>, then <code>/mcp</code> to sign in.</li>" +
-        "<li><b>ChatGPT</b>: Settings, Connectors, Create; paste the address, then sign in here when it asks.</li></ol>";
+        "<li><b>Claude</b> (claude.ai, or the desktop or mobile app): add this address as a custom connector in the app's connector settings, then sign in here when it asks.</li>" +
+        "<li><b>Claude Code</b>: run <code>claude mcp add --transport http groundup " + esc(address) + "</code>, then <code>/mcp</code> to sign in.</li></ol>";
     }
     h += '<h3 class="cnx-list-h">Connected apps</h3>';
     /* an error is shown whether or not an older list is held (a re-read that fails after a removal) */
