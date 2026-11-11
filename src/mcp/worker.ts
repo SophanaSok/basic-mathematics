@@ -168,31 +168,35 @@ export function createWorker(o: WorkerOptions): { fetch(req: Request, env: Env):
       // 3
       const origin = req.headers.get("origin");
       if (origin !== null && origin !== issuer) return reply(403, { error: "forbidden" });
-      // 4
-      const version = req.headers.get("mcp-protocol-version");
-      if (version !== null && !(PROTOCOL_VERSIONS as readonly string[]).includes(version)) {
-        return rpcReply(400, rpcError(-32600, "Unsupported protocol version"));
-      }
-      // 5
+      // 4: authorization comes before any version rule, so a client with an unknown version
+      // header still gets the 401 that starts its OAuth flow
       const auth = req.headers.get("authorization");
       if (auth === null) return reply(401, { error: "unauthorized" }, { "WWW-Authenticate": wwwAuth(issuer, false) });
       const key = auth.slice(7);
       if (auth.length !== 71 || auth.slice(0, 7).toLowerCase() !== "bearer " || !KEY.test(key)) {
         return reply(401, { error: "unauthorized" }, { "WWW-Authenticate": wwwAuth(issuer, true) });
       }
-      // 6
+      // 5
       const len = req.headers.get("content-length");
       if (len !== null && /^[0-9]+$/.test(len.trim()) && Number(len.trim()) > MAX_BODY) return reply(413, { error: "too_large" });
       const text = await req.text();
       if (new TextEncoder().encode(text).length > MAX_BODY) return reply(413, { error: "too_large" });
-      // 7
+      // 6
       const type = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
       if (type !== "application/json") return reply(415, { error: "unsupported_media_type" });
-      // 8
+      // 7
       let parsed: unknown;
       try { parsed = JSON.parse(text); } catch { return rpcReply(400, rpcError(-32700, "Parse error")); }
       const msg = parseMessage(parsed);
       if ("error" in msg) return rpcReply(400, msg.error);
+      // 8: the version header, once the message is known and before any database call. Only an
+      // initialize request is exempt (its body negotiates); a notification with an unknown version
+      // is refused too. The body is a plain -32600, never a code a modern client reads as its own.
+      const version = req.headers.get("mcp-protocol-version");
+      const isInit = "request" in msg && msg.request.method === "initialize";
+      if (version !== null && !isInit && !(PROTOCOL_VERSIONS as readonly string[]).includes(version)) {
+        return rpcReply(400, rpcError(-32600, "Unsupported protocol version"));
+      }
       if ("notification" in msg) return reply(202, null);
       // 9
       const full = needs(msg.request);

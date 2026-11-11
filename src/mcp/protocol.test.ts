@@ -52,6 +52,10 @@ describe("handle", () => {
     expect(r.result).toEqual({ content: [{ type: "text", text: "later" }], isError: true });
   });
   it("offers the newest version first", () => {
-    expect(PROTOCOL_VERSIONS[0]).toBe("2025-06-18");
+    expect(PROTOCOL_VERSIONS[0]).toBe("2025-11-25");
+  });
+  it("still negotiates 2025-06-18 when that is asked", () => {
+    const r = handle(req("initialize", { protocolVersion: "2025-06-18" }), ctx) as any;
+    expect(r.result.protocolVersion).toBe("2025-06-18");
   });
 });
