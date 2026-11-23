@@ -49,6 +49,10 @@ import { detectTier, readProbe, stepDown, lower, pixelRatio, TIERS, AMBIENT_MS, 
   var box = document.querySelector("[data-map3d]");
   var host = document.querySelector("[data-course-index]");
   if (!C || !C.parts || !BM3D || !BM3D.load || !box || !host) return;
+  /* the contents page is the chapter list */
+  box.hidden = true;
+  document.documentElement.removeAttribute("data-world");
+  return;
   /* the Parts the map draws: a beside Part (the skill packs) has no island on it */
   var MAP_PARTS = C.parts.filter(function (part) { return !part.beside; });
 

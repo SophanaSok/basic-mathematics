@@ -20,8 +20,7 @@
     return p && typeof p === "object" ? p : {};
   }
   function wanted() {
-    var p = prefs();
-    return !!p.sound && !p.calm;
+    return false;
   }
   function enabled() {
     return wanted() && !!Ctx && document.visibilityState !== "hidden";

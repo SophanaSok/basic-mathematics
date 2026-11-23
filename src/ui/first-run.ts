@@ -8,8 +8,7 @@
        `replay` and keeps `seen`. The key is this device's only (store.ts), written silent.
      - Where a card names a part of the bar, that part wears data-guide-spot while the card is
        up: a ring by outline only, so no width moves (tools/suites/hud.js measures them).
-     - No animation at all, so Study mode and reduced motion need nothing extra; the cards
-       show in both (the guide is information) and card 4 says what is off in Study mode.
+     - No animation at all, so reduced motion needs nothing extra; the cards are information.
      - Installed on every page that has the settings sheet, for the replay button, which is
        added to the sheet's Comfort group here because the sheet's markup is the build's. */
 
@@ -23,14 +22,13 @@ const CARDS: Card[] = [
   { title: "Read, then do.",
     body: "A chapter opens one piece at a time. Each piece ends in a question; answer it to go on, or skip it and the course brings you back. Press ? any time for the keyboard shortcuts." },
   { title: "Clues are free.",
-    body: "Every problem has Show a clue from the start. A clue never costs anything. A wrong answer on a lesson question costs nothing either: it tells you which slip to look for." },
+    body: "Every problem has Show a clue from the start. A clue never costs anything. A wrong answer tells you which slip to look for, and never takes anything away." },
   { title: "Right? Compare.",
-    body: "Once you are right the worked solution opens by itself. Reading it with the box in view earns a shield that absorbs your next miss." },
-  { title: "The bar at the top.", spot: ".hud-level, .hud-xp, .hud-streak, .hud-hearts",
-    body: "Your level, XP toward the next level, and a flame for days in a row. In a practice set you also see three hearts; a wrong answer costs one, a clue or the solution never does.",
-    calm: "Your level, XP toward the next level, and a flame for days in a row. Study mode is on, so hearts and the combo are off: nothing here is lost by a wrong answer." },
+    body: "Once you are right the worked solution opens by itself. Compare your route with the one shown. That comparison is where most of the learning happens." },
+  { title: "Come back to it.",
+    body: "A section you have solved comes back after a gap, as a few fresh questions. The progress page lists what is due and which sections are worth rereading." },
   { title: "Make it yours.", spot: ".hud-menu",
-    body: "Study mode removes hearts, bosses, motion and sound and keeps every hint. Reduce motion, sound and theme live in the menu (top right), and so does this guide." }
+    body: "Theme, the reading panel, motion and keyboard shortcuts live in the menu (top right), and so does this guide." }
 ];
 
 let dlg: HTMLDialogElement | null = null;

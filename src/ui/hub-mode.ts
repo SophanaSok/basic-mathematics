@@ -160,28 +160,7 @@ function note(host: HTMLElement): void {
 }
 
 function mount(): void {
-  const host = document.querySelector<HTMLElement>("[data-hub-mode]");
-  if (!host || !w().BMGame || !w().BMStore || group) return;
-  group = document.createElement("div");
-  group.className = "hub-mode-group";
-  group.setAttribute("role", "radiogroup");
-  group.setAttribute("aria-label", "Show the course as");
-  radios = { list: button("List", "list"), map: button("Map", "map") };
-  group.appendChild(radios.list);
-  group.appendChild(radios.map);
-  host.appendChild(group);
-  paint();
-  note(host);
-  if (!listening) {
-    listening = true;
-    w().BMStore.on((c: { type?: string }) => {
-      if (c && (c.type === "prefs" || c.type === "reset" || c.type === "sync")) paint();
-    });
-    window.addEventListener("load", paint);
-    /* assets/map3d.js says when the world comes up or goes down */
-    window.addEventListener("bm:map3d", paint);
-    window.setTimeout(paint, 2000);
-  }
+  /* the contents page is the chapter list; the map control is not drawn */
 }
 
 export const api = {

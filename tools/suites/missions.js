@@ -23,7 +23,7 @@ module.exports = {
           const lis = Array.from(document.querySelectorAll(".missions li"));
           const done = lis.filter(li => li.getAttribute("data-done") === "true").map(li => li.textContent.trim());
           const heads = Array.from(document.querySelectorAll(".missions-head")).map(h => h.textContent.trim());
-          const badHead = heads.filter(t => !/^Missions — 0 of \d+$/.test(t));
+          const badHead = heads.filter(t => !/^Try these — 0 of \d+$/.test(t));
           const play = window.BMPlay ? window.BMPlay.chapter(chapter) : null;
           const inExercise = Array.from(document.querySelectorAll(".ex .missions")).length;
           return { n: lis.length, done, heads: heads.length, badHead, bmTotal: window.BMMissions ? window.BMMissions.total() : null,

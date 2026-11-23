@@ -149,9 +149,8 @@
     });
     set.groups = groups;
 
-    var name = review ? ((Q.echoes || {})[chapter.part.id] || "Mixed review") : boss ? boss.name : chapter.title;
-    var taunt = !review && boss ? boss.taunt : "";
-    var kicker = review ? "Mixed review · Encounter" : Site.chapterName(chapter) + " · Encounter";
+    var name = review ? "Mixed review" : "Practice";
+    var kicker = review ? "From earlier chapters in this part" : Site.chapterName(chapter);
     set.name = name;
 
     var svg = '<svg class="sigil" data-solid="' + esc(region.solid || "cube") + '" data-left="' + exs.length +
@@ -168,8 +167,7 @@
       '<div class="encounter-sigil" aria-hidden="true">' + svg + "</div>" +
       '<div class="encounter-main">' +
         '<p class="encounter-kicker">' + esc(kicker) + "</p>" +
-        '<p class="encounter-boss"><b>' + esc(name) + "</b>" +
-          (taunt ? ' <span class="encounter-taunt" hidden>' + esc(taunt) + "</span>" : "") + "</p>" +
+        '<p class="encounter-boss"><b>' + esc(name) + "</b></p>" +
         '<div class="encounter-bar" role="progressbar" aria-label="' + (review ? "Mixed review set" : "Practice set") +
           '" aria-valuemin="0" aria-valuemax="' + exs.length + '" aria-valuenow="0">' + segs + "</div>" +
         '<p class="encounter-status"></p>' +
@@ -188,7 +186,7 @@
     set.sigil = box.querySelector(".sigil");
     set.faces = slice(box.querySelectorAll("[data-face]"));
     set.kicker = box.querySelector(".encounter-kicker");
-    set.taunt = box.querySelector(".encounter-taunt");
+    set.taunt = null;
     set.bar = box.querySelector(".encounter-bar");
     set.segs = slice(box.querySelectorAll(".encounter-seg"));
     set.status = box.querySelector(".encounter-status");
@@ -273,23 +271,14 @@
     if (set.taunt) set.taunt.hidden = isCalm || !(guess !== null || st.solved > 0);
 
     set.bar.setAttribute("aria-valuenow", String(st.solved));
-    set.bar.setAttribute("aria-valuetext", st.solved + " of " + st.total + " solved, " + st.hp + " left");
+    set.bar.setAttribute("aria-valuetext", st.solved + " of " + st.total + " solved");
     set.segs.forEach(function (seg, i) {
       var before = seg.getAttribute("data-how");
       seg.setAttribute("data-how", st.how[i]);
       if (hit && before === "open" && st.how[i] !== "open") flag(seg, "data-fresh", 900);
     });
 
-    set.status.innerHTML = st.won
-      ? "<b>Cleared</b>" + (medal ? " · " + MEDALS[medal] + " medal" : "")
-      : "<b>" + st.hp + "</b> left" + (isCalm ? "" : ' · <span class="encounter-hearts" role="img" aria-label="' +
-        st.hearts + ' of 3 hearts">' + heartsHtml(st.hearts) + "</span>");
-    /* the heart just lost breaks once; a restored or synced count never does */
-    if (fresh && prev && st.hearts < prev.hearts && !st.won && !isCalm) {
-      var lost = slice(set.status.querySelectorAll(".encounter-hearts i")).slice(st.hearts, prev.hearts);
-      lost.forEach(function (i) { i.setAttribute("data-break", ""); });
-      setTimeout(function () { lost.forEach(function (i) { i.removeAttribute("data-break"); }); }, 400);
-    }
+    set.status.innerHTML = "<b>" + st.solved + "</b> of " + st.total + " solved";
 
     var w = wardsFor(set, st);
     if (set.wards.innerHTML !== w.html) set.wards.innerHTML = w.html;
@@ -324,13 +313,9 @@
     if (fresh && prev) {
       if (st.won && !prev.won) cue = "down";
       else if (newWard) cue = "ward";
-      else if (st.hearts < prev.hearts && !isCalm) cue = "heart";
       if (st.hp < prev.hp && !st.won) {
-        announce(st.hp + (st.hp === 1 ? " problem" : " problems") + " left in " +
+        announce(st.solved + " of " + st.total + " solved in " +
           (set.review ? "the mixed review." : "the practice set."), { priority: "low", key: "enc-" + set.id });
-      }
-      if (st.hearts < prev.hearts && !isCalm && !st.won) {
-        announce(st.hearts + " of 3 hearts left in this set.", { priority: "low", key: "hearts-" + set.id });
       }
     }
 
@@ -345,7 +330,7 @@
       setTimeout(function () { finale(set); }, 700);
     }
 
-    if (fresh && prev && st.hearts === 0 && prev.hearts > 0 && !st.won && !isCalm) regroup(set, opts.missKey);
+    if (fresh && prev && st.misses >= 3 && !st.won && !set.regroupShown) regroup(set, opts.missKey);
 
     /* the boss answers a lost heart in the voice of the slip; the next solve ends it */
     if (st.hp < (prev ? prev.hp : st.hp) || st.won) set.say = "";
@@ -375,10 +360,7 @@
   function revisitLine(set, st, medal) {
     var el = set.result;
     el.setAttribute("data-revisit", "true");
-    var html = "<p><b>" + esc(set.name) + "</b> " + (set.review ? "cleared" : "is down") +
-      (medal ? " · " + stars(medal, true) + " " + MEDALS[medal] + " medal" : "") +
-      " · " + st.first + " of " + st.total + " right the first time" +
-      (set.review ? "" : ' · <a href="' + rematchHref() + '">Rematch in the Arena</a>') + "</p>";
+    var html = "<p><b>" + esc(set.name) + "</b> finished · " + st.first + " of " + st.total + " right the first time</p>";
     if (el.innerHTML !== html) el.innerHTML = html;
     el.hidden = false;
   }
@@ -428,12 +410,8 @@
     if (!st.won) return;
     var medal = Game.medal(chapterId, set.id), isCalm = calm(), el = set.result;
     el.removeAttribute("data-revisit");
-    var html = '<p class="encounter-result-title" tabindex="-1"><b>' + esc(set.name) + "</b> " + (set.review ? "cleared." : "is down.") + "</p>";
-    html += '<p class="encounter-medal" data-step="1" data-medal="' + medal + '">' + stars(medal) + " " + MEDALS[medal] + " medal</p>";
+    var html = '<p class="encounter-result-title" tabindex="-1"><b>' + esc(set.name) + "</b> finished.</p>";
     html += '<div class="stats" data-step="2"><div class="stat"><b>' + cnt(st.first) + " of " + st.total + "</b><span>right the first time</span></div>";
-    if (!isCalm) html += '<div class="stat"><b>' + cnt(st.hearts) + " of 3</b><span>hearts kept</span></div>";
-    /* the medal counts what hearts do not: problems solved with the solution open first
-       (setStats marks less misses), so a medal below the hearts can be read from here */
     var openFirst = st.marks - st.misses;
     if (openFirst > 0) html += '<div class="stat"><b>' + cnt(openFirst) + " of " + st.total + "</b><span>solved with the solution open</span></div>";
     html += "</div>";
@@ -452,16 +430,11 @@
           return '<a href="' + esc(href) + '">' + esc(r.label + " " + r.section.title) + "</a>";
         }).join(", ") + "."
       : "Nothing in this set stands out as shaky.") + "</p>";
-    var got = Game.unlockedSince ? Game.unlockedSince(loadedAt) : [];
-    if (got.length) {
-      html += '<p class="encounter-ach" data-step="5">Unlocked: ' + got.map(function (a) { return "<b>" + esc(a.title) + "</b>"; }).join(", ") + ".</p>";
-    }
     var next = nextChapter();
     html += '<p class="encounter-actions" data-step="6">' +
       (next
         ? '<a class="btn" href="' + esc(root + next.path) + '">Next chapter</a>'
         : '<a class="btn" href="' + root + 'index.html">Course contents</a>') +
-      (set.review ? "" : ' <a class="btn ghost" href="' + rematchHref() + '">Rematch in the Arena</a>') +
       ' <button type="button" class="btn ghost" data-open-all>Open all solutions</button></p>';
     el.innerHTML = html;
     el.hidden = false;
@@ -476,15 +449,13 @@
     /* the short reveal: the rows above are already final, so this only dresses them; it
        plays once per set and medal, never under reduced motion or Study mode (BMResults) */
     if (window.BMResults) window.BMResults.playResults(el, { key: chapterId + "/" + set.id + "/" + medal, heading: el.querySelector(".encounter-result-title") });
-    announce(set.name + (set.review ? " cleared. " : " is down. ") + MEDALS[medal] + " medal, " + st.first + " of " +
-      st.total + " right the first time.", { priority: "high" });
+    announce(set.name + " finished. " + st.first + " of " + st.total + " right the first time.", { priority: "high" });
 
     var still = window.BMFx ? window.BMFx.still() : false;
     var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
     if (r && (r.bottom > window.innerHeight || r.top < 0) && el.scrollIntoView) {
       try { el.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" }); } catch (e) { el.scrollIntoView(false); }
     }
-    if (window.BMFx) window.BMFx.confetti();
   }
 
   /* ------------------------------------------------------------- regroup --- */
@@ -508,10 +479,9 @@
     var info = mostMissed(set);
     var el = document.createElement("div");
     el.className = "encounter-regroup";
-    el.innerHTML = "<p><b>Regroup.</b> That is three misses in this set, so the hearts are gone, but nothing is " +
-      "lost or locked. " + (info
-        ? "Most of the misses trace back to <b>" + esc(info.full) + "</b>; rereading it usually helps more than another try."
-        : "Rereading the section behind this problem usually helps more than another try.") + "</p>" +
+    el.innerHTML = "<p><b>Worth a reread.</b> " + (info
+        ? "Most of the misses trace back to <b>" + esc(info.full) + "</b>. Reading that section again, with a pencil, usually helps more than another try."
+        : "Reading the section behind this problem again, with a pencil, usually helps more than another try.") + "</p>" +
       '<p class="encounter-regroup-actions">' +
       (info ? '<a class="btn" href="' + esc(info.href) + '">Reread ' + esc(info.label) + "</a> " : "") +
       '<button type="button" class="btn ghost" data-keep-going>Keep going</button></p>';
@@ -524,7 +494,7 @@
       if (f) try { f.focus(); } catch (e) { /* nothing to focus */ }
     });
     /* under the hearts key, so it replaces the "0 of 3 hearts" line instead of repeating it */
-    announce("No hearts left in this set. " + (info ? "Worth rereading " + info.full + "." : "Worth rereading the section."),
+    announce((info ? "Worth rereading " + info.full + "." : "Worth rereading the section."),
       { priority: "normal", key: "hearts-" + set.id });
   }
 
@@ -533,7 +503,7 @@
     if (!Game.hudHearts) return;
     var live = sets.filter(function (s) { return s.prev && !s.prev.won && s.prev.state === "active"; })
       .sort(function (a, b) { return b.lastTouched - a.lastTouched; })[0];
-    Game.hudHearts(live && !calm() ? { lives: live.prev.hearts, max: 3, id: live.id } : null);
+    Game.hudHearts(null);
   }
 
 
@@ -607,12 +577,7 @@
   function barRefresh(fresh, hit) {
     var el = barEl();
     if (!el) return;
-    var want = null, best = -1;
-    if (!calm()) {
-      sets.forEach(function (s) {
-        if (s.secIn && !s.cardIn && !(s.prev && s.prev.won) && s.inAt > best) { want = s; best = s.inAt; }
-      });
-    }
+    var want = null;
     if (!want) {
       barSet = null;
       if (!el.hidden) el.hidden = true;

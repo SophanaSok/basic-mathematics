@@ -238,7 +238,7 @@
     });
     function title() {
       var n = items.filter(function (it) { return it.done; }).length;
-      head.textContent = n === items.length ? "Missions — all " + n + " done" : "Missions — " + n + " of " + items.length;
+      head.textContent = n === items.length ? "Try these — all " + n + " done" : "Try these — " + n + " of " + items.length;
     }
     function check() {
       items.forEach(function (it) {

@@ -1234,3 +1234,19 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   @keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
   @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
 }
+
+/* The course is for studying. Score chips, lives, the boss picture, the pet and the
+   course-world map stay off the page even when an older script still builds them. */
+.topbar .hud-where {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.encounter { grid-template-columns: minmax(0, 1fr); }
+.encounter-sigil, .encounter-taunt, .encounter-hearts, .encounter-medal, .encounter-ach,
+.bossbar, .ex-reward, .xp-fly, .fx-burst, .fx-canvas, .companion, #mochi, .pop-mochi,
+[data-map3d], [data-hub-mode], .arena-board, .arena-bigscore, .hud-combo, .hud-hearts,
+.hud-xp, .hud-streak, .hud-level, .hud-facets, .hud-sound {
+  display: none !important;
+}

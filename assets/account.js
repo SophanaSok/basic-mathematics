@@ -1930,7 +1930,7 @@
         (creq ? '<p class="fine" data-connect-pending>Sign in, then you can connect ' + esc(CONNECT_APPS[creq.app]) + " to your progress.</p>" : "") +
         returnedNote() + setAsideNote() +
         "<h2>Sign in or create an account</h2>" +
-        "<p>An account keeps your progress, streak and attempt history in one place, so they follow you to " +
+        "<p>An account keeps your progress and attempt history in one place, so they follow you to " +
         "another browser or device. The course itself never needs one.</p>" +
         providerButtons() +
         field("acct-email", "Email", "email", 'autocomplete="email" required') +

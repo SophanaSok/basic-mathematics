@@ -5,9 +5,8 @@ sequence of Serge Lang's *Basic Mathematics*: four parts, seventeen chapters, 76
 
 Every chapter has prose written to be read with a pencil, worked examples with each step shown,
 interactive figures where a picture beats words, and a practice set that grades itself and shows
-full solutions. It plays like a game — a boss for every practice set, a combo meter, levels,
-achievements, playable 3D problems and a timed Arena — and every one of those rules is there to
-help the mathematics stick.
+full solutions. A wrong answer is information, not a score: clues, worked solutions, and a
+review of what you have already learned are what make the mathematics stick.
 
 **Read it here: [learn.groundupmath.org](https://learn.groundupmath.org)**
 
@@ -136,89 +135,44 @@ whether you are right — only **Check** does — so the answer has to come from
 wiggling until something lines up. Where 3D is not available the same scene is drawn flat, with the
 same controls and the same answers.
 
-### XP, streaks, and what to review
-
-Correct answers and missions earn XP — most when right first time, less after a miss, least once
-the solution has been opened. In the Arena, XP from one section falls the more you come back to it
-in a day (after earlier runs have paid two answers from it, its answers count half; after four, a
-quarter), and the finishing bonus is paid in full for two runs a day, then 1. Your first run of a
-day pays in full however its questions fall, a Repair's five on one section included, and the next
-day it is all back, because spacing practice out teaches more than piling it up. The result says when that happened and why. A clue never costs anything, and no help pays more than working it
-out: the first clue changes nothing, an answer right first time after the second or third clue earns
-what an answer right after a miss does, and an answer given with the solution open earns less. The
-header shows your level, today's XP against a daily goal, and your streak of active days.
+### What to review
 
 The contents page and the top of each chapter show **your next steps**: up to three, each with
-the reason for it. First the sections due for a check that the Arena can ask about (linking to its
-due review; a section is first due a day after you last solved something there, not straight
-away), then the section your answers found hardest (linking to a Repair run), then where you left
-off. Sections the Arena has no problems for are not on the card, since nothing could mark them
-checked; the due review lists them. It pays no XP, stays in Study mode, and
-"Hide for today" puts it away until tomorrow.
+the reason for it. First the sections due for a check (linking to the due review; a section is
+first due a day after you last solved something there, not straight away), then the section your
+answers found hardest (linking to a short practice on that section), then where you left off.
+Sections with no fresh problems yet are not on the card, since nothing could mark them checked;
+the due review lists them. **Hide for today** puts the card away until tomorrow.
 
 The **[progress page](https://learn.groundupmath.org/progress)** turns the
 record into advice. The course notes how each question went (tries, misses, whether the solution
 was opened first) and lists the **sections worth rereading**, weakest first, alongside the ones
 going well. A short version appears above each chapter's recap.
 
-### The game
+### Practice
 
-- **Combo.** Each answer right first time fills one of five pips, and a full meter adds up to
-  double XP. A first miss on a practice problem costs two pips, and so does answering one with
-  its solution open, so reading the solution first never leaves you better off than trying and
-  missing. A clue never costs a pip, opening the solution costs nothing until you answer with it
-  open, and an answer right first time after the second or third clue leaves the meter as it was.
-  Reading a solution *after* getting the answer earns a shield against the next miss.
-- **Encounters.** Each practice set is a boss: the tempting wrong idea behind the chapter's opening
-  puzzle. Every problem solved wears it down, in any order. A wrong answer costs one of three
-  hearts; help never does. The medal counts the problems got wrong and the ones solved with the
-  solution open (the finale says how many, beside the hearts kept), so reading the solution first
-  is never worth more than a miss, and it decides nothing else: running out of hearts locks
-  nothing, and the course points you at the section to reread.
-- **The Arena** is the only place with a clock. It serves freshly generated problems from sections
-  you have already solved, because speed practice helps with what you know and hurts with what you
-  are still learning. A wrong answer costs a heart and stops the clock while you read the hint;
-  "I don't know" costs nothing, so guessing never pays. Its modes: a **Standard run** of ten
-  questions, the **Daily** (five, one attempt a day), a **Boss rematch** of a chapter, a
-  **Repair** of a weak section (untimed, no hearts), and the **Due review**
-  ([arena.html?mode=review](https://learn.groundupmath.org/arena?mode=review)),
-  which asks only about the sections due for a check today, most overdue first, at most two
-  questions from each and ten in all, with no hearts; the clock follows your tempo. A section
-  you have not met in the Arena yet is first due a day after you last solved something in it on
-  its page. A section the Arena has no problems for is listed there as due on its page, with a
-  link to it. The
-  result shows how many answers were right first time, and what share, as information only:
-  there is no score to aim for.
-- **Levels and achievements** come from XP. The achievements reward study habits — right first
-  time, repairing a weak section, reading solutions, finishing review sets — never speed alone.
-- **Study mode**, the first choice in the settings sheet (the menu button in the header), keeps
-  hints, reviews and progress and removes hearts, the combo, the bosses, motion and sound, for
-  anyone who wants the course without the game. The clues, the questions about a wrong answer,
-  the solutions, the due review and the next-step card stay: they are the course, not the game.
-  (In the code and the stores it is still `calm`.)
-- **The settings sheet** also holds sound and its volume, Reduce motion and Reduce transparency
-  (on top of what the device asks for: while the device asks, or Study mode is on for motion, the
-  switch shows on and cannot be turned off), the theme (light, dark or match the system), the
-  reading panel, graphics quality and the Map view. Every setting stays on the device.
-- **The course world.** The contents page opens on the List; the Map, a small 3D world of the
-  course, is one click away, and the choice stays on the device. The world has four regions,
-  one per Part (the Foundry for algebra, the Fields for geometry, the Grid for coordinates, the
-  Observatory for the rest), each a terrace with its chapters standing on it as islands, a ring
-  for how much of each is solved, a shrinking boss for what is left and a flag once it is done.
-  Click an island to open its chapter (on a phone, tap once to pick it, again to open it), or use
-  the four buttons above it to fly to a Part. The chapter list below the introduction is always
-  there and is the same course in words; it is what a screen reader and the keyboard use, and
-  focusing a chapter in it picks that chapter's island, so the world is on it when you scroll back
-  up (where the world is on screen too, you see it fly there). Graphics quality in the settings sheet picks how
-  much the world draws (Auto, Low, Medium, High); the Map view switch, or the List / Map control
-  on the contents page, picks the world or the list. The world moves for a few seconds after you
-  touch it and then holds still; in Study mode and with Reduce motion it never moves at all.
+- **Clues and solutions.** A clue never costs anything. A wrong answer opens nothing by itself.
+  Once you are right, the worked solution opens so you can compare routes. Opening the solution
+  before you answer is still your choice.
+- **Practice sets.** Each set is a list of problems and a count of how many are solved. Several
+  misses point at the section to reread. Nothing locks.
+- **Review** serves freshly generated problems from sections you have already solved. There is
+  no clock. **Due review**
+  ([arena.html?mode=review](https://learn.groundupmath.org/arena?mode=review))
+  asks only about the sections due today, most overdue first, at most two questions from each
+  and ten in all. A section you have not reviewed yet is first due a day after you last solved
+  something in it on its page. A section with no fresh problems is listed as due on its page,
+  with a link. The result shows how many answers were right first time. There is no score to
+  aim for. **Practice** on one weak section is five questions from that section alone.
+- **Settings** hold Reduce motion and Reduce transparency (on top of what the device asks for:
+  while the device asks, the switch shows on and cannot be turned off), keyboard shortcuts, the
+  theme (light, dark, or match the system) and the reading panel. Every setting stays on the
+  device. The contents page is the chapter list.
 - **Between pages**, in a browser that can (Chrome and Edge 126 and later, Chrome for Android,
   Safari 18.2 and later), the next page fades in under a header that stays where it is. The fade
   takes a quarter of a second, and a click in that time, even on the header, does nothing (the
-  browser's rule while a fade runs), so click again. Study mode, Reduce motion and a device that
-  asks for less motion turn the fade off, and any other browser simply opens the next page, as
-  every browser did before.
+  browser's rule while a fade runs), so click again. Reduce motion, and a device that asks for
+  less motion, turn the fade off. Any other browser simply opens the next page.
 
 ### Progress, and what is saved
 
@@ -227,8 +181,8 @@ address, `sophanasok.github.io/basic-mathematics`, only sends you on to the same
 runs none of the course, and a browser keeps what it saved for each address apart, so progress
 saved there stays there.
 
-Everything is remembered in **your browser**, in local storage — including achievements, medals
-and Arena records. Without an account nothing is sent
+Everything is remembered in **your browser**, in local storage — solved exercises, how each
+question went, and when each section is due for review. Without an account nothing is sent
 anywhere, so progress will not follow you to another browser or device, and clearing site data
 clears it. There is a deliberate reset button on the about page. The pages themselves fetch
 nothing from anyone but this site (the fonts, the maths typesetting and the 3D library are
@@ -253,7 +207,7 @@ each answer took, is kept in this browser only and deleted when the check ends.
 Answer keys live in the page source, since the grading happens in your browser. This is a course to
 learn from, not an exam — the only person you can cheat is yourself.
 
-The page is a dark game frame with the reading on a light paper panel set into it, in both themes:
+The page is a dark frame with the reading on a light paper panel set into it, in both themes:
 the light/dark toggle in the header shades the frame, and follows your system setting until you
 override it. The text, worked examples, figures and exercises stay on light paper, which is easier
 to read for long stretches.

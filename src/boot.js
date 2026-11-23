@@ -19,26 +19,12 @@
   /* the reading panel is light paper in both themes unless the reader chose a dark
      one; the theme shades the frame round it (src/styles/tokens.css) */
   root.setAttribute("data-panel", prefs.panel === "dark" ? "dark" : "light");
-  /* on only when stored as true, the rule assets/game.js prefs() reads them by, so a
-     damaged value ("yes", 1) is off here too and the HUD script, which reads
-     html[data-calm], draws what the game will */
-  var calm = prefs.calm === true;
-  if (calm) root.setAttribute("data-calm", "true");
-  root.setAttribute("data-sound", prefs.sound === true && !calm ? "on" : "off");
+  /* the course is a study tool: a stored Study-mode or sound choice no longer changes the page */
+  root.setAttribute("data-sound", "off");
   /* the settings sheet's Reduce motion and Reduce transparency: on top of what the
      device asks for, never instead of it (game.css, tokens.css) */
   if (prefs.motion === "reduce") root.setAttribute("data-motion", "reduce");
   if (prefs.transparency === "reduce") root.setAttribute("data-transparency", "reduce");
-  /* The contents page's course world stands above the hero, and its script runs after
-     the first paint. Where the device is to get 3D, as far as can be told before
-     anything loads (the first tests src/world/tiers.ts makes: WebGL 2, no Save-Data, no
-     ?3d=off, the 3D course map not switched off, the world not given up as too slow),
-     html[data-world] keeps the world's place from the first paint (assets/map3d.css), so
-     the hero does not drop when the world arrives; assets/map3d.js takes it away when the
-     world is not drawn after all. No other page has a world, and nothing there reads it. */
-  var conn = window.navigator && window.navigator.connection;
-  if (window.WebGL2RenderingContext && !(conn && conn.saveData) && !/[?&]3d=off\b/.test(window.location.search) &&
-      prefs.map === "3d" && prefs.gfxAuto !== "list") root.setAttribute("data-world", "3d");
   /* Between pages: where the browser has cross-document view transitions, every page
      opts in (the inline <style> after this script) and the next page fades in under a
      top bar that stays put (game.css, "Between pages"). Study mode and Reduce motion are

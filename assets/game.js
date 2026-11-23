@@ -230,9 +230,8 @@
   }
   function applyPrefs(p) {
     var root = document.documentElement;
-    if (p.calm) root.setAttribute("data-calm", "true");
-    else root.removeAttribute("data-calm");
-    root.setAttribute("data-sound", p.sound && !p.calm ? "on" : "off");
+    root.removeAttribute("data-calm");
+    root.setAttribute("data-sound", "off");
     /* only on a change: the 3D stages and the map repaint when it changes */
     var panel = p.panel === "dark" ? "dark" : "light";
     if (root.getAttribute("data-panel") !== panel) root.setAttribute("data-panel", panel);
@@ -1015,6 +1014,7 @@
   }
   /* the one XP card: a second answer while it is up adds to it and keeps it up */
   function xpToast(c) {
+    return;
     if (!window.MutationObserver || !document.body) return;
     if (!xpCard || !xpCard.parentNode || xpCard.hasAttribute("data-out")) {
       xpCard = showToast("", "");
@@ -1057,8 +1057,6 @@
   /* ------------------------------------------------------- unlocking ------ */
 
   function notifyUnlock(a) {
-    achToast(a.title, a.text);
-    announce("Achievement unlocked: " + a.title + ".", { priority: "high" });
     Store.emit({ type: "achievement", id: a.id, title: a.title });
   }
   function unlock(id) {
@@ -1086,13 +1084,8 @@
     if (!fresh.length) return fresh;
     var now = Date.now();
     updateGame(function (g) { fresh.forEach(function (a) { if (!g.ach[a.id]) g.ach[a.id] = now; }); });
-    if (quiet) {
-      var line = fresh.length === 1
-        ? "Achievement unlocked from earlier work: " + fresh[0].title + "."
-        : fresh.length + " achievements unlocked from earlier work.";
-      cardToast(esc(line), "ach");
-      announce(line, { priority: "high" });
-    } else fresh.forEach(notifyUnlock);
+    if (quiet) { /* recorded, not announced: a score is not part of studying */ }
+    else fresh.forEach(notifyUnlock);
     return fresh;
   }
   var evalTimer = null;
@@ -1111,10 +1104,6 @@
     }
     if (inf.level > seen.level) {
       updateRun(function (r) { r.seen.level = inf.level; });
-      var nx = info(inf.xp);
-      cardToast('<span class="toast-kicker">Level ' + inf.level + "</span> <b>" + esc(inf.rank) + "</b>" +
-        '<span class="toast-text">' + Math.max(0, nx.next - nx.xp) + " XP to level " + (inf.level + 1) + ".</span>", "level");
-      announce("Level " + inf.level + " reached: " + inf.rank + ".", { priority: "high" });
       Store.emit({ type: "level", level: inf.level, rank: inf.rank });
     }
   }
@@ -1133,6 +1122,7 @@
     still: still,
     /* up to twelve particles thrown out from the middle of `el` */
     burst: function (el) {
+      return;
       if (still() || !el || !el.appendChild) return;
       var colors = palette(el), box = document.createElement("span");
       box.className = "fx-burst";
@@ -1154,6 +1144,7 @@
     },
     /* one short fall of paper, on a canvas made for the occasion and thrown away */
     confetti: function () {
+      return;
       if (still() || !document.body) return;
       var canvas = document.createElement("canvas");
       var ctx = canvas.getContext && canvas.getContext("2d");
@@ -1332,6 +1323,7 @@
     return null;
   }
   function reward(ex, xp) {
+    return;
     if (!ex) return;
     var old = ex.querySelector(".ex-reward");
     if (old) old.parentNode.removeChild(old);
@@ -1354,6 +1346,7 @@
     }
   });
   function flyXp(ex, xp) {
+    return false;
     if (still() || calm() || !ex || !ex.querySelector || !document.body || !document.body.animate) return false;
     var chip = ex.querySelector(".ex-reward"), bar = document.querySelector(".hud-xpbar");
     if (!chip || !bar || !chip.getClientRects().length || !bar.getClientRects().length) return false;

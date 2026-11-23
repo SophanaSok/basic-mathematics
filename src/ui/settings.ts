@@ -94,7 +94,7 @@ export function mountSettings(doc: Document = document): boolean {
     const p = game!.prefs();
     const soundOn = p.sound && !p.calm;
     const forced = {
-      motion: !!(device.motion && device.motion.matches) || p.calm,
+      motion: !!(device.motion && device.motion.matches),
       transparency: !!(device.transparency && device.transparency.matches)
     };
     for (const input of inputs()) {

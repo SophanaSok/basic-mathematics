@@ -658,7 +658,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const inOrder = pureModules.map(m => 'import "' + m + '";').concat('import "../ui/core.ts";', 'import "../../assets/site.js";').join("\n");
   eq([inOrder, inOrder.replace('import "../ui/core.ts";', '// import "../ui/core.ts";'), inOrder.replace('import "../ui/core.ts";', "/* the installer */").replace('import "../../assets/site.js";', 'import "../../assets/site.js";\nimport "../ui/core.ts";')].map(coreFirst), [true, false, false],
     "… an entry that has src/ui/core.ts only commented out with //, or imports it after site.js, fails that rule");
-  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html"], "the usual top bar: brand, Contents, How to use this");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "index.html", "about.html", "arena.html"], "the usual top bar: brand, Contents, How to study, Review");
 
   /* the HUD and the sheet are in the markup: every slot labelled in a sentence, the game
      slots only where a page of the kind uses them, and every input of the sheet naming
@@ -677,17 +677,16 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     };
   };
   let h = hudOf(out);
-  eq(h.slots, ["hud-facets[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a page of no game has the combo (empty until it has pips), the level and the streak");
+  eq(h.slots, ["hud-where"], "every page's bar links to progress and carries no score, streak, lives or clock");
   check(h.labels.every(l => (l || "").split(" ").length >= 5), "every slot of the HUD has a sentence for a label: " + JSON.stringify(h.labels));
-  eq([h.after, h.strip], [["acct", "icon-btn hud-sound", "icon-btn hud-menu"], false], "then the account chip, the sound and the menu buttons; no second row");
-  eq(h.prefs, ["calm", "sound", "volume", "motion", "transparency", "keys", "companion", "mochi=pink", "mochi=lilac", "theme=light", "theme=dark", "theme=system", "panel=light", "panel=dark", "gfx=auto", "gfx=low", "gfx=mid", "gfx=high", "map3d"],
-    "the sheet: Study mode first, then sound and volume, motion, transparency, keyboard shortcuts, the companion, its color, theme, reading panel, graphics quality, the 3D map");
-  check(/Keeps hints, reviews and progress\. Removes hearts, combo, bosses, motion and sound\./.test(h.sheet.textContent) && h.links === 5, "Study mode says what it keeps and what it removes, and the sheet keeps the menu's links");
-  /* what only some kinds have comes first, so the parts every page has hold still from page
-     to page (lib/shell.js hud(): the bar is right-aligned) */
-  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-facets[slot][hidden]", "hud-hearts[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], "a chapter keeps a place for the boss's hearts, before the rest");
+  eq([h.after, h.strip], [["acct", "icon-btn hud-menu"], false], "then the account chip and the menu button; no second row");
+  eq(h.prefs, ["motion", "transparency", "keys", "theme=light", "theme=dark", "theme=system", "panel=light", "panel=dark"],
+    "the sheet: motion, transparency, keyboard shortcuts, then theme and the reading panel");
+  check(/Single keys move between exercises and pages/.test(h.sheet.textContent) && h.links === 5, "the sheet keeps the keyboard-shortcut note and the menu's links");
+  /* the same bar on a chapter and on Review, so nothing jumps between pages */
+  eq(hudOf(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html")).slots, ["hud-where"], "a chapter has the same progress link and nothing else in the bar");
   h = hudOf(render('data-depth="0" data-page="arena"'));
-  eq([h.slots, h.strip], [["hud-facets[slot][hidden]", "hud-hearts[slot][hidden]", "hud-timer[slot][hidden]", "hud-combo[hidden]", "hud-level", "hud-xp", "hud-streak"], true], "the Arena keeps a place for hearts and the clock, before the rest, and has the second row for a narrow screen");
+  eq([h.slots, h.strip], [["hud-where"], false], "Review has the same progress link, and no second row");
 
   /* the other kinds and top bars */
   eq(scripts(render('data-depth="0" data-page="dashboard"')).slice(-1), ["src/entries/dashboard.js"], "a dashboard loads the dashboard entry");
@@ -696,8 +695,8 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   out = render('data-depth="0" data-page="home" data-nav="home"');
   eq([sheets(out).slice(-3), scripts(out).slice(-1)], [["assets/scenes3d.css", "assets/map3d.css", "assets/review.css"], ["src/entries/home.js"]], "the home page has the map's stylesheet, then the next-step card's last, and the home entry");
   Object.keys(shell.PAGE_KINDS).forEach(k => check(fs.existsSync(path.join(site.ROOT, shell.PAGE_KINDS[k].entry)), "the entry of kind " + k + " exists: " + shell.PAGE_KINDS[k].entry));
-  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "about.html"], "data-nav=\"home\": no Contents link on the contents page");
-  eq(pageLinks(render('data-depth="0" data-page="page" data-nav="about"')).map(a => a.textContent).slice(1), ["Contents", "Progress"], "data-nav=\"about\": Contents and Progress");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["index.html", "about.html", "arena.html"], "data-nav=\"home\": no Contents link on the contents page");
+  eq(pageLinks(render('data-depth="0" data-page="page" data-nav="about"')).map(a => a.textContent).slice(1), ["Contents", "Review"], "data-nav=\"about\": Contents and Review");
   check(/<meta charset="utf-8">\n<meta name="robots" content="noindex">\n<meta name="viewport"/.test(render('data-depth="0" data-page="dashboard"', "x.html", HEAD + '\n<meta name="robots" content="noindex">')), "a robots tag goes right after the charset");
 
   /* chapters */
@@ -706,7 +705,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const sc = scripts(out);
   eq([sc, sheets(out)[0], sheets(out).slice(-3)], [["../../src/entries/chapter.js"], "../../src/vendor/fonts.css", ["../../assets/scenes3d.css", "../../assets/ladder.css", "../../assets/review.css"]],
     "it loads the chapter entry and the vendor stylesheets by its depth, and the scenes', the help ladder's and the next-step card's stylesheets are every chapter's, the card's last");
-  eq(pageLinks(out).map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html"], "the top bar's links climb by data-depth");
+  eq(pageLinks(out).map(a => a.getAttribute("href")), ["../../index.html", "../../index.html", "../../about.html", "../../arena.html"], "the top bar's links climb by data-depth");
   const chapterEntry = fs.readFileSync(path.join(site.ROOT, "src/entries/chapter.js"), "utf8");
   const sceneFiles = fs.readdirSync(path.join(site.ROOT, "assets/scenes")).filter(f => /\.js$/.test(f));
   eq(sceneFiles.filter(f => !chapterEntry.includes("assets/scenes/" + f)), [], "the chapter entry imports every scene file under assets/scenes/");
@@ -735,9 +734,9 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
   const facts = (html) => shellOf(parse(html));
   const base = facts(render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html"));
   eq([base.body, base.topbar.slice(0, 11)], ["<body data-depth='2' data-chapter='ch99' data-part='algebra'>",
-    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to use this -> ../../about.html",
-      "Level 1, Counter. Open your progress. -> ../../progress.html", "Sign in -> ../../account.html", "button: Sound", "button: Menu and settings",
-      "button: Close menu and settings", "Contents -> ../../index.html", "How to use this -> ../../about.html"]],
+    ["Skip to content -> #main", "∑ Basic Mathematics -> ../../index.html", "Contents -> ../../index.html", "How to study -> ../../about.html",
+      "Review -> ../../arena.html", "Open your progress: exercises solved and sections to review. -> ../../progress.html", "Sign in -> ../../account.html", "button: Menu and settings",
+      "button: Close menu and settings", "Contents -> ../../index.html", "How to study -> ../../about.html"]],
     "the record of a page: its body tag without what only the shell reads, and the top bar's links and buttons by their labels, the sheet's among them");
   check(/^<script>#[0-9a-f]+<\/script>$/.test(base.topbar[base.topbar.length - 1]) && base.topbar.length === 15, "… and last, the HUD script after the top bar as a fingerprint of its text");
   const hudChanged = render('data-depth="2" data-chapter="ch99" data-part="algebra"', "parts/p/c.html").replace('"use strict";\nfunction threshold', '"use strict";\nvar edited = 1;\nfunction threshold');
@@ -1458,7 +1457,7 @@ function refusal(fn) { try { fn(); return null; } catch (e) { return e.message; 
     const data = JSON.parse(fs.readFileSync(gen.FILE, "utf8"));
     const src = fs.readFileSync(path.join(__dirname, "lib/shell.js"), "utf8");
     const used = Array.from(new Set(Array.from(src.matchAll(/\bicon\("([a-z-]+)"\)/g)).map(m => m[1]))).sort();
-    check(used.length >= 5, "shell icons: found the icon() calls (" + used.join(", ") + ")");
+    check(used.length >= 2, "shell icons: found the icon() calls (" + used.join(", ") + ")");
     used.forEach(n => {
       const to = shell.ICON_OF[n];
       check(to && data.icons[to], "shell icons: icon(\"" + n + "\") maps to a generated icon (" + to + ")");
