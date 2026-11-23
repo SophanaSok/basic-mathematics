@@ -34,7 +34,7 @@ describe("the next best step", () => {
   it("says one section plainly, and why the due review is short", () => {
     const one = nextSteps(state([placed("ch02#one", 1, 3)]));
     expect(one[0]).toMatchObject({ kind: "due", text: "1 section due for a check", href: "arena.html?mode=review" });
-    expect(one[0].why).toBe("A short check after a gap helps a section stick. The due review asks at most two questions on it, with no hearts.");
+    expect(one[0].why).toBe("A short check after a gap helps a section stick. The review asks at most two questions on it, with no clock.");
     expect(nextSteps(state([placed("ch02#one", 1, 3), placed("ch02#two", 0, 1)]))[0].why).toMatch(/two questions on each,/);
   });
 
@@ -62,12 +62,12 @@ describe("the next best step", () => {
   it("then the weakest section, to a Repair run, or to its page without a generator", () => {
     const deck = [placed("ch01#addition", 1, 0, { status: "shaky", mastery: 0.6 }), placed("ch02#one", 1, 0, { status: "shaky", mastery: 0.3 })];
     const items = nextSteps(state(deck));
-    expect(items[0]).toMatchObject({ kind: "weak", text: "Repair §2.1 One unknown", href: "arena.html?repair=ch02%23one" });
+    expect(items[0]).toMatchObject({ kind: "weak", text: "Practice §2.1 One unknown", href: "arena.html?repair=ch02%23one" });
     const page = nextSteps(state([placed("ch01#integers", 1, 0, { status: "shaky", score: 0.5 })]));
     expect(page[0]).toMatchObject({ kind: "weak", text: "Reread §1.1 The integers", href: "parts/1/01.html#integers" });
     /* a tie goes to the section met first in the course; a row with no mastery counts as 0.5 */
     const tie = nextSteps(state([placed("ch02#two", 1, 0, { status: "shaky", mastery: 0.4 }), placed("ch02#one", 1, 0, { status: "shaky", mastery: 0.4 }), placed("ch01#addition", 1, 0, { status: "shaky", mastery: 0.5 })]));
-    expect(tie[0].text).toBe("Repair §2.1 One unknown");
+    expect(tie[0].text).toBe("Practice §2.1 One unknown");
   });
 
   it("then where the reader left off, as the Continue button has it", () => {
@@ -99,7 +99,7 @@ describe("the next best step", () => {
     const items = nextSteps(state(deck, { last: { id: "ch01", section: "addition" } }));
     expect(items.map((i) => i.kind)).toEqual(["due", "weak", "continue"]);
     expect(items.length).toBeLessThanOrEqual(NEXT_MAX_ITEMS);
-    expect(items[1].text).toBe("Repair §2.1 One unknown");
+    expect(items[1].text).toBe("Practice §2.1 One unknown");
   });
 
   it("ignores sections it does not know and records it cannot read", () => {

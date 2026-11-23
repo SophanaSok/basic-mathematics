@@ -103,7 +103,7 @@ function dueItem(input: NextInput): NextItem | null {
   return {
     kind: "due",
     text: n === 1 ? "1 section due for a check" : n + " sections due for a check",
-    why: "A short check after a gap helps a section stick. The due review asks at most two questions on " + (n === 1 ? "it" : "each") + ", with no hearts.",
+    why: "A short check after a gap helps a section stick. The review asks at most two questions on " + (n === 1 ? "it" : "each") + ", with no clock.",
     href: REVIEW_HREF
   };
 }
@@ -116,8 +116,8 @@ function weakItem(input: NextInput): NextItem | null {
   const s = input.sections[weak[0].id];
   if (input.arena.indexOf(s.id) > -1) {
     return {
-      kind: "weak", text: "Repair " + name(s),
-      why: "Your answers there needed the most help of any section. Five untimed questions, with no hearts, repair it.",
+      kind: "weak", text: "Practice " + name(s),
+      why: "Your answers there needed the most help of any section. Five questions, with no clock, are the way to practice it.",
       href: "arena.html?repair=" + encodeURIComponent(s.id)
     };
   }

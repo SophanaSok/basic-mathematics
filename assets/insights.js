@@ -99,8 +99,7 @@
       '<span class="area-meter">' + meter(pct(r.first, r.n), weak ? "weak" : "ok") +
       '<span class="area-detail">' + detail + "</span></span>" +
       (weak ? '<a class="btn ghost small" href="' + esc(r.path) + '">Reread</a>' : "") +
-      /* the Arena's untimed Repair: fresh problems on this one section */
-      (weak && Game ? '<a class="btn ghost small" href="arena.html?repair=' + encodeURIComponent(r.id) + '">Repair (untimed)</a>' : "") +
+      (weak && Game ? '<a class="btn ghost small" href="arena.html?repair=' + encodeURIComponent(r.id) + '">Practice this section</a>' : "") +
       "</li>";
   }
 
@@ -110,27 +109,19 @@
       first[r.chapter.id] = (first[r.chapter.id] || 0) + r.first;
       tried[r.chapter.id] = (tried[r.chapter.id] || 0) + r.n;
     });
-    var cols = Game ? 5 : 4;
+    var cols = 3;
     var html = '<div class="tbl-wrap"><table class="chapters"><thead><tr><th>Chapter</th><th>Exercises</th>' +
-      '<th class="num">Missions</th><th class="num">Right the first time</th>' +
-      (Game ? '<th class="num">Medal</th>' : "") + "</tr></thead><tbody>";
+      '<th class="num">Right the first time</th></tr></thead><tbody>';
     C.parts.forEach(function (part) {
       html += '<tr class="part-row" data-part="' + esc(part.id) + '"><th colspan="' + cols + '">' + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + "</th></tr>";
       part.chapters.forEach(function (ch) {
-        var c = Progress.count(ch.id), m = Play.count(ch.id);
+        var c = Progress.count(ch.id);
         html += '<tr data-part="' + esc(part.id) + '"><td><a href="' + esc(ch.path) + '">' +
           esc((ch.label === "Interlude" ? "" : ch.label + ". ") + ch.title) + "</a></td>";
         html += '<td class="cell-meter">' + (c.total
           ? meter(pct(c.solved, c.total), "part") + "<span>" + c.solved + " / " + c.total + "</span>"
           : '<span class="muted">not opened</span>') + "</td>";
-        html += '<td class="num">' + (m.total ? ico("star", "★") + " " + Math.min(m.done, m.total) + " / " + m.total : "—") + "</td>";
         html += '<td class="num">' + (tried[ch.id] ? pct(first[ch.id], tried[ch.id]) + "%" : "—") + "</td>";
-        if (Game) {
-          var md = Game.medal(ch.id, "practice");
-          html += '<td class="num cell-medal"' + (md ? ' data-medal="' + md + '"' : "") + ">" +
-            (md ? (Game.stars ? Game.stars(md, true) : '<span aria-hidden="true">' + new Array(md + 1).join(ico("star", "★")) + "</span>") +
-              " " + Game.MEDALS[md] : "—") + "</td>";
-        }
         html += "</tr>";
       });
     });
@@ -154,10 +145,10 @@
          they cannot join the deck: say so rather than claim nothing is solved */
       var solvedAny = C.chapters.some(function (ch) { return Progress.count(ch.id).solved > 0; });
       return html + '<p class="muted">' + (solvedAny
-        ? "Recall picks up a section once you have solved two of its questions on the chapter page, or one practice " +
+        ? "Review picks up a section once you have solved two of its questions on the chapter page, or one practice " +
           "problem first time (solves saved before this browser kept a record of each try do not count). Sections in play come back "
-        : "Recall starts once you have solved something: sections you have solved come back ") +
-        "in the Arena at widening gaps (1, 3, 7, 14 and 30 days), which is what makes them stick.</p></section>";
+        : "Review starts once you have solved something: sections you have solved come back ") +
+        "at widening gaps (1, 3, 7, 14 and 30 days), which is what makes them stick.</p></section>";
     }
     var due = deck.filter(function (d) { return d.due; }), holding = 0, n = 0, ok = 0, last = "";
     var sched = {};
@@ -175,9 +166,9 @@
     });
     html += '<div class="stats">';
     html += tile("Due now", due.length, plural(deck.length, "section") + " in play");
-    html += tile("Holding", holding, "sections in box 4 or 5");
-    html += tile("Last practiced", last ? esc(dayLabel(last)) : "—", last ? "in the Arena" : "no Arena run yet");
-    html += tile("First-try recall", n ? ok + "<small> / " + n + "</small>" : "—", n ? pct(ok, n) + "% of Arena answers" : "");
+    html += tile("Holding", holding, "remembered across several checks");
+    html += tile("Last reviewed", last ? esc(dayLabel(last)) : "—", last ? "in a review" : "no review yet");
+    html += tile("First-try recall", n ? ok + "<small> / " + n + "</small>" : "—", n ? pct(ok, n) + "% of review answers" : "");
     html += "</div>";
     if (due.length) {
       html += '<p class="muted">Due for review: ' + due.slice(0, 6).map(function (d) {
@@ -333,14 +324,12 @@
   }
 
   function drawProgress() {
-    var solved = 0, total = 0, done = 0, stars = 0;
+    var solved = 0, total = 0, done = 0;
     C.chapters.forEach(function (ch) {
       var c = Progress.count(ch.id);
       solved += c.solved; total += c.total;
       if (c.total && c.solved >= c.total) done++;
-      stars += Math.min(Play.count(ch.id).done, Play.count(ch.id).total || Infinity);
     });
-    var streak = Activity.streak(), today = Activity.today(), goal = Activity.goal();
     var weak = Insights.weak(), strong = Insights.strong(), rows = Insights.sections();
     var tried = 0, first = 0;
     rows.forEach(function (r) { tried += r.n; first += r.first; });
@@ -353,28 +342,10 @@
         '">Switch learners on your account page.</a></p>';
     }
     html += '<div class="stats">';
-    if (Game) {
-      var lv = Game.info();
-      html += tile("Level", lv.level, esc(lv.rank) + " · " + lv.into + " / " + lv.span + " XP to level " + (lv.level + 1),
-        ' data-level="' + lv.level + '"');
-    } else {
-      html += tile("Total XP", Activity.total(), "");
-    }
-    html += tile("Streak", streak, streak === 1 ? "day" : "days", streak ? ' data-on="true"' : "");
-    html += tile("Today", today + '<small> / ' + goal + " XP</small>",
-      today >= goal ? "Goal reached" : (goal - today) + " XP to go");
     html += tile("Exercises solved", solved, plural(done, "chapter") + " finished");
     html += tile("Right the first time", tried ? pct(first, tried) + "%" : "—", tried ? "of " + tried + " questions tried" : "nothing tried yet");
-    html += tile("Missions", ico("star", "★") + " " + stars, "on the figures");
+    html += tile("Worth rereading", weak.length ? String(weak.length) : "—", weak.length ? "sections that needed help" : "nothing shaky yet");
     html += "</div>";
-
-    if (mochiWanted()) html += '<section class="panel" id="mochi" data-pet-host></section>';
-    html += '<section class="panel"><div class="panel-head"><h2>Last 14 days</h2>' +
-      '<div class="goal-pick ui" role="group" aria-label="Daily goal">Daily goal ';
-    [15, 30, 50, 80].forEach(function (g) {
-      html += '<button type="button" class="chip" data-goal="' + g + '" aria-pressed="' + (g === goal) + '">' + g + " XP</button>";
-    });
-    html += "</div></div>" + activityChart() + "</section>";
 
     html += '<section class="panel"><h2>Areas to strengthen</h2>';
     if (!rows.length) {
@@ -396,16 +367,14 @@
     }
 
     html += '<section class="panel"><h2>Chapter by chapter</h2>' + chapterTable() + "</section>";
-    if (Game) html += recallPanel() + achievementsPanel();
+    if (Game) html += recallPanel();
 
     /* says where the page's data comes from, without inviting sign-up (decision 0003) */
     if (Account && Account.configured && !Account.user()) {
       html += '<p class="muted">This page is built from what this browser has saved.</p>';
     }
-    dropMochi();
     page.innerHTML = html;
     planPanel();
-    mountMochi();
     Array.prototype.forEach.call(page.querySelectorAll("[data-goal]"), function (b) {
       b.addEventListener("click", function () {
         Activity.setGoal(b.getAttribute("data-goal"));

@@ -939,7 +939,7 @@ function world(seedStores) {
       (listeners[type] || []).forEach((fn) => fn({ viewTransition: null }));
       return skipped;
     });
-    const still = g.Game.prefs().calm === true || g.Game.prefs().motion === "reduce";
+    const still = g.Game.prefs().motion === "reduce";
     eq(skips, [still, still], "the boot script " + (still ? "skips" : "keeps") + " the view transition on both pages for a stored " + JSON.stringify(stored));
   });
   /* the transition is skipped for what the device asks too, and for Study mode switched on

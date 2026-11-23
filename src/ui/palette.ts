@@ -26,9 +26,9 @@ export interface TargetsInput {
 
 const PAGES: [string, string][] = [
   ["Home", "index.html"],
-  ["Arena", "arena.html"],
+  ["Review", "arena.html"],
   ["Your progress", "progress.html"],
-  ["How to use this", "about.html"],
+  ["How to study", "about.html"],
   ["Your account", "account.html"],
   ["Placement check", "diagnostic.html"],
 ];

@@ -37,7 +37,7 @@ describe("targetsOf", () => {
     const t = targetsOf({ kind: "home", curriculum: fake(), sections: [{ id: "s", title: "S" }], exercises: [{ id: "e", label: "E" }], root: "/" });
     expect(t[0].kind).toBe("chapter");
     expect(t.some((x) => x.kind === "section" || x.kind === "exercise")).toBe(false);
-    expect(t.slice(-6).map((x) => x.label)).toEqual(["Home", "Arena", "Your progress", "How to use this", "Your account", "Placement check"]);
+    expect(t.slice(-6).map((x) => x.label)).toEqual(["Home", "Review", "Your progress", "How to study", "Your account", "Placement check"]);
     expect(t.slice(-6).every((x) => x.hint === "Page")).toBe(true);
   });
   it("skips chapters with no path and puts a beside Part last", () => {
@@ -49,7 +49,7 @@ describe("targetsOf", () => {
     const t = targetsOf({ kind: "home", curriculum: fake(), root: "../" });
     expect(t.every((x) => x.href!.startsWith("../"))).toBe(true);
     expect(t.find((x) => x.label === "Chapter 7 Angles")!.href).toBe("../parts/p2/ch7.html");
-    expect(t.find((x) => x.label === "Arena")!.href).toBe("../arena.html");
+    expect(t.find((x) => x.label === "Review")!.href).toBe("../arena.html");
   });
   it("still gives the pages for a null or malformed curriculum", () => {
     expect(targetsOf({ kind: "home", curriculum: null, root: "/" })).toHaveLength(6);

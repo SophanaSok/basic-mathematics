@@ -238,7 +238,7 @@ export const BINDINGS: Binding[] = [
   { keys: ["Esc"], label: "Clear the selection, then leave the map", kinds: ["home"], where: "any", group: "Course map", stage: true },
   { keys: ["1", "2", "3"], label: "Start a Standard, Daily or Review run", kinds: ["arena"], where: ["body"], group: "Go" },
   { keys: ["g h"], label: "Home", kinds: "all", where: "any", group: "Go" },
-  { keys: ["g a"], label: "Arena", kinds: "all", where: "any", group: "Go" },
+  { keys: ["g a"], label: "Review", kinds: "all", where: "any", group: "Go" },
   { keys: ["g p"], label: "Your progress", kinds: "all", where: "any", group: "Go" },
   { keys: ["g c"], label: "Contents", kinds: "all", where: "any", group: "Go" },
   { keys: ["g s"], label: "Settings", kinds: "all", where: "any", group: "Go" },

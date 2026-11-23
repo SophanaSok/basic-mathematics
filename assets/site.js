@@ -505,8 +505,8 @@
             ch.sections.length + " sections" + (fm ? " · " + fm.scored + " exercises" + mins : "")) + "</span>";
           var m = Play.count(ch.id);
           if (m.total) {
-            html += '<span class="stars" title="Missions completed on this chapter\'s figures">' + ico("star", "★") +
-              ' <span class="visually-hidden">Missions: </span>' + Math.min(m.done, m.total) + " / " + m.total + "</span>";
+            html += '<span class="stars" title="Figure tasks done in this chapter">' +
+              '<span class="visually-hidden">Figure tasks: </span>' + Math.min(m.done, m.total) + " of " + m.total + "</span>";
           }
         } else {
           html += "<span>" + ch.sections.length + " sections planned</span>";
@@ -1642,8 +1642,6 @@
     Store.on(function (c) {
       if (c.type === "xp") {
         buildHud();
-        toast("<b>+" + c.xp + " XP</b>" + (c.bonus ? ' <span class="toast-combo">combo ×' + c.mult + "</span>" : ""));
-        if (c.goalMet) toast("Daily goal reached: <b>" + Activity.goal() + " XP</b> today.", "goal");
       } else if (c.type === "attempt") {
         chapterFeedback(chapter);
       } else if (c.type === "sync") {

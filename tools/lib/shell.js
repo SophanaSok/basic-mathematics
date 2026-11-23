@@ -167,19 +167,13 @@ function hudScript() { return hudText(true); }
    (tools/game/rules.test.js loads it before assets/game.js) */
 function hudLibrary() { return hudText(false); }
 
-/* the top bar's links after the brand, by data-nav: [file at the site root, text] */
+/* the top bar's links after the brand, by data-nav: [file at the site root, text].
+   Progress itself is the one link in the HUD, on every page. */
 const NAVS = {
-  home: [["about.html", "How to use this"]],
-  about: [["index.html", "Contents"], ["progress.html", "Progress"]],
-  "": [["index.html", "Contents"], ["about.html", "How to use this"]]
+  home: [["about.html", "How to study"], ["arena.html", "Review"]],
+  about: [["index.html", "Contents"], ["arena.html", "Review"]],
+  "": [["index.html", "Contents"], ["about.html", "How to study"], ["arena.html", "Review"]]
 };
-
-/* Where the HUD's game slots are: the hearts on a page with a boss (a chapter's
-   encounter) or a run (the Arena), the clock in the Arena alone. A slot is in the markup
-   only where it can be used, and there it is laid out from the start, empty and unseen
-   until it is filled (game.css, [data-slot]), so filling it moves nothing. */
-const HEARTS_ON = ["chapter", "arena"];
-const TIMER_ON = ["arena"];
 
 /* the icons of the top bar and the sheet: Phosphor paths from src/data/icons.json (tools/gen-icons.js
    writes it), filled in currentColor on its 256-unit grid. The shell's name on the left, the set's on the right. */
@@ -204,32 +198,15 @@ function toggle(pref, label, note, cls) {
     '<span id="' + id + '-name">' + label + '</span><small id="' + id + '-note">' + note + "</small></label>";
 }
 
-/* The HUD: the game slots of the page's kind, the combo, then the level badge and XP bar
-   and the streak with today's goal as a ring. What it says is the start of a new reader's
-   (level 1, nothing today); the HUD script fills in the reader's own before first paint.
-   Every slot has a full-sentence label.
-   The order is what holds the HUD still from page to page. The bar is right-aligned (the
-   page links and the HUD are pushed right, site.css), so a part sits where the widths to
-   its right put it. Level, streak, the account chip, Sound and menu are the same width on
-   every page; the hearts and the clock are only on some kinds, and the combo shows on a
-   chapter alone when the reader has only its shield. So those come first, on the left,
-   and whatever a page adds or drops moves nothing a reader keeps an eye on (the
-   transitions suite measures every part across each navigation, the hud suite across
-   every kind of bar at every width of its sweep). */
+/* The bar's one study link: progress, meaning exercises solved and what to review.
+   No level, points, streak, lives or clock. The label is a full sentence. */
 function hud(info) {
   const p = info.prefix;
-  const lines = ['    <div class="hud" role="group" aria-label="Your progress">'];
-  lines.push('      <span class="hud-facets" role="img" aria-label="No facets yet for Mochi\'s pool." data-slot hidden data-facets>' + icon("gem") + "<b>0</b></span>");
-  if (HEARTS_ON.includes(info.kind)) lines.push('      <span class="hud-hearts" role="img" aria-label="No hearts in play" data-slot hidden></span>');
-  if (TIMER_ON.includes(info.kind)) lines.push('      <span class="hud-timer" role="timer" aria-label="No clock running" data-urgency="ok" data-slot hidden><span class="hud-timer-text"></span></span>');
-  lines.push(
-    '      <span class="hud-combo" role="img" aria-label="Combo 0 of 5, XP times 1" data-pips="0" hidden><i></i><i></i><i></i><i></i><i></i></span>',
-    '      <a class="hud-level" href="' + p + 'progress.html" aria-label="Level 1, Counter. Open your progress.">' +
-      '<span class="hud-badge" aria-hidden="true"><b>1</b></span></a>',
-    '      <span class="hud-xp" role="img" aria-label="0 of 25 XP to level 2."><span class="hud-xpbar"><i></i></span><span class="hud-xptext"><b>0</b> / <span class="hud-span">25</span> XP</span></span>',
-    '      <span class="hud-streak" role="img" aria-label="0-day streak. 0 of 30 XP today."><span class="goal-ring"></span>' + icon("flame") + "<b>0</b></span>",
-    "    </div>");
-  return lines;
+  return [
+    '    <div class="hud" role="group" aria-label="Your progress">',
+    '      <a class="hud-where" href="' + p + 'progress.html" aria-label="Open your progress: exercises solved and sections to review.">Progress</a>',
+    "    </div>"
+  ];
 }
 
 /* The settings sheet the menu button opens: a native <dialog> (src/ui/settings.ts opens
@@ -244,27 +221,16 @@ function sheet(info) {
       '<button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close menu and settings">' + icon("close") + "</button></div>",
     '    <ul class="hud-links">',
     '      <li><a href="' + p + 'index.html">Contents</a></li>',
-    '      <li><a href="' + p + 'about.html">How to use this</a></li>',
+    '      <li><a href="' + p + 'about.html">How to study</a></li>',
     '      <li><a href="' + p + 'progress.html">Your progress</a></li>',
-    '      <li><a href="' + p + 'arena.html">Arena</a></li>',
+    '      <li><a href="' + p + 'arena.html">Review</a></li>',
     '      <li><a href="' + p + 'account.html">Your account</a></li>',
     "    </ul>",
-    "    " + toggle("calm", "Study mode", "Keeps hints, reviews and progress. Removes hearts, combo, bosses, motion and sound.", "sheet-study"),
-    '    <fieldset class="sheet-group">',
-    "      <legend>Sound</legend>",
-    "      " + toggle("sound", "Sound", "Short notes for answers, the combo and bosses. Off in Study mode."),
-    '      <label class="sheet-slider"><span>Volume</span><input type="range" min="0" max="100" step="5" value="50" data-pref="volume"></label>',
-    "    </fieldset>",
     '    <fieldset class="sheet-group">',
     "      <legend>Comfort</legend>",
-    "      " + toggle("motion", "Reduce motion", "No animation and no smooth scrolling. Always on in Study mode and when your device asks for less motion."),
+    "      " + toggle("motion", "Reduce motion", "No animation and no smooth scrolling. Always on when your device asks for less motion."),
     "      " + toggle("transparency", "Reduce transparency", "Solid surfaces in place of see-through glass. Always on when your device asks for less transparency."),
     "      " + toggle("keys", "Keyboard shortcuts", "Single keys move between exercises and pages; press ? for the list."),
-    "      " + toggle("companion", "Companion", "Mochi keeps you company on chapter pages and in the Arena and reacts as you work. Hidden in Study mode."),
-    "    </fieldset>",
-    '    <fieldset class="sheet-group sheet-choice">',
-    "      <legend>Companion color</legend>",
-    '      <div class="sheet-options">' + choice("bm-mochi", "mochi", "pink", "Pink") + choice("bm-mochi", "mochi", "lilac", "Lilac") + "</div>",
     "    </fieldset>",
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Theme</legend>",
@@ -273,11 +239,6 @@ function sheet(info) {
     '    <fieldset class="sheet-group sheet-choice">',
     "      <legend>Reading panel</legend>",
     '      <div class="sheet-options">' + choice("bm-panel", "panel", "light", "Light") + choice("bm-panel", "panel", "dark", "Dark") + "</div>",
-    "    </fieldset>",
-    '    <fieldset class="sheet-group sheet-choice">',
-    "      <legend>Graphics quality</legend>",
-    '      <div class="sheet-options">' + choice("bm-gfx", "gfx", "auto", "Auto") + choice("bm-gfx", "gfx", "low", "Low") + choice("bm-gfx", "gfx", "mid", "Medium") + choice("bm-gfx", "gfx", "high", "High") + "</div>",
-    "      " + toggle("map3d", "Map view", "Opens the contents page on the course world. Off, it opens on the List. The List / Map control there sets the same choice."),
     "    </fieldset>",
     "  </dialog>"
   ];
@@ -342,10 +303,10 @@ function head(info, own) {
     .concat(['<script type="module" src="' + at(PAGE_KINDS[info.kind].entry) + '"></script>']);
 }
 
-/* The top bar, whole: the brand, the page links, the HUD, the account chip, the sound
-   and menu buttons, the Arena's second row, the settings sheet; then the HUD script.
-   Nothing is added to it later but the lesson's progress line (assets/lesson.js), so its
-   layout is the one the first paint has. */
+/* The top bar, whole: the brand, the page links, the progress link, the account chip
+   and the menu button, then the settings sheet and the HUD script. Nothing is added
+   to it later but the lesson's progress line (assets/lesson.js), so its layout is the
+   one the first paint has. */
 function topbar(info) {
   const p = info.prefix;
   return ['<a class="skip-link" href="#main">Skip to content</a>',
@@ -357,12 +318,9 @@ function topbar(info) {
     .concat(hud(info))
     .concat([
       '    <a class="acct" href="' + p + 'account.html">Sign in</a>',
-      '    <button class="icon-btn hud-sound" type="button" data-sound-toggle aria-pressed="false" aria-label="Sound">' + icon("sound-on") + icon("sound-off") + "</button>",
       '    <button class="icon-btn hud-menu" type="button" aria-expanded="false" aria-controls="hud-sheet" aria-label="Menu and settings">' + icon("menu") + "</button>",
       "  </nav>"
     ])
-    .concat(TIMER_ON.includes(info.kind) ? ['  <div class="hud-strip" aria-hidden="true" hidden><span class="hud-hearts" hidden></span>' +
-      '<span class="hud-timer" data-urgency="ok" hidden><span class="hud-timer-text"></span></span></div>'] : [])
     .concat(sheet(info))
     .concat(["</header>", "<script>\n" + hudScript() + "\n</script>"])
     .join("\n");

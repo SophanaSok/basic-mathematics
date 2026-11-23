@@ -64,10 +64,10 @@
   var GAME_KEY = Store.keys.game || "bm.game.v1";
 
   var MODES = {
-    standard: { n: 10, label: "Standard run" },
-    daily: { n: 5, label: "Daily" },
-    boss: { n: 10, label: "Boss rematch" },
-    repair: { n: 5, label: "Repair" },
+    standard: { n: 10, label: "Mixed practice" },
+    daily: { n: 5, label: "Daily practice" },
+    boss: { n: 10, label: "Chapter practice" },
+    repair: { n: 5, label: "Practice" },
     review: { n: Review.constants.REVIEW_MAX, label: "Due review" }
   };
   var TEMPO = { standard: 1, extended: 2, untimed: 0 };
@@ -289,8 +289,8 @@
   function planRun(mode, opt) {
     opt = opt || {};
     var d = deck(), t = tempo(), factor = TEMPO[t];
-    /* a due review is a check, not a fight: no question in it costs a heart */
-    var heartsOn = mode !== "repair" && mode !== "review" && factor > 0 && !calm();
+    /* practice is untimed and has no lives: a clock and a heart cost attention the problem should have */
+    var heartsOn = false;
     var n = MODES[mode].n, ids = [];
     var seed = mode === "daily" ? Gen.hash("daily:" + today()) : ((now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
     var rng = Gen.rng(seed);
@@ -342,7 +342,7 @@
       var spec = gens[offsets[id] % gens.length];
       offsets[id]++;
       var s = soft(id);
-      var timed = factor > 0 && spec.timed && !s && mode !== "repair";
+      var timed = false;
       var par = Math.round(spec.par * Math.max(1, factor) * (metInArena(id) ? 1 : 1.5));
       return {
         g: spec.id, s: rng.int(1, 2147483646), sec: id, st: statusOf(d, id),
@@ -960,13 +960,10 @@
 
   /* disabled is true (greyed: nothing to start yet) or "done" (spent for today, still legible) */
   function modeTile(mode, meta, extra, disabled) {
-    var best = bests()[mode];
     return '<button type="button" class="arena-mode" data-act="start" data-mode="' + mode + '"' + (disabled ? " disabled" : "") + (disabled === "done" ? ' data-done="true"' : "") + ">" +
       '<span class="arena-mode-name">' + MODES[mode].label + "</span>" +
       '<span class="arena-mode-meta">' + meta + "</span>" +
       (extra ? '<span class="arena-mode-extra">' + extra + "</span>" : "") +
-      (best && best.score ? '<span class="arena-mode-best">Best <b>' + best.score + "</b></span>" : "") +
-      (best && cleanMs(best.clean) ? '<span class="arena-mode-best">Fastest clean <b>' + msText(best.clean.ms) + "</b></span>" : "") +
       "</button>";
   }
 
@@ -985,55 +982,35 @@
   function resumeHtml(r) {
     if (!openRun(r)) return "";
     var answered = r.ans.filter(Boolean).length;
-    var bits = [MODES[r.mode].label, "question " + Math.min(r.qs.length, r.i + 1) + " of " + r.qs.length, plural(r.score, "point")];
-    if (r.hearts !== null) bits.splice(2, 0, r.hearts + " of " + r.max + " hearts");
+    var bits = [MODES[r.mode].label, "question " + Math.min(r.qs.length, r.i + 1) + " of " + r.qs.length];
     return '<div class="arena-card arena-resume" data-part="' + esc(secInfo(r.qs[r.i].sec) ? secInfo(r.qs[r.i].sec).part : "algebra") + '">' +
-      "<h2>An unfinished run</h2><p>" + esc(bits.join(" · ")) + ".</p>" +
+      "<h2>An unfinished practice</h2><p>" + esc(bits.join(" · ")) + ".</p>" +
       '<div class="arena-actions"><button type="button" class="btn" data-act="resume">Resume</button>' +
-      '<button type="button" class="btn ghost" data-act="bank">Bank it</button></div>' +
-      '<p class="arena-fine">Banking ends the run now and pays XP for the ' + plural(answered, "answer") + " already given. Starting a new run banks it too.</p></div>";
+      '<button type="button" class="btn ghost" data-act="bank">Save and stop</button></div>' +
+      '<p class="arena-fine">Saving stops here and keeps the ' + plural(answered, "answer") + " already given. Starting something else does that too.</p></div>";
   }
 
   function contextHtml(d) {
     var html = "", ch, ids;
     if (params.boss) {
       ch = C.chapterById(params.boss);
-      if (!ch) return '<div class="arena-card"><h2>Boss rematch</h2><p>There is no chapter called “' + esc(params.boss) + '”.</p></div>';
-      ids = ch.sections.map(function (s) { return ch.id + "#" + s.id; }).filter(hasGen);
-      var quest = window.BM_QUEST && window.BM_QUEST.bosses && window.BM_QUEST.bosses[ch.id];
-      var title = Site.chapterName(ch) + (quest && quest.name ? " · " + quest.name : " · " + ch.title);
-      if (ids.length < 2) {
-        return '<div class="arena-card arena-context" data-part="' + ch.part.id + '"><h2>Boss rematch: ' + esc(title) + "</h2>" +
-          "<p>A rematch needs problems from at least two of the chapter's sections, and the Arena can generate problems for " +
-          (ids.length ? "only one so far (" + esc(secName(ids[0])) + ")" : "none of them yet") +
-          ". Ten questions from one section would be drill, not a rematch.</p>" +
-          "<p>A Standard run mixes " + (ids.length ? "that section" : "this chapter's material") + " with the rest of your deck instead.</p>" +
-          '<div class="arena-actions"><button type="button" class="btn" data-act="start" data-mode="standard">Start a Standard run</button></div></div>';
-      }
-      var untried = ids.filter(function (id) { return statusOf(d, id) === "new"; });
-      /* a rematch raises a medal the set has earned; before the set is cleared it wins none */
-      var uncleared = gameCall("cleared", ch.id) === false;
-      html += '<div class="arena-card arena-context" data-part="' + ch.part.id + '"><h2>Boss rematch: ' + esc(title) + "</h2>" +
-        "<p>Ten questions from " + ids.map(function (id) { return esc(secInfo(id).label); }).join(", ") + ". " +
-        (uncleared
-          ? 'A rematch can only raise the medal of a cleared set, so until you <a href="' + esc(root() + ch.path + "#practice") + '">clear the practice set on the chapter page</a> it is practice and wins no medal.'
-          : "Finish with all three hearts for Gold, with one or two for Silver.") + "</p>";
-      if (untried.length) html += '<p class="arena-fine">' + esc(untried.map(secName).join(", ")) + (untried.length === 1 ? " is" : " are") + " not in your deck yet, so " + (untried.length === 1 ? "its questions come" : "their questions come") + " without clock or hearts.</p>";
-      if (!uncleared && (tempo() === "untimed" || calm())) html += '<p class="arena-fine">Medals need the clock and hearts, so with this tempo the rematch is practice only.</p>';
-      return html + '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="boss">Start the rematch</button></div></div>';
+      if (!ch) return '<div class="arena-card"><h2>Practice</h2><p>There is no chapter called “' + esc(params.boss) + '”.</p></div>';
+      return '<div class="arena-card arena-context" data-part="' + ch.part.id + '"><h2>Practice is on the chapter page</h2>' +
+        '<p>Work the problems in <a href="' + esc(root() + ch.path) + '">' + esc(Site.chapterName(ch) + " · " + ch.title) + "</a>. " +
+        "Fresh questions on one section you found hard are listed below, once that section is ready.</p></div>";
     }
     if (params.repair) {
       var info = secInfo(params.repair);
-      if (!info) return '<div class="arena-card"><h2>Repair</h2><p>There is no section called “' + esc(params.repair) + '”.</p></div>';
+      if (!info) return '<div class="arena-card"><h2>Practice</h2><p>There is no section called “' + esc(params.repair) + '”.</p></div>';
       if (!hasGen(params.repair)) {
-        return '<div class="arena-card arena-context" data-part="' + info.part + '"><h2>Repair: ' + esc(secName(params.repair)) + "</h2>" +
-          "<p>The Arena cannot generate problems for this section yet. The best repair is the chapter itself: " +
-          '<a href="' + esc(root() + info.path) + '">reread ' + esc(info.label) + "</a>, then try its practice problems again.</p></div>";
+        return '<div class="arena-card arena-context" data-part="' + info.part + '"><h2>Practice: ' + esc(secName(params.repair)) + "</h2>" +
+          "<p>There are no fresh problems for this section yet. The way to practice it is the chapter itself: " +
+          '<a href="' + esc(root() + info.path) + '">reread ' + esc(info.label) + "</a>, then try its problems again.</p></div>";
       }
-      return '<div class="arena-card arena-context" data-part="' + info.part + '"><h2>Repair: ' + esc(secName(params.repair)) + "</h2>" +
-        "<p>Five questions from this one section, untimed and without hearts. Get every one right, at least four of them first time, and the section counts as repaired.</p>" +
+      return '<div class="arena-card arena-context" data-part="' + info.part + '"><h2>Practice: ' + esc(secName(params.repair)) + "</h2>" +
+        "<p>Five questions from this one section, with no clock. Getting them right, most of them the first time, is how you know the section is in good shape.</p>" +
         '<p class="arena-fine">Stuck on the first one? <a href="' + esc(root() + info.path) + '">Reread ' + esc(info.label) + "</a> first; there is no hurry here.</p>" +
-        '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="repair">Start the repair</button></div></div>';
+        '<div class="arena-actions"><button type="button" class="btn big" data-act="start" data-mode="repair">Start practicing</button></div></div>';
     }
     if (params.mode === "review") return reviewHtml(d);
     return "";
@@ -1043,21 +1020,21 @@
 
   function overdueText(row) {
     var late = Review.recall.overdue(row, today());
-    if (late === null) return "not checked in the Arena yet";
+    if (late === null) return "not checked in a review yet";
     return late <= 0 ? "due today" : plural(late, "day") + " overdue";
   }
   /* "Nothing is due …" with the day the next section comes due, when one will; with no
      date to give, why: nothing solved yet, or nothing solved the Arena has problems for */
   function nothingDueHtml(d, onPage) {
     var nd = nextDueOf(d);
-    var html = onPage ? "Nothing the Arena can ask about is due for a check today." : "Nothing is due for a check today.";
+    var html = onPage ? "Nothing Review can ask about is due for a check today." : "Nothing is due for a check today.";
     if (nd) {
       html += " The next is " + esc(secName(nd.id)) + ', due <time datetime="' + esc(nd.day) + '">' +
         (dayWords(nd.day) === "tomorrow" ? "tomorrow" : "on " + esc(dayWords(nd.day))) + "</time>.";
     } else if (!Object.keys(d).length) {
       html += " A section joins your reviews once you have solved it on its chapter page.";
     } else if (!Object.keys(d).some(hasGen)) {
-      html += " The Arena has no problems yet for the sections you have solved, so it has none of them to check.";
+      html += " Review has no fresh problems yet for the sections you have solved, so it has none of them to check.";
     }
     return html;
   }
@@ -1073,7 +1050,7 @@
     if (ids.length) {
       html += "<p>" + (ids.length === 1 ? "One section is" : plural(ids.length, "section") + " are") + " due for a check today. " +
         "This review asks " + plural(slots.length, "question") + ", at most two from a section, most overdue first, taking turns between sections. " +
-        "No question costs a heart, and the clock follows your tempo.</p>";
+        "There is no clock. A section answered right the first time waits longer; a miss brings it back sooner.</p>";
       html += '<ol class="review-due">' + due.arena.filter(function (r) { return asked[r.id]; }).map(function (r) {
         return '<li data-section="' + esc(r.id) + '"><span class="review-name">' + esc(secName(r.id)) + '</span> <small class="review-when">' + esc(overdueText(r)) + "</small></li>";
       }).join("") + "</ol>";
@@ -1086,8 +1063,8 @@
     if (due.page.length) {
       var one = due.page.length === 1;
       html += "<h3>Due, on the page</h3>" +
-        '<p class="arena-fine">The Arena has no problems for ' + (one ? "this section" : "these sections") + " yet, so the check is on " + (one ? "its page" : "their pages") +
-        ": reread the section and work its examples again. Only an answer in the Arena moves a check along, so " + (one ? "it stays" : "they stay") + " listed here.</p>" +
+        '<p class="arena-fine">Review has no fresh problems for ' + (one ? "this section" : "these sections") + " yet, so the check is on " + (one ? "its page" : "their pages") +
+        ": reread the section and work its examples again. Only an answer in Review moves a check along, so " + (one ? "it stays" : "they stay") + " listed here.</p>" +
         '<ul class="review-page">' + due.page.map(function (r) {
           var info = secInfo(r.id);
           return '<li data-section="' + esc(r.id) + '"><a href="' + esc(root() + info.path) + '">' + esc(secName(r.id)) + '</a> <span class="arena-chip" data-status="due">due, on the page</span></li>';
@@ -1099,7 +1076,7 @@
   /* the review's tile in the lobby: the count due, or the day of the next check */
   function reviewTile(d) {
     var due = dueToday(d);
-    if (due.arena.length) return modeTile("review", plural(due.arena.length, "section") + " due · no hearts", "Most overdue first, up to " + MODES.review.n + " questions");
+    if (due.arena.length) return modeTile("review", plural(due.arena.length, "section") + " due", "Most overdue first, up to " + MODES.review.n + " questions, no clock");
     var nd = nextDueOf(d);
     return modeTile("review", "Nothing due today", nd ? "Next check " + (dayWords(nd.day) === "tomorrow" ? "tomorrow" : "on " + esc(dayWords(nd.day))) : "", true);
   }
@@ -1108,7 +1085,7 @@
     var n = dueToday(d).page.length;
     if (!n) return "";
     return '<p class="arena-fine review-onpage">' + (n === 1 ? "One due section is" : plural(n, "due section") + " are") +
-      ' checked on the page, since the Arena has no problems for ' + (n === 1 ? "it" : "them") + ' yet: <a href="arena.html?mode=review">see the due review</a>.</p>';
+      ' checked on the page, since Review has no fresh problems for ' + (n === 1 ? "it" : "them") + ' yet: <a href="arena.html?mode=review">see the due review</a>.</p>';
   }
 
   function deckHtml(d) {
@@ -1145,14 +1122,14 @@
       var open = ready || (!anyReady && !html);
       html += '<details class="arena-part" data-part="' + part.id + '"' + (open ? " open" : "") + ">" +
         "<summary><span>" + (part.beside ? "" : "Part " + part.num + " — ") + esc(part.name) + '</span><span class="arena-part-count">' + ready + " of " + total + " ready</span></summary>" +
-        (ready ? "" : '<p class="arena-part-hint">A section is ready once you have answered one of its scored exercises right the first time, solved two of its problems on the chapter page, or answered one of its Arena questions right the first time.</p>') +
+        (ready ? "" : '<p class="arena-part-hint">A section is ready once you have answered one of its scored exercises right the first time, solved two of its problems on the chapter page, or answered one of its review questions right the first time.</p>') +
         '<ul class="arena-secs">' + rows + "</ul></details>";
     });
     var sum = counts.solid + counts.shaky + counts.picked;
     var line = sum
       ? "<b>" + plural(sum, "section") + "</b> ready: " + [counts.solid ? counts.solid + " solid" : "", counts.shaky ? counts.shaky + " shaky" : "", counts.picked ? counts.picked + " picked by hand" : ""].filter(Boolean).join(", ") + "."
       : "No sections ready yet.";
-    line += " Tick a section that is not ready yet to practice it untimed and without hearts.";
+    line += " Tick a section that is not ready yet to practice it with no clock.";
     return { html: html, count: sum, hard: counts.solid, line: line };
   }
 
@@ -1184,24 +1161,17 @@
     html += resumeHtml(saved);
     html += contextHtml(d);
     if (!dk.count) {
-      html += '<div class="arena-card arena-empty"><h2>Your deck fills up as you solve</h2>' +
-        "<p>The Arena asks about a section once you have solved two of its problems on the chapter page, or one practice problem first time, so the clock never meets material you are still learning. " +
-        "Solve a few practice problems in any chapter and those sections join your deck here.</p>" +
-        "<p>Want to try it now? Check sections below to practice them untimed and without hearts.</p>" +
+      html += '<div class="arena-card arena-empty"><h2>Review fills up as you solve</h2>' +
+        "<p>A section joins your reviews once you have solved two of its problems on the chapter page, or one practice problem the first time. " +
+        "Solve a few problems in any chapter and those sections can be checked here, after a gap.</p>" +
+        "<p>Want to try a section now? Check it below. There is no clock.</p>" +
         '<p><a class="btn ghost" href="index.html">Go to the chapters</a></p></div>';
     }
-    if (!params.boss && !params.repair || dk.count) {
-      html += '<div class="arena-modes" role="group" aria-label="Start a run">' +
-        modeTile("standard", "10 questions · 3 hearts", dk.hard ? "" : (dk.count ? "Untimed until a section is solid" : ""), !dk.count) +
-        dailyTile(dk, saved) +
-        (params.mode === "review" ? "" : reviewTile(d)) +
-        "</div>";
-      if (params.mode !== "review") html += onPageNote(d);
-      if (dk.count && dk.count < 2) html += '<p class="arena-fine">With one section ready a run stops at five questions, so it never leans on one section for more than half.</p>';
+    if (!params.repair && !params.boss && params.mode !== "review") {
+      html += '<div class="arena-modes" role="group" aria-label="What to review">' + reviewTile(d) + "</div>";
+      html += onPageNote(d);
     }
-    html += tempoHtml();
-    html += '<section class="arena-deck" aria-labelledby="arena-deck-h"><div class="arena-deck-head"><h2 id="arena-deck-h">Your deck</h2><p>' + dk.line + "</p></div>" + dk.html + "</section>";
-    html += rulesHtml();
+    html += '<section class="arena-deck" aria-labelledby="arena-deck-h"><div class="arena-deck-head"><h2 id="arena-deck-h">Sections you can practice</h2><p>' + dk.line + "</p></div>" + dk.html + "</section>";
     html += "</div>";
     screenEl().innerHTML = html;
   }
@@ -1458,60 +1428,27 @@
     setScreen("result");
     var res = run.result || buildResult(run, run.ended || "complete");
     var weak = weakest(res), out = res.ended === "hearts";
-    var title = out ? "Out of hearts" : res.ended === "banked" ? "Run banked" : res.mode === "repair" ? (res.repaired ? "Section repaired" : "Repair finished") : "Run complete";
+    var title = out ? "Worth a reread" : res.ended === "banked" ? "Practice saved" : res.mode === "repair" ? (res.repaired ? "Section in good shape" : "Practice finished") : res.mode === "review" ? "Review finished" : "Practice finished";
     var html = '<section class="arena-result" aria-labelledby="arena-result-h">';
-    html += '<p class="arena-kicker">' + esc(MODES[res.mode].label) + (res.mode === "boss" && res.boss ? " · " + esc(Site.chapterName(C.chapterById(res.boss))) : "") +
-      " · " + esc(TEMPO_LABEL[res.tempo] || "") + " tempo</p>";
+    html += '<p class="arena-kicker">' + esc(MODES[res.mode].label) + "</p>";
     html += '<h2 id="arena-result-h" tabindex="-1">' + title + "</h2>";
     var wInfo = weak.length ? secInfo(weak[0].id) : null;
     html += '<p class="arena-lead" data-step="1"><span>' + (res.n === 0 ? "No questions answered." : "<b>" + res.firstTry + " of " + res.n + "</b> right the first time") +
       (weak.length ? " · weakest <b>" + esc(secName(weak[0].id)) + "</b>" : "") + "</span>" +
       (wInfo ? '<a class="btn small" href="' + esc(root() + wInfo.path) + '">Reread ' + esc(wInfo.label) + "</a>" : "") + "</p>";
-    html += '<p class="arena-bigscore" data-step="2"><b>' + cnt(res.score) + "</b> points" +
-      '<span class="arena-bigscore-sub">this run\'s score</span></p>';
-    if (res.mode === "boss") {
-      html += res.medal
-        ? '<p class="arena-medal" data-step="3" data-medal="' + res.medal + '">' + (res.medal === 3 ? "Gold medal: all three hearts kept." : res.medal === 2 ? "Silver medal: finished with a heart to spare." : "Bronze medal: you saw the rematch through.") + "</p>"
-        : '<p class="arena-fine" data-step="3">' + (!res.ranked ? "Untimed rematches are practice only and win no medal."
-          : res.ended === "banked" ? "A banked rematch wins no medal."
-          : res.uncleared ? "No medal: a rematch can only raise the medal of a cleared set. Clear this chapter's practice set on its page, and a rematch like this one will count."
-          : "No medal this time: finish with at least one heart to earn one.") + "</p>";
-    }
     if (res.mode === "repair") {
       html += '<p data-step="4">' +
-        (res.repaired ? "That is enough to mark " + esc(secName(res.section)) + " as repaired."
-          : res.finished ? "Every answer right, four of them first time, marks it repaired; reread it and try again whenever you like."
-          : "A repair counts once all " + res.planned + " questions are answered, every one right and four of them first time. Start it again whenever you like.") + "</p>";
+        (res.repaired ? esc(secName(res.section)) + " held up: every answer right, and most of them the first time."
+          : res.finished ? "Every answer right, four of them the first time, is the mark that this section is in good shape. Reread it and try again whenever you like."
+          : "This practice counts once all " + res.planned + " questions are answered, every one right and four of them the first time. Start it again whenever you like.") + "</p>";
     }
     if (res.mode === "review" && res.n) {
       var checked = {};
       res.answers.forEach(function (a) { checked[a.section] = 1; });
       html += '<p data-step="4">' + plural(Object.keys(checked).length, "section") + " checked. A section answered right the first time each time goes further into its schedule; one with a miss comes back sooner.</p>";
     }
-    if (res.replay) html += '<p class="arena-fine" data-step="4">That day\'s Daily had already been played, here or in another tab or on another device, so this one pays no XP and keeps no best.</p>';
-    html += '<div class="arena-stats">';
-    /* the tiles take 5.., then the board, the review block and the actions take the next three numbers */
     var ts = 5;
-    if (res.hearts !== null) html += tile("Hearts left", cnt(res.hearts) + " <small>of " + res.maxHearts + "</small>", heartsHtml(res.hearts, res.maxHearts), ts++);
-    /* the first-try count and rate, as information: no target to hit */
-    var rate = res.n ? Math.round((100 * res.firstTry) / res.n) + "% right the first time" : "";
-    html += tile("First try", cnt(res.firstTry) + " <small>of " + res.n + "</small>", [rate, res.n < res.planned ? plural(res.planned - res.n, "question") + " not reached" : ""].filter(Boolean).join(" · "), ts++);
-    html += tile("XP earned", "+" + cnt(res.xp), "what levels you up" + (xpNote(res) ? " · " + xpNote(res) : ""), ts++);
-    html += tile("Best streak", cnt(res.bestStreak), "", ts++);
-    if (res.ranked && res.finished) {
-      /* the fastest clean run: this run's time, and what is on record for the mode */
-      /* kept under the mode by game.js recordRun (a rematch under "boss", whatever the
-         chapter), under "boss:<chapter>" by the fallback above */
-      var cb = res.cleanBest, b = bests();
-      var fastest = cb ? cb.best : cleanMs((b[res.mode] || {}).clean) || (res.mode === "boss" && res.boss ? cleanMs((b["boss:" + res.boss] || {}).clean) : 0);
-      html += tile("Clean time", res.clean ? msText(res.clean.ms) : "—",
-        cb && cb.fresh ? "New fastest" : fastest ? "Fastest " + msText(fastest) : "Every answer right the first time, all on the clock, sets one.", ts++);
-    }
-    html += "</div>";
-    /* filled after this script and account.js have both started (fillBoard) */
-    if (boardWanted(res)) html += '<div data-arena-board data-step="' + ts + '"></div>';
     if (res.keys) html += '<p class="arena-fine">Played by keyboard alone.</p>';
-    html += reducedHtml(res);
     html += '<div class="arena-review" data-step="' + (ts + 1) + '">';
     if (weak.length) {
       html += '<h3>Worth another look</h3><ul class="arena-weak">';
@@ -1519,25 +1456,23 @@
         var inf = secInfo(b.id);
         html += "<li><span>" + esc(secName(b.id)) + ' <small>' + b.first + " of " + b.n + " first try</small></span>" +
           (inf ? '<span class="arena-weak-links"><a href="' + esc(root() + inf.path) + '">Reread</a>' +
-            (hasGen(b.id) ? ' <a href="arena.html?repair=' + encodeURIComponent(b.id) + '">Repair, untimed</a>' : "") + "</span>" : "") + "</li>";
+            (hasGen(b.id) ? ' <a href="arena.html?repair=' + encodeURIComponent(b.id) + '">Practice this section</a>' : "") + "</span>" : "") + "</li>";
       });
       html += "</ul>";
     } else if (res.n) {
       html += "<p>Every answer was right the first time. Nothing to reread from this run.</p>";
     }
     html += "</div>";
-    html += '<div class="arena-actions" data-step="' + (ts + 2) + '"><button type="button" class="btn" data-act="again">' + (res.mode === "daily" ? "A Standard run" : res.mode === "review" ? "Review what is still due" : "Another run") + "</button>" +
-      '<button type="button" class="btn ghost" data-act="lobby">Back to the lobby</button></div>';
+    html += '<div class="arena-actions" data-step="' + (ts + 2) + '"><button type="button" class="btn" data-act="again">' + (res.mode === "review" ? "Review what is still due" : "Practice again") + "</button>" +
+      '<button type="button" class="btn ghost" data-act="lobby">Back</button></div>';
     html += "</section>";
     screenEl().innerHTML = html;
     var h = screenEl().querySelector("#arena-result-h");
     if (h) { try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
-    if (boardWanted(res)) setTimeout(function () { fillBoard(res); }, 0);
     /* the short reveal: the rows above are already final, so this only dresses them; it plays
        once per run, never on a result put back after a reload (src/ui/results.ts) */
     if (window.BMResults) window.BMResults.playResults(screenEl().querySelector(".arena-result"), { key: runId(run), restored: !!restored, heading: h });
-    say(title + ". " + (res.n ? res.firstTry + " of " + res.n + " right the first time. " : "No questions answered. ") + res.score + " points, " + res.xp + " XP." +
-      (res.reduced && res.reduced.length ? " Less XP than usual for a section practiced a lot today; spaced practice tomorrow counts more." : "") +
+    say(title + ". " + (res.n ? res.firstTry + " of " + res.n + " right the first time." : "No questions answered.") +
       (weak.length ? " Worth rereading: " + secName(weak[0].id) + "." : ""));
   }
 
